@@ -1,0 +1,8 @@
+from django.contrib import admin
+from .models import {% for entidade in entidades %}{{ entidade.nome|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+{% for entidade in entidades %}
+@admin.register({{ entidade.nome|title }})
+class {{ entidade.nome|title }}Admin(admin.ModelAdmin):
+    list_display = [{% for campo in entidade.campos.all %}'{{ campo.nome|lower }}', {% endfor %}]
+{% endfor %}

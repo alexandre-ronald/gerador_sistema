@@ -1,0 +1,60 @@
+
+Caminho: sistema/templates/gerador/snippets/*
+
+Pilar 1: O Coração do Projeto Gerado.
+
+    1. O arquivo settings.txt
+    Este molde gera o settings.py do sistema novo. Ele já vem configurado para aceitar os módulos criados no seu Wizard e gerenciar o Login.
+
+    2. O arquivo urls_root.txt
+    Este molde gera o urls.py principal do sistema novo. Ele faz o include automático de todos os módulos.
+
+    3. O arquivo manage.txt
+    Um arquivo manage.py básico para o sistema novo não precisar ser editado.
+
+Pilar 2: O Motor de Dados (models.txt e forms.txt)
+
+    1. O arquivo models.txt
+    Este snippet percorre cada Entidade e gera a classe Django, mapeando os tipos de campos (CharField, IntegerField, etc.) que você definiu no Wizard.
+
+    2. O arquivo forms.txt
+    Para que o Cadastro e o Update funcionem sem código extra, usaremos ModelForms. Eles herdam as validações do modelo automaticamente.
+
+    3. O arquivo admin.txt
+    Para que o usuário também possa gerir os dados pelo /admin/ do Django.
+
+Pilar 3: A Lógica e a Interface (Views e URLs do App)
+
+    1. O arquivo views.txt
+    Este snippet gera as 4 operações (Listar, Criar, Editar, Deletar) para cada Entidade, já com mixins de autenticação e mensagens de sucesso.
+
+    2. O arquivo urls_app.txt
+    Este snippet cria o roteamento interno do App. Ele usa o app_name para que possamos usar links como {% url 'vendas:cliente_list' %}.
+
+    3. O arquivo apps_config.txt
+    Necessário para o Django reconhecer o App formalmente.
+
+O Layout Visual Final.
+
+    1. O Esqueleto: base_html.txt
+    Este arquivo define a estrutura global: Sidebar à esquerda com links automáticos para todos os Apps e uma Navbar no topo.
+
+    2. A Listagem: html_list.txt (Com Cards de Sumário)
+    Este template gera a tela de visualização com o resumo estatístico no topo e a tabela de dados.
+
+    3. O Formulário: html_form.txt
+    Template para as telas de Criar e Editar.
+
+Estes são os arquivos de suporte (boilerplates) que garantem que o Django reconheça as pastas como pacotes, que o servidor consiga rodar (WSGI) e que a tela de Login e Dashboard inicial existam.
+
+    1. O arquivo index_html.txt
+    Esta será a "Home" do sistema gerado, onde o usuário cai logo após fazer o login.
+
+    2. O arquivo login_html.txt
+    Essencial para a funcionalidade de "caixa". O Django espera este arquivo em registration/login.html.
+
+    3. O arquivo html_delete.txt
+    A tela de confirmação de exclusão.
+
+    4. Arquivos Técnicos (init.txt, wsgi.txt)
+    Arquivos curtos, mas vitais para o Python.

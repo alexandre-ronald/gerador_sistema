@@ -1,0 +1,15 @@
+from django import forms
+from .models import {% for entidade in entidades %}{{ entidade.nome|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+{% for entidade in entidades %}
+class {{ entidade.nome|title }}Form(forms.ModelForm):
+    class Meta:
+        model = {{ entidade.nome|title }}
+        fields = '__all__'
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Injeta classes do Bootstrap em todos os campos automaticamente
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control'})
+{% endfor %}

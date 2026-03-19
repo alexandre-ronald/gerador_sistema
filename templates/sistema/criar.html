@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}{% if sistema %}Editar Sistema{% else %}Criar Novo Sistema{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Título -->
+  <div class="mb-4">
+    <h1 class="fw-bold">
+      {% if sistema %}Editar Sistema: {{ sistema.nome }}{% else %}Criar Novo Sistema{% endif %}
+    </h1>
+    <p class="text-muted">
+      {% if sistema %}
+        Altere as informações abaixo e salve.
+      {% else %}
+        Preencha os dados para registrar um novo sistema que será gerado posteriormente.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-4">
+
+      <form method="post">
+        {% csrf_token %}
+
+        <!-- Nome -->
+        <div class="mb-3">
+          <label for="id_nome" class="form-label">
+            Nome do Sistema <span class="text-danger">*</span>
+          </label>
+          <input 
+            type="text"
+            name="nome"
+            id="id_nome"
+            required
+            value="{{ sistema.nome|default:'' }}"
+            class="form-control"
+            placeholder="Ex: CRM Empresarial, Loja Virtual 2025">
+        </div>
+
+        <!-- Descrição -->
+        <div class="mb-3">
+          <label for="id_descricao" class="form-label">
+            Descrição
+          </label>
+          <textarea 
+            name="descricao"
+            id="id_descricao"
+            rows="4"
+            class="form-control"
+            placeholder="Breve descrição do propósito do sistema...">{{ sistema.descricao|default:'' }}</textarea>
+        </div>
+
+        <!-- Caminho geração -->
+        <div class="mb-3">
+          <label for="id_caminho_geracao" class="form-label">
+            Pasta de destino para geração do projeto
+          </label>
+
+          <div class="input-group">
+            <input
+              type="text"
+              name="caminho_geracao"
+              id="id_caminho_geracao"
+              value="{{ sistema.caminho_geracao|default:'' }}"
+              class="form-control"
+              placeholder="Ex: /home/user/projetos/gerados/meu_crm">
+
+            <button type="button" class="btn btn-outline-secondary">
+              <i class="fas fa-folder-open"></i>
+            </button>
+          </div>
+
+          <div class="form-text">
+            Onde o gerador vai criar a pasta do projeto Django completo.
+          </div>
+        </div>
+
+        <!-- Botões -->
+        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+          <a href="{% url 'sistema:lista' %}" class="btn btn-secondary">
+            Cancelar
+          </a>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>
+            {% if sistema %}Salvar Alterações{% else %}Criar Sistema{% endif %}
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

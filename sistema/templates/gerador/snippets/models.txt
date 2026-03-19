@@ -1,0 +1,22 @@
+from django.db import models
+
+{% for entidade in entidades %}
+class {{ entidade.nome|title }}(models.Model):
+    {% for campo in entidade.campos.all %}
+    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
+        {% if campo.max_length %}max_length={{ campo.max_length }},{% endif %}
+        null={% if campo.null %}True{% else %}False{% endif %},
+        blank={% if campo.blank %}True{% else %}False{% endif %},
+        verbose_name="{{ campo.nome|title }}"
+    )
+    {% endfor %}
+
+    class Meta:
+        verbose_name = "{{ entidade.nome|title }}"
+        verbose_name_plural = "{{ entidade.nome|title }}s"
+
+    def __str__(self):
+        # Tenta retornar o primeiro campo de texto como representação da string
+        return str(self.{{ entidade.campos.all.0.nome|lower }})
+
+{% endfor %}

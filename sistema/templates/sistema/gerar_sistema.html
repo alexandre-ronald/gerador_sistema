@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}Gerar Sistema: {{ sistema.nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="width:95%;">
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h4 class="fw-bold">
+        Gerar Sistema: <span class="text-primary">{{ sistema.nome }}</span>
+      </h4>
+      <p class="text-muted mb-0">
+        Pronto para criar a estrutura completa do projeto Django?
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-outline-success">
+        <i class="bi bi-pencil-square me-1"></i> Editar Configurações
+      </a>
+      <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top:20px;">
+        <div class="card-body p-4">
+          <h5 class="card-title fw-bold mb-4 border-bottom pb-2">Resumo da Modelagem</h5>
+          
+          <div class="mb-3">
+            <label class="small text-muted d-block">Diretório de Destino</label>
+            <code class="text-break small text-dark bg-light p-1 rounded">
+              {{ sistema.caminho_geracao|default:"Caminho não definido" }}
+            </code>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 text-center">
+                <h3 class="fw-bold mb-0">{{ sistema.modulos.count }}</h3>
+                <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Módulos</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 text-center">
+                <h3 class="fw-bold mb-0 text-primary">{{ total_entidades|default:"0" }}</h3>
+                <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Entidades</small>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+          
+          <ul class="list-unstyled small">
+            <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i> Banco: <strong>{{ sistema.banco_dados|upper }}</strong></li>
+            <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i> Login/Auth: <strong>Configurado</strong></li>
+            <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i> Layout: <strong>Bootstrap 5 + Sidebar</strong></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-4">
+          <h4 class="fw-bold mb-3 text-dark">Iniciar Motores</h4>
+          <p class="text-muted mb-4">
+            O sistema executará a leitura dos seus metadados e escreverá os arquivos físicos no disco. 
+            <span class="text-danger fw-semibold">Atenção: Arquivos existentes no destino serão sobrescritos.</span>
+          </p>
+
+          <div class="d-grid gap-2">
+            <button type="button" 
+                    id="btn-gerar" 
+                    onclick="iniciarGeracao({{ sistema.pk }})" 
+                    class="btn btn-success btn-lg shadow-sm py-3 fw-bold">
+              <i class="bi bi-rocket-takeoff-fill me-2"></i>
+              <span>GERAR PROJETO AGORA</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-dark border-0 rounded-4 shadow-lg overflow-hidden">
+        <div class="card-header bg-dark border-secondary py-3 d-flex justify-content-between align-items-center">
+          <span class="text-white small fw-bold"><i class="bi bi-terminal me-2"></i> MONITOR DE EXECUÇÃO</span>
+          <div class="d-flex gap-1">
+            <div class="bg-danger rounded-circle" style="width: 10px; height: 10px;"></div>
+            <div class="bg-warning rounded-circle" style="width: 10px; height: 10px;"></div>
+            <div class="bg-success rounded-circle" style="width: 10px; height: 10px;"></div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div id="log-monitor" 
+               style="height:350px; overflow-y:auto; font-family: 'Courier New', Courier, monospace; font-size:0.9rem; background-color: #121212;" 
+               class="p-4 text-success">
+            <div class="text-secondary opacity-50">[Aguardando ordem de comando...]</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #log-monitor::-webkit-scrollbar { width: 6px; }
+  #log-monitor::-webkit-scrollbar-track { background: #121212; }
+  #log-monitor::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+  .log-entry { margin-bottom: 4px; border-left: 2px solid transparent; padding-left: 10px; }
+  .log-success { border-left-color: #198754; color: #75f0a0; }
+  .log-info { border-left-color: #0dcaf0; color: #8de3f5; }
+  .log-error { border-left-color: #dc3545; color: #ff8b94; }
+  .animate-in { animation: fadeIn 0.3s ease-out forwards; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+</style>
+
+<script>
+async function iniciarGeracao(sistemaId) {
+    const btn = document.getElementById('btn-gerar');
+    const monitor = document.getElementById('log-monitor');
+    const spanBtn = btn.querySelector('span');
+    const iconBtn = btn.querySelector('i');
+
+    // Estado inicial
+    monitor.innerHTML = '<div class="log-entry log-info animate-in">>> Conectando ao serviço de geração...</div>';
+    btn.disabled = true;
+    btn.classList.replace('btn-success', 'btn-secondary');
+    spanBtn.innerText = "EXECUTANDO GERAÇÃO...";
+    iconBtn.className = "bi bi-arrow-repeat spin-animation me-2";
+
+    try {
+        const url = `/gerar/${sistemaId}/processar/`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.mensagem || "Erro inesperado no servidor.");
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'sucesso') {
+            // Efeito de digitação dos logs
+            for (const msg of data.logs) {
+                await new Promise(r => setTimeout(r, 100)); // Delay para leitura
+                const linha = document.createElement('div');
+                linha.className = 'log-entry log-success animate-in';
+                linha.innerHTML = `<span class="text-secondary text-opacity-50">>></span> ${msg}`;
+                monitor.appendChild(linha);
+                monitor.scrollTop = monitor.scrollHeight;
+            }
+
+            // Finalização
+            const final = document.createElement('div');
+            final.className = 'mt-4 fw-bold text-info animate-in border-top border-secondary pt-3';
+            final.innerHTML = "✨ TUDO PRONTO! Redirecionando para instruções finais...";
+            monitor.appendChild(final);
+            
+            setTimeout(() => {
+                window.location.href = `/gerar/${sistemaId}/sucesso/`;
+            }, 3000);
+
+        } else {
+            throw new Error(data.mensagem);
+        }
+
+    } catch (error) {
+        const erroLinha = document.createElement('div');
+        erroLinha.className = 'log-entry log-error animate-in mt-3 fw-bold';
+        erroLinha.innerHTML = `❌ ERRO: ${error.message}`;
+        monitor.appendChild(erroLinha);
+        
+        btn.disabled = false;
+        btn.classList.replace('btn-secondary', 'btn-danger');
+        spanBtn.innerText = "TENTAR NOVAMENTE";
+        iconBtn.className = "bi bi-exclamation-triangle-fill me-2";
+    }
+}
+</script>
+
+<style>
+  .spin-animation {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+{% endblock %}

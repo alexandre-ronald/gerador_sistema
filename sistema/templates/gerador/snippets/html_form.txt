@@ -1,0 +1,29 @@
+{% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
+
+{% templatetag openblock %} block content {% templatetag closeblock %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white p-4 border-0">
+                <h4 class="fw-bold mb-0">
+                    {% templatetag openblock %} if object {% templatetag closeblock %}Editar{% templatetag openblock %} else {% templatetag closeblock %}Cadastrar{% templatetag openblock %} endif {% templatetag closeblock %} {{ entidade.nome|title }}
+                </h4>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <form method="post" class="needs-validation">
+                    {% templatetag openblock %} csrf_token {% templatetag closeblock %}
+                    
+                    <div class="row g-3">
+                        {% templatetag openvariable %} form.as_p {% templatetag closevariable %}
+                    </div>
+
+                    <div class="mt-4 border-top pt-4">
+                        <button type="submit" class="btn btn-primary px-4 me-2">Salvar Registro</button>
+                        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}" class="btn btn-light px-4">Voltar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% templatetag openblock %} endblock {% templatetag closeblock %}

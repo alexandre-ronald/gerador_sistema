@@ -1,22 +1,32 @@
 from django.db import models
 
+# --- IMPORTS DE OUTROS APPS ---
+{% for app_externo, modelos in imports_por_app.items %}
+from {{ app_externo }}.models import {{ modelos|join:", " }}
+{% endfor %}
+
 {% for entidade in entidades %}
 class {{ entidade.nome|title }}(models.Model):
     {% for campo in entidade.campos.all %}
+    {# Verifica se o tipo é um dos relacionais #}
+    {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" or campo.tipo == "ManyToManyField" %}
+    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
+        {{ campo.entidade_relacionada.nome|title|cut:" " }}, 
+        on_delete=models.CASCADE,
+        null={% if campo.null %}True{% else %}False{% endif %},
+        blank={% if campo.blank %}True{% else %}False{% endif %},
+        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+    )
+    {% else %}
     {{ campo.nome|lower }} = models.{{ campo.tipo }}(
         {% if campo.max_length %}max_length={{ campo.max_length }},{% endif %}
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.nome|title }}"
+        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
     )
+    {% endif %}
     {% endfor %}
 
-    class Meta:
-        verbose_name = "{{ entidade.nome|title }}"
-        verbose_name_plural = "{{ entidade.nome|title }}s"
-
     def __str__(self):
-        # Tenta retornar o primeiro campo de texto como representação da string
         return str(self.{{ entidade.campos.all.0.nome|lower }})
-
 {% endfor %}

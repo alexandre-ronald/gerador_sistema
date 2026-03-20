@@ -127,6 +127,7 @@ def atualizar_sistema(request, sistema_id):
             sistema.descricao = sistema_data.get("descricao", "")
             sistema.caminho_geracao = sistema_data.get("caminho", "")
             sistema.banco_dados = sistema_data.get("banco_dados", "sqlite3")
+            sistema.tipo_menu = sistema_data.get("tipo_menu", "vertical")
             sistema.usar_custom_user = sistema_data.get("usar_custom_user", True)
             sistema.gerar_api_rest = sistema_data.get("gerar_api_rest", False)
             sistema.gerar_docker = sistema_data.get("gerar_docker", False)

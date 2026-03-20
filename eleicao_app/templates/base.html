@@ -8,16 +8,26 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body { background-color: #f8f9fa; }
+        
+        /* Ajustes para Menu Lateral */
+        
         .sidebar { min-width: 250px; max-width: 250px; min-height: 100vh; background: #212529; color: white; transition: all 0.3s; }
         .sidebar .nav-link { color: rgba(255,255,255,.75); border-radius: 8px; margin: 2px 10px; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,.1); color: white; }
         .main-content { width: 100%; overflow-y: auto; }
+        
+
+        /* Ajustes para Menu Superior */
+        
+
         .card-summary { border: none; border-radius: 15px; transition: transform 0.2s; }
         .card-summary:hover { transform: translateY(-5px); }
     </style>
 </head>
 <body>
     <div class="d-flex">
+        
+        
         <nav class="sidebar shadow shadow-lg">
             <div class="p-4 text-center border-bottom border-secondary mb-3">
                 <h5 class="fw-bold mb-0 text-info"><i class="bi bi-cpu-fill me-2"></i>Sistema de Eleição</h5>
@@ -32,58 +42,64 @@
                 <div class="small text-uppercase px-4 mb-2 text-muted" style="font-size: 0.7rem;">Módulos</div>
                 
                 
+                    
+                    <li class="nav-item">
+                        <a href="{% url 'cadastros:organograma_list' %}" class="nav-link">
+                            <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Organograma
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a href="{% url 'cadastros:cargos_list' %}" class="nav-link">
+                            <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Cargos
+                        </a>
+                    </li>
+                    
                 
-                <li class="nav-item">
-                    <a href="{% url 'cadastros:organograma_list' %}" class="nav-link">
-                        <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Organograma
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{% url 'cadastros:cargos_list' %}" class="nav-link">
-                        <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Cargos
-                    </a>
-                </li>
-                
-                
-                
-                <li class="nav-item">
-                    <a href="{% url 'eleicao:eleitor_list' %}" class="nav-link">
-                        <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Eleitor
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{% url 'eleicao:candidato_list' %}" class="nav-link">
-                        <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Candidato
-                    </a>
-                </li>
-                
+                    
+                    <li class="nav-item">
+                        <a href="{% url 'eleicao:eleitor_list' %}" class="nav-link">
+                            <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Eleitor
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a href="{% url 'eleicao:candidato_list' %}" class="nav-link">
+                            <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i> Candidato
+                        </a>
+                    </li>
+                    
                 
             </ul>
         </nav>
+        
 
-        <div class="main-content">
+        <div class="main-content w-100">
             <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-4">
                 <div class="container-fluid">
-                    <span class="navbar-text fw-semibold">Sistema de Gestão</span>
-                    <div class="d-flex">
-                        <span class="me-3 mt-1 text-muted small">Olá, <strong>{{ user.username }}</strong></span>
-                        {% if user.is_authenticated %}
-                            <form action="/accounts/logout/" method="post" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-outline-danger btn-sm" style="display:inline; cursor:pointer;">
-                                    Sair
-                                </button>
-                            </form>
-                        {% else %}
-                            <a href="/accounts/login/" class="nav-link">Entrar</a>
-                        {% endif %}
-                        
-                    </div>
+                    
+                        <span class="navbar-text fw-semibold">Gerenciador de Módulos</span>
+                        <div class="d-flex ms-auto">
+                    
+
+                        <div class="d-flex align-items-center">
+                            <span class="me-3 text-muted small ">
+                                Olá, <strong>{{ user.username }}</strong>
+                            </span>
+                            {% if user.is_authenticated %}
+                                <form action="/accounts/logout/" method="post" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Sair</button>
+                                </form>
+                            {% else %}
+                                <a href="/accounts/login/" class="btn btn-outline-info btn-sm">Entrar</a>
+                            {% endif %}
+                        </div>
+                    
+                        </div>
+                    
                 </div>
             </nav>
-            
 
             <div class="p-4">
                 {% if messages %}

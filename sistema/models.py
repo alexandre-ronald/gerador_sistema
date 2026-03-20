@@ -9,10 +9,16 @@ class Sistema(models.Model):
         ('oracle', 'Oracle'),
     ]
 
+    MENU_CHOICES = [
+        ('lateral', 'Menu Lateral (Sidebar)'),
+        ('superior', 'Menu Superior (Navbar)'),
+    ]
+
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
     caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
     banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default='sqlite3', verbose_name="Banco de dados")
+    tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default='lateral', verbose_name="Estilo do Menu")
     
     # NOVOS: Configurações Globais do Gerador
     usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")

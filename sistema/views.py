@@ -227,6 +227,7 @@ def editar_sistema(request, sistema_id):
             "nome": sistema.nome,
             "descricao": sistema.descricao,
             "caminho": sistema.caminho_geracao,
+            "tipo_menu": sistema.tipo_menu,
             "banco_dados": sistema.banco_dados,
             "usar_custom_user": sistema.usar_custom_user,
             "gerar_api_rest": sistema.gerar_api_rest,
@@ -279,11 +280,11 @@ def editar_sistema(request, sistema_id):
 @csrf_exempt
 def salvar_modelo(request):
     if request.method == "POST":
-        print('salvar sistema')
-
         try:
             dados = json.loads(request.body)
             sis_data = dados.get('sistema', {})
+
+            print (sis_data.get('tipo_menu'))  # Verifique se o nome está chegando corretamente
 
             # 1. Sistema
             sistema, created = Sistema.objects.update_or_create(
@@ -292,6 +293,7 @@ def salvar_modelo(request):
                     'descricao': sis_data.get('descricao', ''),
                     'caminho_geracao': sis_data.get('caminho', ''),
                     'banco_dados': sis_data.get('banco_dados', 'sqlite3'),
+                    'tipo_menu': sis_data.get('tipo_menu', 'lateral'),
                     'usar_custom_user': sis_data.get('usar_custom_user', True),
                     'gerar_api_rest': sis_data.get('gerar_api_rest', False),
                     'gerar_docker': sis_data.get('gerar_docker', False),

@@ -243,7 +243,7 @@
                                     <label>Nome do Sistema</label>
                                 </div>
                             </div>
-                             <div class="col-md-9">
+                             <div class="col-md-6">
                                 <div class="form-floating">
                                     <textarea id="descricao" class="form-control bg-light" style="height: 58px"></textarea>
                                     <label>Descrição</label>
@@ -257,7 +257,7 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="form-floating">
-                                    <select id="estilo_menu" class="form-select bg-light">
+                                    <select id="tipo_menu" class="form-select bg-light">
                                         <option value="lateral">Menu Lateral (Sidebar)</option>
                                         <option value="superior">Menu Superior (Navbar)</option>
                                     </select>
@@ -385,9 +385,12 @@
         sistema_nome.value = estrutura?.sistema?.nome || "";
         descricao.value = estrutura?.sistema?.descricao || "";
         caminho.value = estrutura?.sistema?.caminho || "";
-        
+                
         // Select
         document.getElementById("banco_dados").value = estrutura?.sistema?.banco_dados || "sqlite3";
+
+        // Select
+        document.getElementById("tipo_menu").value = estrutura?.sistema?.tipo_menu || "lateral";
         
         // Booleans (Switches) - Note o uso do ?? para checar null/undefined, assumindo o valor padrão caso seja um sistema novo
         document.getElementById("usar_custom_user").checked = estrutura?.sistema?.usar_custom_user ?? true;
@@ -715,6 +718,7 @@
             nome: document.getElementById("sistema_nome").value,
             descricao: document.getElementById("descricao").value,
             caminho: document.getElementById("caminho").value,
+            tipo_menu: document.getElementById("tipo_menu").value,
             banco_dados: document.getElementById("banco_dados").value,
             usar_custom_user: document.getElementById("usar_custom_user").checked,
             gerar_api_rest: document.getElementById("gerar_api_rest").checked,

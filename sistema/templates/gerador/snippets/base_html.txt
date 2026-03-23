@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head>
+<html lang="pt-br" data-bs-theme="light"> <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ sistema.nome }}</title>
@@ -9,14 +8,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: "Poppins", "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            font-family: "Poppins", sans-serif;
             font-size: 0.875rem;
-            color: var(--bs-body-color);
             transition: background-color 0.3s ease, color 0.3s ease;
-            background-color: #f8f9fa;
         }
+
+        /* --- CONTROLE DE CONTRASTE SIDEBAR (Menu Lateral) --- */
+        {% if sistema.tipo_menu == 'lateral' %}
+        .sidebar { 
+            min-width: 250px; 
+            max-width: 250px; 
+            min-height: 100vh; 
+            background: #1a1d20; /* Fundo fixo escuro para contraste profissional */
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar .nav-link { 
+            color: rgba(255,255,255,0.7) !important; /* Letras cinza claro no fundo escuro */
+            margin: 4px 12px;
+            border-radius: 8px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { 
+            background: rgba(255,255,255,0.1); 
+            color: #0dcaf0 !important; /* Destaque em Ciano */
+        }
+        .sidebar hr { border-color: rgba(255,255,255,0.1); }
+        {% endif %}
+
+        /* --- CONTRASTE NAVBAR (Menu Superior) --- */
+        {% if sistema.tipo_menu == 'superior' %}
+        .navbar-brand { font-weight: 700; color: var(--bs-primary) !important; }
+        [data-bs-theme="dark"] .navbar-brand { color: #0dcaf0 !important; }
+        {% endif %}
 
         .user-chip {
             background: var(--bs-secondary-bg);
@@ -26,33 +48,88 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            border: 1px solid var(--bs-border-color);
         }
-        
-        /* Ajustes para Menu Lateral */
-        {% if sistema.tipo_menu == 'lateral' %}
-        .sidebar { min-width: 250px; max-width: 250px; min-height: 100vh; background: #212529; color: white; transition: all 0.3s; }
-        .sidebar .nav-link { color: rgba(255,255,255,.75); border-radius: 8px; margin: 2px 10px; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,.1); color: white; }
-        .main-content { width: 100%; overflow-y: auto; }
-        {% endif %}
 
-        /* Ajustes para Menu Superior */
-        {% if sistema.tipo_menu == 'superior' %}
-        .navbar-brand { font-weight: bold; color: #0dcaf0 !important; }
-        .nav-link i { margin-right: 5px; }
-        {% endif %}
+        .card {
+            background-color: var(--bs-card-bg);
+            border-color: var(--bs-border-color-translucent);
+        }
 
-        .card-summary { border: none; border-radius: 15px; transition: transform 0.2s; }
-        .card-summary:hover { transform: translateY(-5px); }
+        .card-header {
+            background-color: var(--bs-tertiary-bg) !important;
+            color: var(--bs-heading-color) !important;
+            border-bottom: 1px solid var(--bs-border-color-translucent);
+        }
+
+        .result-icon {
+            float: right;
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+
+        td,
+        th {
+            vertical-align: middle;
+        }
+
+        .border-danger {
+            border-bottom-width: 2px;
+            border-color: danger;
+        }
+        .border-info {
+            border-bottom-width: 2px;
+            border-color: var(bg-info);
+        }
+        .border-success {
+            border-bottom-width: 2px;
+            border-color: var(bg-succeess);
+        }
+        .border-primary {
+            border-bottom-width: 2px;
+            border-color: var(bg-primary);
+        }
+
+        .avatar-title {
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center;
+            background-color: #405189;
+            color: #fff;
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            font-weight: 500;
+            height: 100%;
+            -webkit-box-pack: center;
+            -ms-flex-pack: center;
+            justify-content: center;
+            width: 100%
+        }
+
+        .avatar-sm {
+            height: 3rem;
+            width: 3rem
+        }
+
+        /* Evita o "flash" branco ao carregar a página se o tema for dark */
+        html[data-bs-theme="dark"] {
+            background-color: #121212;
+        }
+
+        /* Utilitários de transição */
+        .main-content { transition: all 0.3s; }
     </style>
 </head>
 <body>
     <div class="{% if sistema.tipo_menu == 'lateral' %}d-flex{% endif %}">
         
         {% if sistema.tipo_menu == 'lateral' %}
-        <nav class="sidebar shadow shadow-lg">
-            <div class="py-4 text-center mb-3">
-                <h5 class="mb-0 text-white"><i class="bi bi-stack-overflow me-2"></i>{{ sistema.nome }}</h5>
+        <nav class="sidebar shadow">
+            <div class="p-4 border-bottom border-secondary border-opacity-25 mb-3 text-center">
+                <h6 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-stack-overflow me-2 text-info"></i>{{ sistema.nome }}
+                </h6>
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item">
@@ -60,14 +137,14 @@
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
                 </li>
-                <hr class="mx-3 border-secondary">
-                <div class="small text-uppercase px-4 mb-2 " style="font-size: 0.7rem;">Módulos</div>
+                <hr class="mx-3">
+                <div class="small text-uppercase px-4 mb-2 text-white-50" style="font-size: 0.65rem; letter-spacing: 1px;">Módulos</div>
                 
                 {% for modulo in sistema.modulos.all %}
                     {% for entidade in modulo.entidades.all %}
                     <li class="nav-item">
                         <a href="{% templatetag openblock %} url '{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}" class="nav-link">
-                            <i class="bi bi-stack me-2" style="font-size: 1rem;"></i> {{ entidade.nome|title }}
+                            <i class="bi bi-layers me-2"></i> {{ entidade.nome|title }}
                         </a>
                     </li>
                     {% endfor %}
@@ -77,7 +154,7 @@
         {% endif %}
 
         <div class="main-content w-100">
-            <nav class="navbar navbar-expand-lg {% if sistema.tipo_menu == 'superior' %}navbar-dark bg-dark{% else %}navbar-light bg-white border-bottom{% endif %} px-4">
+            <nav class="navbar navbar-expand-lg border-bottom px-4 py-2 {% if sistema.tipo_menu == 'superior' %}navbar-dark bg-dark{% else %}bg-body-tertiary{% endif %}">
                 <div class="container-fluid">
                     {% if sistema.tipo_menu == 'superior' %}
                         <a class="navbar-brand" href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}">
@@ -90,10 +167,8 @@
                             <ul class="navbar-nav me-auto">
                                 {% for modulo in sistema.modulos.all %}
                                 <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                        {{ modulo.nome }}
-                                    </a>
-                                    <ul class="dropdown-menu">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">{{ modulo.nome }}</a>
+                                    <ul class="dropdown-menu shadow">
                                         {% for entidade in modulo.entidades.all %}
                                         <li><a class="dropdown-item" href="{% templatetag openblock %} url '{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}">{{ entidade.nome|title }}</a></li>
                                         {% endfor %}
@@ -102,30 +177,32 @@
                                 {% endfor %}
                             </ul>
                     {% else %}
-                        <span class="navbar-text fw-semibold">Gerenciador de Módulos</span>
-                        <div class="d-flex ms-auto">
+                        <span class="navbar-text fw-medium text-secondary">
+                            <i class="bi bi-chevron-right me-1"></i> Painel Administrativo
+                        </span>
+                        <div class="ms-auto d-flex align-items-center">
                     {% endif %}
 
-                        <div class="d-flex align-items-center">
-                            <div class="ms-auto d-flex align-items-center gap-3">
-                        
-                                <button id="theme-toggle" class="btn btn-outline-secondary border-0 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    <i class="bi bi-moon-stars"></i>
-                                </button>
+                        <div class="d-flex align-items-center gap-3">
 
-                                <div class="user-chip shadow-sm border border-secondary border-opacity-10">
-                                    <i class="bi bi-person-circle fs-5 text-primary"></i>
-                                    <span class="d-none d-sm-inline">{% templatetag openvariable %} user.username|default:"Visitante" {% templatetag closevariable %}</span>
-                                </div>
+                            <button id="theme-toggle" class="btn btn-link text-body border-0 p-0 d-flex align-items-center justify-content-center ms-2" 
+                                    style="width: 32px; height: 32px; text-decoration: none; box-shadow: none;" 
+                                    type="button" title="Alternar Tema">
+                                <i class="bi bi-moon-stars-fill" id="theme-icon" style="font-size: 1.1rem;"></i>
+                            </button>
 
+                            <div class="user-chip">
+                                <i class="bi bi-person-circle text-primary"></i>
+                                <span class="small">{% templatetag openvariable %} user.username|default:"Visitante" {% templatetag closevariable %}</span>
                             </div>
+
                             {% templatetag openblock %} if user.is_authenticated {% templatetag closeblock %}
-                                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                                <form action="{% url 'logout' %}" method="post" class="m-0">
                                     {% templatetag openblock %} csrf_token {% templatetag closeblock %}
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">Sair</button>
+                                    <button type="submit" class="btn btn-danger btn-sm px-3">Sair</button>
                                 </form>
                             {% templatetag openblock %} else {% templatetag closeblock %}
-                                <a href="{% url 'login' %}" class="btn btn-outline-info btn-sm">Entrar</a>
+                                <a href="{% url 'login' %}" class="btn btn-primary btn-sm px-3">Entrar</a>
                             {% templatetag openblock %} endif {% templatetag closeblock %}
                         </div>
                     {% if sistema.tipo_menu == 'superior' %}
@@ -139,7 +216,7 @@
             <div class="p-4">
                 {% templatetag openblock %} if messages {% templatetag closeblock %}
                     {% templatetag openblock %} for message in messages {% templatetag closeblock %}
-                        <div class="alert alert-{% templatetag openvariable %} message.tags {% templatetag closevariable %} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                        <div class="alert alert-{% templatetag openvariable %} message.tags {% templatetag closevariable %} alert-dismissible fade show border-0 shadow-sm" role="alert">
                             {% templatetag openvariable %} message {% templatetag closevariable %}
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
@@ -151,6 +228,35 @@
             </div>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlElement = document.documentElement;
+
+        // 1. Função para aplicar o tema e trocar o ícone
+        function applyTheme(theme) {
+            htmlElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme); // Salva a escolha
+            
+            if (theme === 'dark') {
+                themeIcon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+            } else {
+                themeIcon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
+            }
+        }
+
+        // 2. Ao carregar a página: Verifica se já existe uma preferência salva
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+
+        // 3. Ao clicar no botão: Alterna e salva
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            applyTheme(newTheme);
+        });
+    </script>
 </body>
 </html>

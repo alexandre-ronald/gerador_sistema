@@ -37,6 +37,7 @@ class GeradorService:
         os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
         
         conteudo = render_to_string(template_name, contexto)
+        
         with open(caminho_full, 'w', encoding='utf-8') as f:
             f.write(conteudo)
         self.log(f"Arquivo criado: {caminho_relativo}")

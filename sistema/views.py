@@ -131,6 +131,7 @@ def atualizar_sistema(request, sistema_id):
             sistema.usar_custom_user = sistema_data.get("usar_custom_user", True)
             sistema.gerar_api_rest = sistema_data.get("gerar_api_rest", False)
             sistema.gerar_docker = sistema_data.get("gerar_docker", False)
+            sistema.usar_auditoria = sistema_data.get("usar_auditoria", False)
 
             sistema.save()
 
@@ -232,6 +233,7 @@ def editar_sistema(request, sistema_id):
             "usar_custom_user": sistema.usar_custom_user,
             "gerar_api_rest": sistema.gerar_api_rest,
             "gerar_docker": sistema.gerar_docker,
+            "usar_auditoria": sistema.usar_auditoria
         },
         "modulos": []
     }
@@ -278,13 +280,12 @@ def editar_sistema(request, sistema_id):
     })
 
 @csrf_exempt
+@csrf_exempt
 def salvar_modelo(request):
     if request.method == "POST":
         try:
             dados = json.loads(request.body)
             sis_data = dados.get('sistema', {})
-
-            print (sis_data.get('tipo_menu'))  # Verifique se o nome está chegando corretamente
 
             # 1. Sistema
             sistema, created = Sistema.objects.update_or_create(
@@ -297,84 +298,77 @@ def salvar_modelo(request):
                     'usar_custom_user': sis_data.get('usar_custom_user', True),
                     'gerar_api_rest': sis_data.get('gerar_api_rest', False),
                     'gerar_docker': sis_data.get('gerar_docker', False),
+                    'usar_auditoria': sis_data.get('usar_auditoria', False),
                 }
             )
 
-            # 🔥 limpa tudo
+            # 🔥 Limpa a estrutura anterior para sobrescrever
             sistema.modulos.all().delete()
-
             entidades_map = {}
 
             # =========================
-            # 🔵 PASSO 1 — criar estrutura
+            # 🔵 PASSO 1 — Criar estrutura básica
             # =========================
             for mod_data in dados.get('modulos', []):
-
                 modulo = Modulo.objects.create(
                     sistema=sistema,
                     nome=mod_data.get('nome')
                 )
 
                 for ent_data in mod_data.get('entidades', []):
-
                     entidade = Entidade.objects.create(
                         modulo=modulo,
                         nome=ent_data.get('nome'),
-                        nome_plural=ent_data.get('nome') + "s"
+                        nome_plural=ent_data.get('nome_plural') or (ent_data.get('nome') + "s")
                     )
-
-                    # 🔥 salva no mapa
                     entidades_map[entidade.nome] = entidade
 
             # =========================
-            # 🔵 PASSO 2 — criar campos (AGORA COM FK)
+            # 🔵 PASSO 2 — Criar campos (com lógica de tipos)
             # =========================
             for mod_data in dados.get('modulos', []):
-
                 for ent_data in mod_data.get('entidades', []):
-
                     entidade = entidades_map.get(ent_data.get('nome'))
 
                     for campo_data in ent_data.get('campos', []):
-
+                        tipo_campo = campo_data.get('tipo', 'CharField')
+                        
+                        # Montagem básica do dicionário
                         campo_kwargs = {
                             "entidade": entidade,
                             "nome": campo_data.get('nome'),
-                            "tipo": campo_data.get('tipo', 'CharField'),
-                            "max_length": campo_data.get('max_length') or 255,
+                            "tipo": tipo_campo,
                             "null": campo_data.get('null', False),
                             "blank": campo_data.get('blank', False),
                             "unique": campo_data.get('unique', False),
-                            "default_value": campo_data.get('default'),
-                            "upload_to": campo_data.get('upload_to'),
-                            "related_name_str": campo_data.get('related_name'),
+                            "default_value": campo_data.get('default_value') or campo_data.get('default', ''),
+                            "upload_to": campo_data.get('upload_to', ''),
+                            "related_name_str": campo_data.get('related_name', ''),
                             "on_delete": campo_data.get('on_delete', 'models.CASCADE'),
                         }
 
-                        # 🔥 RELACIONAMENTO
+                        # 🛠️ LÓGICA DE MAX_LENGTH
+                        # Inteiros e Datas NÃO aceitam max_length no Django
+                        tipos_sem_max_length = ['IntegerField', 'FloatField', 'DateField', 'DateTimeField', 'BooleanField', 'TextField']
+                        
+                        if tipo_campo not in tipos_sem_max_length:
+                            campo_kwargs["max_length"] = campo_data.get('max_length') or 255
+                        
+                        # 🔥 RELACIONAMENTOS (FK)
                         rel_nome = campo_data.get('rel')
-
                         if rel_nome:
                             entidade_rel = entidades_map.get(rel_nome)
-
                             if entidade_rel:
                                 campo_kwargs["entidade_relacionada"] = entidade_rel
-                            else:
-                                print(f"⚠️ Rel não encontrado: {rel_nome}")
 
+                        # Criar no Banco do Gerador
                         Campo.objects.create(**campo_kwargs)
 
-            return JsonResponse({
-                "status": "sucesso",
-                "sistema_id": sistema.id
-            })
+            return JsonResponse({"status": "sucesso", "sistema_id": sistema.id})
 
         except Exception as e:
-            print("ERRO:", str(e))
-            return JsonResponse({
-                "status": "erro",
-                "mensagem": str(e)
-            }, status=400)
+            print("ERRO NA SALVAR_MODELO:", str(e))
+            return JsonResponse({"status": "erro", "mensagem": str(e)}, status=400)
         
 
 ###########

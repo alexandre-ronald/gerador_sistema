@@ -1,18 +1,77 @@
 {% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
 
 {% templatetag openblock %} block content {% templatetag closeblock %}
-<div class="py-5 text-center">
-    <div class="bg-primary bg-opacity-10 p-5 rounded-5 d-inline-block mb-4">
-        <i class="bi bi-rocket-takeoff text-primary" style="font-size: 4rem;"></i>
+<style>
+    .dashboard-card {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color-translucent);
+        border-radius: 1.25rem;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+        border-color: var(--bs-primary);
+    }
+    .welcome-header { display: inline-flex; align-items: center; gap: 15px; color: var(--bs-emphasis-color); }
+    .rocket-icon { font-size: 2.8rem; color: #0dcaf0; filter: drop-shadow(0 4px 8px rgba(13, 202, 240, 0.3)); animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+    .entity-link { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--bs-tertiary-bg); border-radius: 12px; text-decoration: none; color: var(--bs-body-color); border: 1px solid transparent; transition: 0.2s; }
+    .entity-link:hover { background: var(--bs-primary); color: white !important; transform: scale(1.02); }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row mb-5">
+        <div class="col-12 text-center text-md-start">
+            <h1 class="welcome-header fw-bold">
+                Bem-vindo ao {% templatetag openvariable %} sistema.nome|default:"Painel Administrativo" {% templatetag closevariable %} 
+                <i class="bi bi-rocket-takeoff-fill rocket-icon"></i>
+            </h1>
+            <p class="text-muted fs-5">Seu ecossistema de gestão está pronto. O que vamos fazer hoje?</p>
+        </div>
     </div>
-    <h1 class="fw-bold">Bem-vindo ao {{ sistema.nome }}</h1>
-    <p class="lead text-muted mx-auto" style="max-width: 600px;">
-        O seu sistema foi gerado com sucesso e está pronto para uso. 
-        Utilize o menu lateral para navegar entre os módulos cadastrados.
-    </p>
-    <div class="mt-4">
-        <span class="badge bg-success p-2 px-3 rounded-pill">Status: Online</span>
-        <span class="badge bg-info p-2 px-3 rounded-pill ms-2">Versão: 1.0.0</span>
+
+    <h5 class="fw-bold mb-4"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
+    <div class="row g-4 mb-5">
+        {% templatetag openblock %} for modulo in sistema.modulos.all {% templatetag closeblock %}
+            <div class="col-md-6 col-lg-3">
+                <div class="card dashboard-card p-4">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3" style="width: 50px; height: 50px;">
+                        <i class="bi bi-folder2-open text-primary fs-4"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1">{% templatetag openvariable %} modulo.nome {% templatetag closevariable %}</h4>
+                    <p class="text-muted small">{% templatetag openvariable %} modulo.entidades.count {% templatetag closevariable %} Entidades</p>
+                </div>
+            </div>
+        {% templatetag openblock %} empty {% templatetag closeblock %}
+            <div class="col-md-6 col-lg-3 opacity-50">
+                <div class="card dashboard-card p-4 border-dashed">
+                    <i class="bi bi-plus-circle fs-2 mb-2 text-muted"></i>
+                    <h5 class="fw-bold">Novo App</h5>
+                </div>
+            </div>
+        {% templatetag openblock %} endfor {% templatetag closeblock %}
+    </div>
+
+    <h5 class="fw-bold mb-4"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
+    <div class="row g-3">
+        {% templatetag openblock %} for modulo in sistema.modulos.all {% templatetag closeblock %}
+            {% templatetag openblock %} for entidade in modulo.entidades.all {% templatetag closeblock %}
+                <div class="col-md-4 col-lg-3">
+                    {# AQUI ESTÁ A CORREÇÃO: Usar templatetag para escrever a URL no arquivo final #}
+                    <a href="{% templatetag openblock %} url modulo.nome|lower|add:':'|add:entidade.nome|lower|add:'_list' {% templatetag closeblock %}" class="entity-link shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-database-fill-gear text-info"></i>
+                            <span class="fw-semibold">{% templatetag openvariable %} entidade.nome|title {% templatetag closevariable %}</span>
+                        </div>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            {% templatetag openblock %} endfor {% templatetag closeblock %}
+        {% templatetag openblock %} empty {% templatetag closeblock %}
+            <div class="col-12"><p class="text-muted">Nenhuma entidade disponível.</p></div>
+        {% templatetag openblock %} endfor {% templatetag closeblock %}
     </div>
 </div>
 {% templatetag openblock %} endblock {% templatetag closeblock %}

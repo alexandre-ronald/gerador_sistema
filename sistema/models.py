@@ -24,6 +24,7 @@ class Sistema(models.Model):
     usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
     gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
     gerar_docker = models.BooleanField(default=False, verbose_name="Gerar Dockerfile e docker-compose?")
+    usar_auditoria = models.BooleanField(default=False, verbose_name="Usar Auditoria?")
 
     def __str__(self):
         return self.nome

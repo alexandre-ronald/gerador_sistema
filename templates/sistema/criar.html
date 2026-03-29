@@ -17,6 +17,7 @@
       {% endif %}
     </p>
   </div>
+  
 
   <div class="card shadow-sm">
     <div class="card-body p-4">
@@ -41,15 +42,13 @@
 
         <!-- Descrição -->
         <div class="mb-3">
-          <label for="id_descricao" class="form-label">
-            Descrição
-          </label>
+          <label for="id_descricao" class="form-label">  Descrição  </label>
           <textarea 
             name="descricao"
             id="id_descricao"
             rows="4"
             class="form-control"
-            placeholder="Breve descrição do propósito do sistema...">{{ sistema.descricao|default:'' }}</textarea>
+            placeholder="Breve descrição do propósito do sistema...">{{ sistema.descricao }}</textarea>
         </div>
 
         <!-- Caminho geração -->

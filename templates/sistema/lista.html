@@ -115,7 +115,7 @@
                      <i class="bi bi-pencil"></i>
                      Editar
                   </a>
-                  <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-sm btn-outline-danger  p-1">
+                  <a href="{% url 'sistema:excluir_sistema' sistema.pk %}"  onclick="return confirm('Deseja excluir o sistema?');" class="btn btn-sm btn-outline-danger  p-1">
                      <i class="bi bi-trash"></i>
                      Excluir
                   </a>

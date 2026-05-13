@@ -1,11 +1,14 @@
 from django.urls import path
 from . import views
-
+from django.conf import settings
+from django.conf.urls.static import static
+''
 app_name = 'sistema'  # namespace
 
 urlpatterns = [
     path('', views.lista_sistemas, name='lista'),
     path('novo/', views.criar_sistema, name='criar'),
+    path('excluir/<int:sistema_id>/', views.excluir_sistema, name='excluir_sistema'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),
     path("sistemas/<int:sistema_id>/editar/", views.editar_sistema, name="editar_sistema"),
     path("api/sistemas/<int:sistema_id>/", views.atualizar_sistema, name="atualizar_sistema"),
@@ -19,4 +22,4 @@ urlpatterns = [
     # ROTA 3: A página de sucesso final com as instruções
     path('gerar/<int:pk>/sucesso/', views.gerar_sucesso_view, name='gerar_sucesso'),
     
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

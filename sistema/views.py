@@ -219,7 +219,13 @@ def atualizar_sistema(request, sistema_id):
         return JsonResponse({
             "erro": str(e)
         }, status=500)
-    
+def excluir_sistema(request, sistema_id):
+
+    sistema = get_object_or_404(Sistema, id=sistema_id)
+    sistema.delete()
+    messages.success(request, f"Sistema '{sistema.nome}' excluído com sucesso!")
+    return redirect('sistema:lista')
+
 def editar_sistema(request, sistema_id):
     sistema = get_object_or_404(Sistema, id=sistema_id)
 

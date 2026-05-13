@@ -3,250 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SysGer - System Generator</title>
+    <title>{% block title %}Gerador de Sistemas{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --tp-blue: #3B82F6;
-            --tp-bg: #F8FAFC;
-            --tp-border: #E2E8F0;
-            --tp-text-dark: #1E293B;
-            --tp-text-muted: #64748B;
+            --sidebar-bg: #1a233a; /* Azul Marinho Profundo */
+            --sidebar-active: #2a3552; /* Fundo do item ativo */
+            --accent-blue: #4c6ef5; /* Azul Vibrante Blueberry */
+            --body-bg: #f4f7fe;
+            --text-muted: #8b95b7;
         }
 
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background-color: var(--tp-bg); 
-            color: var(--tp-text-dark);
-        }
+        body { background-color: var(--body-bg); font-family: 'Inter', sans-serif; }
 
-        /* Navbar Superior */
-        .top-nav {
-            height: 64px;
-            background: white;
-            border-bottom: 1px solid var(--tp-border);
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1030;
-            padding: 0 24px;
-        }
-
-        /* Sidebar Branca Esquerda */
+        /* ===== SIDEBAR ===== */
         .sidebar {
-            width: 240px;
-            background: white;
-            border-right: 1px solid var(--tp-border);
+            width: 260px;
+            height: 100vh;
+            background: var(--sidebar-bg);
+            color: white;
             position: fixed;
-            top: 64px;
-            bottom: 0;
-            left: 0;
-            padding: 20px 12px;
+            left: 0; top: 0;
+            padding: 20px 0;
+            z-index: 1000;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+        }
+
+        .sidebar-brand {
+            padding: 0 25px 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .nav-section-title {
+            padding: 10px 25px;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            font-weight: bold;
         }
 
         .nav-link {
-            color: var(--tp-text-muted);
-            font-size: 0.9rem;
-            padding: 10px 16px;
-            border-radius: 8px;
-            margin-bottom: 4px;
+            color: var(--text-muted);
+            padding: 12px 25px;
             display: flex;
             align-items: center;
             gap: 12px;
-            transition: 0.2s;
+            font-size: 13px;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
         }
 
-        .nav-link:hover, .nav-link.active {
-            background-color: #EFF6FF;
-            color: var(--tp-blue);
+        .nav-link i { font-size: 18px; }
+
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+
+        /* Estado Ativo conforme imagem */
+        .nav-link.active {
+            background: var(--sidebar-active);
+            color: #fff;
+            border-left-color: var(--accent-blue);
         }
 
-        /* Área de Conteúdo */
-        .main-wrapper {
-            margin-top: 64px;
-            margin-left: 240px;
-            padding: 32px;
+        .badge-new {
+            background: #00d084;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
         }
 
-        /* Cards de Estatística */
-        .stat-card {
-            background: white;
-            border: 1px solid var(--tp-border);
-            border-radius: 12px;
-            padding: 20px;
-        }
+        /* ===== TOPBAR ===== */
+        .main-content { margin-left: 260px; }
 
-        .icon-box {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        .topbar {
+            height: 70px;
+            background: #fff;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid #eef2f6;
         }
 
-        /* Gráfico Simulado */
-        .chart-placeholder {
-            height: 250px;
-            width: 100%;
-            background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 100%);
-            border-bottom: 2px solid var(--tp-blue);
-            position: relative;
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
         }
 
-        .badge-trend {
-            font-size: 0.75rem;
-            padding: 4px 8px;
-            border-radius: 20px;
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
         }
 
-        /* Perfil no rodapé da Sidebar */
+        /* ===== CARDS DASHBOARD ===== */
+        .stat-card {
+            border: none;
+            border-radius: 12px;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+
         .user-footer {
             margin-top: auto;
             border-top: 1px solid var(--tp-border);
             padding-top: 15px;
-        }
+        }   
 
-        /* Ajustes para o Tema Escuro */
-        [data-bs-theme="dark"] body {
-            background-color: #0f172a;
-            color: #f1f5f9;
-        }
-        
-        [data-bs-theme="dark"] .top-nav {
-            background: #1e293b;
-            border-bottom: 1px solid #334155;
-        }
-        
-        [data-bs-theme="dark"] .sidebar {
-            background: #1e293b;
-            border-right: 1px solid #334155;
-        }
-        
-        [data-bs-theme="dark"] .nav-link {
-            color: #cbd5e1;
-        }
-        
-        [data-bs-theme="dark"] .nav-link:hover, [data-bs-theme="dark"] .nav-link.active {
-            background-color: #334155;
-            color: #60a5fa;
-        }
-        
-        [data-bs-theme="dark"] .stat-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-        }
-        
-        [data-bs-theme="dark"] .breadcrumb {
-            background: #1e293b;
-        }
-        
-        [data-bs-theme="dark"] .breadcrumb-item a {
-            color: #60a5fa;
-        }
-        
-        [data-bs-theme="dark"] .user-footer {
-            border-top: 1px solid #334155;
-        }
-        
-        [data-bs-theme="dark"] .form-control .form-control-sm {
-            background-color: #334155;
-            border-color: #475569;
-            color: #f1f5f9;
-        }
-        
-        [data-bs-theme="dark"] .form-control:focus .form-control-sm {
-            background-color: #334155;
-            border-color: #60a5fa;
-            color: #f1f5f9;
-        }
-        
-        [data-bs-theme="dark"] textarea {
-            background-color: #334155;
-            border-color: #475569;
-            color: #f1f5f9;
-        }
-        
-        [data-bs-theme="dark"] textarea:focus {
-            background-color: #334155;
-            border-color: #60a5fa;
-            color: #f1f5f9;
-        }
-        
-        [data-bs-theme="dark"] .card {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-        }
-        
-        [data-bs-theme="dark"] .form-text {
-            color: #94a3b8;
-        }
-        
-        [data-bs-theme="dark"] .bg-light {
-            background-color: #334155 !important;
-        }
-        
-        /* Stepper dark mode */
-        [data-bs-theme="dark"] .step-circle {
-            background: #334155;
-            color: #cbd5e1;
-        }
-        
-        [data-bs-theme="dark"] .step-sub {
-            color: #94a3b8;
-        }
-        
-        [data-bs-theme="dark"] .step-line {
-            background: #334155;
-        }
-        
-        [data-bs-theme="dark"] .step.active .step-circle {
-            background: #3b82f6;
-        }
-        
-        [data-bs-theme="dark"] .step.completed .step-circle {
-            background: #16a34a;
-        }
-        
-        [data-bs-theme="dark"] .step.completed + .step-line {
-            background: #16a34a;
-        }
-        
-        [data-bs-theme="dark"] .content {
-            background: #0f172a; 
-        }
-        
-        [data-bs-theme="dark"] .topbar {
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
+        .text-success-custom { color: #00d084; font-weight: 600; }
+        .text-danger-custom { color: #ff4d4f; font-weight: 600; }
 
-        @media (max-width: 992px) {
-            .sidebar { transform: translateX(-100%); transition: 0.3s; }
-            .main-wrapper { margin-left: 0; }
-        }
     </style>
 </head>
 <body>
 
-    <header class="top-nav d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-3">
-            <div class="bg-primary text-white p-1 rounded-2 fw-bold" style="width: 82px; text-align:center">Gerador</div>
-            <span class="fw-bold fs-5">SysGen</span>
-            <button class="btn border-0 ms-0 text-muted">☰</button>
-            <div class="position-relative d-none d-md-block">
-                <input type="text" class="form-control form-control-sm bg-light border-0 ps-5 rounded-3" placeholder="Search..." style="width: 250px;">
-                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 opacity-50">🔍</span>
-            </div>
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-layers"></i> Gerador de Sistemas
         </div>
-        <div class="d-flex align-items-center gap-3">
+
+        <nav class="nav flex-column" style="flex: 1;">
+            <a href="#" class="nav-link ">
+                <i class="bi bi-speedometer2"></i> Dashboard
+                <span class="badge bg-primary rounded-pill ms-auto" style="font-size: 10px;">6</span>
+            </a>
+
+            <div class="nav-section-title">Menu</div>
+            <a class="nav-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}" href="{% url 'sistema:lista' %}"> <i class="bi bi-file-earmark-text"></i>  Meus Sistemas</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'criar' %}active{% endif %}" href="{% url 'sistema:criar' %}"> <i class="bi bi-file-earmark-plus"></i> Novos Sistemas</a>
+           
+
+       
+      
+        </nav>
+        <div class="mt-auto pt-3 border-top border-secondary border-opacity-25">
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="btn w-100 text-start px-3 py-2 nav-link">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-list fs-4 text-muted cursor-pointer"></i>
+                <div class="position-relative d-none d-md-block">
+                    <input type="text" class="form-control form-control-sm bg-light border-0 ps-5 rounded-3" placeholder="Search..." style="width: 250px;">
+                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3 opacity-50">🔍</span>
+                </div>
+            </div>
+            
+
+           <div class="d-flex align-items-center gap-3">
             <button id="theme-toggle" class="btn btn-outline-secondary border-0 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                 🌙
             </button>
@@ -256,64 +179,48 @@
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.5rem;">2</span>
             </div>
             <div class="d-flex align-items-center gap-2 border-start ps-3">
-                <div class="text-end lh-1 d-none d-sm-block">
-                    <p class="mb-0  small">{{user.first_name}} {{user.last_name|default:""}}</p>
-                    <small class="text-muted" style="font-size: 0.7rem;">{{user.email|default:"informar email"}}</small>
+                <div class="dropdown">
+                    <button class="btn btn-link text-decoration-none p-0 d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="text-end lh-1 d-none d-sm-block">
+                            <p class="mb-0 small">{{user.first_name}} {{user.last_name|default:""}}</p>
+                            <small class="text-muted" style="font-size: 0.7rem;">{{user.email|default:"informar email"}}</small>
+                        </div>
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">{{user.first_name|slice:":1"|upper}}{{user.last_name|slice:":1"|upper}}</div>
+                        <i class="bi bi-chevron-down text-muted"></i>
+                    </button>
+                    <ul class="dropdown-menu ">
+                        <li><a class="dropdown-item small" href="#"><i class="bi bi-gear me-2"></i>Configurações</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button class="dropdown-item small"><i class="bi bi-box-arrow-right me-2"></i>Sair</button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">{{user.first_name|slice:":1"|upper}}{{user.last_name|slice:":1"|upper}}</div>
             </div>
         </div>
-    </header>
+        </header>
 
-    <aside class="sidebar">
-        <nav class="nav flex-column">
-            <a class="nav-link" href="#">🏠 Dashboard</a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}" href="{% url 'sistema:lista' %}">📈 Meus Sistemas</a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'criar' %}active{% endif %}" href="{% url 'sistema:criar' %}">📋 Novos Sistemas</a>
+            {% if messages %}
+                <div class="mb-4">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 d-flex align-items-center" role="alert">
+                            {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2 fs-5"></i>{% endif %}
+                            {% if message.tags == 'danger' or message.tags == 'error' %}<i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>{% endif %}
+                            <div>{{ message }}</div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
-        </nav>
-        <div class="mt-auto pt-3 border-top border-secondary border-opacity-25">
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button class="btn w-100 text-start px-3 py-2 nav-link">
-                    🚪 Sair
-                </button>
-            </form>
-        </div>
-
-        <div class="user-footer d-flex align-items-center gap-2">
-            
-            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold small" style="width: 30px; height: 30px;">{{user.first_name|slice:":1"|upper}}{{user.last_name|slice:":1"|upper}}</div>
-            <div class="lh-1">
-                <p class="mb-0  small">{{user.first_name}} {{user.last_name|default:""}}</p>
-                <small class="text-muted" style="font-size: 0.6rem;">{{user.email|default:"informar email"}}</small>
-            </div>
-            
-        </div>
-    </aside>
-
-    <main class="main-wrapper">
-        
-
-        
-
-        {% if messages %}
-            <div class="mb-4">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 d-flex align-items-center" role="alert">
-                        {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2 fs-5"></i>{% endif %}
-                        {% if message.tags == 'danger' or message.tags == 'error' %}<i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>{% endif %}
-                        <div>{{ message }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        {% block content %}{% endblock %}
+            {% block content %}{% endblock %}
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>3
+    
     <script>
         const themeToggle = document.getElementById('theme-toggle');
         
@@ -332,6 +239,5 @@
 
         
     </script>
-    
 </body>
 </html>

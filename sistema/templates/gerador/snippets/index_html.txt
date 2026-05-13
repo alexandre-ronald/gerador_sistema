@@ -17,61 +17,103 @@
     .welcome-header { display: inline-flex; align-items: center; gap: 15px; color: var(--bs-emphasis-color); }
     .rocket-icon { font-size: 2.8rem; color: #0dcaf0; filter: drop-shadow(0 4px 8px rgba(13, 202, 240, 0.3)); animation: float 3s ease-in-out infinite; }
     @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-    .entity-link { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--bs-tertiary-bg); border-radius: 12px; text-decoration: none; color: var(--bs-body-color); border: 1px solid transparent; transition: 0.2s; }
-    .entity-link:hover { background: var(--bs-primary); color: white !important; transform: scale(1.02); }
+
+    /* Novos Cards de Entidade */
+    .entity-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: var(--bs-secondary-bg);
+        border-left: 4px solid var(--bs-info);
+        border-radius: 10px;
+        padding: 1.25rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .entity-card:hover {
+        background: var(--bs-tertiary-bg);
+        transform: translateX(8px);
+        border-left-color: var(--bs-primary);
+        box-shadow: -5px 5px 15px rgba(0,0,0,0.05);
+        color: inherit;
+    }
+    .entity-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bs-info-bg-subtle);
+        border-radius: 8px;
+        color: var(--bs-info);
+        transition: 0.3s;
+    }
+    .entity-card:hover .entity-icon-wrapper {
+        background: var(--bs-primary);
+        color: white;
+    }
+    .module-badge {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        opacity: 0.7;
+    }
 </style>
 
 <div class="container-fluid py-4">
     <div class="row mb-5">
         <div class="col-12 text-center text-md-start">
             <h1 class="welcome-header fw-bold">
-                Bem-vindo ao {% templatetag openvariable %} sistema.nome|default:"Painel Administrativo" {% templatetag closevariable %} 
+                Bem-vindo ao {{ sistema.nome }}
                 <i class="bi bi-rocket-takeoff-fill rocket-icon"></i>
             </h1>
-            <p class="text-muted fs-5">Seu ecossistema de gestão está pronto. O que vamos fazer hoje?</p>
+            <p class="text-muted fs-5">Gestão simplificada. O que vamos acessar agora?</p>
         </div>
     </div>
 
-    <h5 class="fw-bold mb-4"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+        <i class="bi bi-grid-fill text-primary"></i> Módulos Ativos
+    </h5>
     <div class="row g-4 mb-5">
-        {% templatetag openblock %} for modulo in sistema.modulos.all {% templatetag closeblock %}
+        {% for modulo in sistema.modulos.all %}
             <div class="col-md-6 col-lg-3">
                 <div class="card dashboard-card p-4">
-                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3" style="width: 50px; height: 50px;">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                         <i class="bi bi-folder2-open text-primary fs-4"></i>
                     </div>
-                    <h4 class="fw-bold mb-1">{% templatetag openvariable %} modulo.nome {% templatetag closevariable %}</h4>
-                    <p class="text-muted small">{% templatetag openvariable %} modulo.entidades.count {% templatetag closevariable %} Entidades</p>
+                    <h4 class="fw-bold mb-1">{{ modulo.nome }}</h4>
+                    <p class="text-muted small mb-0">{{ modulo.entidades.all|length }} Tabelas registradas</p>
                 </div>
             </div>
-        {% templatetag openblock %} empty {% templatetag closeblock %}
-            <div class="col-md-6 col-lg-3 opacity-50">
-                <div class="card dashboard-card p-4 border-dashed">
-                    <i class="bi bi-plus-circle fs-2 mb-2 text-muted"></i>
-                    <h5 class="fw-bold">Novo App</h5>
-                </div>
-            </div>
-        {% templatetag openblock %} endfor {% templatetag closeblock %}
+        {% endfor %}
     </div>
 
-    <h5 class="fw-bold mb-4"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+        <i class="bi bi-layers-half text-info"></i> Entidades do Sistema
+    </h5>
     <div class="row g-3">
-        {% templatetag openblock %} for modulo in sistema.modulos.all {% templatetag closeblock %}
-            {% templatetag openblock %} for entidade in modulo.entidades.all {% templatetag closeblock %}
+        {% for modulo in sistema.modulos.all %}
+            {% for entidade in modulo.entidades.all %}
                 <div class="col-md-4 col-lg-3">
-                    {# AQUI ESTÁ A CORREÇÃO: Usar templatetag para escrever a URL no arquivo final #}
-                    <a href="{% templatetag openblock %} url modulo.nome|lower|add:':'|add:entidade.nome|lower|add:'_list' {% templatetag closeblock %}" class="entity-link shadow-sm">
-                        <div class="d-flex align-items-center gap-3">
-                            <i class="bi bi-database-fill-gear text-info"></i>
-                            <span class="fw-semibold">{% templatetag openvariable %} entidade.nome|title {% templatetag closevariable %}</span>
+                    <a href="{% templatetag openblock %} url '{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}" class="entity-card border shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="entity-icon-wrapper">
+                                    <i class="bi bi-table"></i>
+                                </div>
+                                <div>
+                                    <div class="module-badge text-primary">{{ modulo.nome }}</div>
+                                    <div class="fw-bold fs-6">{{ entidade.nome|title }}</div>
+                                </div>
+                            </div>
+                            <i class="bi bi-arrow-right-short fs-4 opacity-50"></i>
                         </div>
-                        <i class="bi bi-chevron-right"></i>
                     </a>
                 </div>
-            {% templatetag openblock %} endfor {% templatetag closeblock %}
-        {% templatetag openblock %} empty {% templatetag closeblock %}
-            <div class="col-12"><p class="text-muted">Nenhuma entidade disponível.</p></div>
-        {% templatetag openblock %} endfor {% templatetag closeblock %}
+            {% endfor %}
+        {% endfor %}
     </div>
 </div>
 {% templatetag openblock %} endblock {% templatetag closeblock %}

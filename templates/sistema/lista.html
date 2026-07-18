@@ -5,48 +5,202 @@
 
 <style>
    .card-sistema {
-      border: none;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-      transition: all .25s ease;
-      height: 100%;
-   }
 
-   .card-sistema:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-   }
+    border: 1px solid #e5e7eb;
 
-   .avatar-sm {
-      width: 60px;
-      height: 40px;
-   }
+    border-radius: 18px;
 
-   .avatar-title {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      width: 100%;
-      border-radius: 50%;
-      background: #40518915;
-      color: #405189;
-      font-size: 1.3rem;
-   }
+    background: #ffffff;
 
-   .card-sistema .descricao {
-      font-size: .85rem;
-      color: #6c757d;
-   }
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 
-   .card-sistema .acoes {
-      border-top: 1px solid #f1f1f1;
-      padding-top: .75rem;
-   }
+    transition: all .25s ease;
 
-   .card-title {
-      font-size: 1.2rem;
-   }
+    overflow: hidden;
+
+}
+
+.card-sistema:hover {
+
+    transform: translateY(-5px);
+
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.12);
+
+}
+
+
+/* ÍCONE */
+
+.sistema-icon {
+
+    width: 52px;
+
+    height: 52px;
+
+    border-radius: 14px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #eaf2ff;
+
+    color: #2563eb;
+
+    font-size: 1.6rem;
+
+}
+
+
+/* TÍTULO */
+
+.card-sistema .card-title {
+
+    color: #172033;
+
+    font-size: 1.15rem;
+
+    letter-spacing: -.2px;
+
+}
+
+
+/* STATUS */
+
+.sistema-status {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 4px 10px;
+
+    border-radius: 999px;
+
+    background: #eaf2ff;
+
+    color: #2563eb;
+
+    font-size: .75rem;
+
+    font-weight: 600;
+
+}
+
+.status-dot {
+
+    width: 7px;
+
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #2563eb;
+
+}
+
+
+/* DESCRIÇÃO */
+
+.sistema-descricao {
+
+    color: #64748b;
+
+    font-size: .9rem;
+
+    line-height: 1.6;
+
+}
+
+
+/* DATA */
+
+.sistema-atualizacao {
+
+    display: flex;
+
+    align-items: center;
+
+    color: #64748b;
+
+    font-size: .78rem;
+
+}
+
+.sistema-atualizacao i {
+
+    color: #64748b;
+
+}
+
+
+/* BOTÕES */
+
+.sistema-btn {
+
+    min-height: 42px;
+
+    border-radius: 9px;
+
+    font-size: .82rem;
+
+    font-weight: 600;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    transition: all .2s ease;
+
+}
+
+.sistema-btn:hover {
+
+    transform: translateY(-1px);
+
+}
+
+
+/* BOTÃO PRINCIPAL */
+
+.sistema-btn-principal {
+
+    box-shadow: 0 4px 10px rgba(25, 135, 84, .2);
+
+}
+
+
+/* DROPDOWN */
+
+.card-sistema .dropdown-menu {
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 12px;
+
+    box-shadow: 0 10px 25px rgba(15, 23, 42, .12);
+
+}
+
+.card-sistema .dropdown-item {
+
+    padding: .6rem .9rem;
+
+    font-size: .85rem;
+
+}
+
+.card-sistema .dropdown-item:hover {
+
+    background: #f8fafc;
+
+}
 </style>
 
 
@@ -87,52 +241,127 @@
    <!-- GRID -->
 
    <div class="row g-4">
-
       {% for sistema in sistemas %}
-
-      
-      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-         <div class="card card-sistema">
-            <div class="card-body d-flex flex-column">
-               <div class="d-flex justify-content-between align-items-start mb-3">
-                  <div>
-                     <h5 class="card-title fw-semibold mb-4"> 
-                        {{ sistema.nome }}
-                     </h5>
-
-                     <p class="descricao mb-2">
-                        {{ sistema.descricao|default:"Sem descrição"|truncatewords:18 }}
-                     </p>
-
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-4">
+         <div class="card card-sistema h-100">
+            <div class="card-body d-flex flex-column p-4">
+               <!-- =====================================================
+                  CABEÇALHO
+               ====================================================== -->
+               <div class="d-flex justify-content-between align-items-start mb-4">
+                  <div class="d-flex align-items-center gap-3">
+                     <div class="sistema-icon">
+                        <i class="bi bi-terminal-x"></i>
+                     </div>
+                     <div>
+                        <h5 class="card-title fw-bold mb-2">
+                           {{ sistema.nome }}
+                        </h5>
+                        <span class="sistema-status">
+                           <span class="status-dot"></span>
+                           Sistema Ativo
+                        </span>
+                     </div>
                   </div>
-
-                  
+                  <div class="dropdown">
+                     <button
+                        class="btn btn-link text-muted p-0"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical fs-5"></i>
+                     </button>
+                     <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                           <a
+                              class="dropdown-item"
+                              href="{% url 'sistema:editar_sistema' sistema.pk %}">
+                              <i class="bi bi-pencil me-2 text-primary"></i>
+                              Editar
+                           </a>
+                        </li>
+                        <li>
+                           <a
+                              class="dropdown-item text-danger"
+                              href="{% url 'sistema:excluir_sistema' sistema.pk %}"
+                              onclick="return confirm('Deseja excluir o sistema?');">
+                              <i class="bi bi-trash me-2"></i>
+                              Excluir
+                           </a>
+                        </li>
+                     </ul>
+                  </div>
                </div>
-
-
-               <div class="mt-auto acoes d-flex gap-2">
-                  <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-sm btn-outline-primary  p-1">
-                     <i class="bi bi-pencil"></i>
-                     Editar
-                  </a>
-                  <a href="{% url 'sistema:excluir_sistema' sistema.pk %}"  onclick="return confirm('Deseja excluir o sistema?');" class="btn btn-sm btn-outline-danger  p-1">
-                     <i class="bi bi-trash"></i>
-                     Excluir
-                  </a>
-
-                  <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-sm btn-outline-success  p-1">
-                     <i class="bi bi-gear"></i>
-                     Gerar Sistema
-                  </a>
-
+               <div class="sistema-descricao mb-4">
+                  <p class="mb-0">
+                     {{ sistema.descricao|default:"Sem descrição"|truncatewords:24 }}
+                  </p>
                </div>
-
+               <div class="sistema-atualizacao mb-4">
+                  <i class="bi bi-calendar3 me-2"></i>
+                  <span>
+                     Atualizado em
+                     <strong>
+                        {{ sistema.atualizado_em|date:"d/m/Y" }}
+                     </strong>
+                     às
+                     <strong>
+                        {{ sistema.atualizado_em|date:"H:i" }}
+                     </strong>
+                  </span>
+               </div>
+               <hr class="mt-auto mb-4">
+               <div class="row g-2">
+                  <div class="col-3">
+                     <a
+                        href="{% url 'sistema:editar_sistema' sistema.pk %}"
+                        class="btn btn-outline-primary sistema-btn w-100">
+                        <i class="bi bi-pencil me-1"></i>
+                        Editar
+                     </a>
+                  </div>
+                  <div class="col-3">
+                     <a
+                        href="{% url 'sistema:excluir_sistema' sistema.pk %}"
+                        onclick="return confirm('Deseja excluir o sistema?');"
+                        class="btn btn-outline-danger sistema-btn w-100">
+                        <i class="bi bi-trash me-1"></i>
+                        Excluir
+                     </a>
+                  </div>
+                  <div class="col-4">
+                     <a
+                        href="{% url 'sistema:gerar_sistema' sistema.pk %}"
+                        class="btn btn-success sistema-btn sistema-btn-principal w-100">
+                        <i class="bi bi-gear me-2"></i>
+                        Gerar Sistema
+                     </a>
+                  </div>
+                  <!-- DOWNLOAD -->
+                  <div class="col-2">
+                     {% if sistema.arquivo_zip %}
+                        <a
+                           href="{{ sistema.arquivo_zip.url }}"
+                           class="btn btn-outline-secondary sistema-btn w-100"
+                           title="Baixar último ZIP">
+                           <i class="bi bi-download"></i>
+                           <span class="d-none d-xl-inline ms-1">
+                              ZIP
+                           </span>
+                        </a>
+                     {% else %}
+                        <button
+                           class="btn btn-outline-secondary sistema-btn w-100"
+                           disabled
+                           title="Gere o sistema primeiro">
+                           <i class="bi bi-download"></i>
+                        </button>
+                     {% endif %}
+                  </div>
+               </div>
             </div>
-
          </div>
-
       </div>
-
       {% empty %}
 
       <div class="col-12">

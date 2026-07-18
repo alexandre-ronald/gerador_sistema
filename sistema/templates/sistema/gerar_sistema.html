@@ -126,6 +126,90 @@ async function iniciarGeracao(sistemaId) {
     // Estado inicial
     monitor.innerHTML = '<div class="log-entry log-info animate-in">>> Conectando ao serviço de geração...</div>';
     btn.disabled = true;
+    btn.classList.remove('btn-success', 'btn-danger');
+    btn.classList.add('btn-secondary');
+    spanBtn.innerText = "EXECUTANDO GERAÇÃO...";
+    iconBtn.className = "bi bi-arrow-repeat spin-animation me-2";
+
+    try {
+        const url = `/gerar/${sistemaId}/processar/`; // Mantenha a url idêntica à sua rota (ex: /gerar/${sistemaId}/processar/ ou usando o padrão ajax se alterado)
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.mensagem || "Erro inesperado no servidor.");
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'sucesso') {
+            // Efeito de digitação dos logs
+            for (const msg of data.logs) {
+                await new Promise(r => setTimeout(r, 100)); // Delay para leitura
+                const linha = document.createElement('div');
+                linha.className = 'log-entry log-success animate-in';
+                linha.innerHTML = `<span class="text-secondary text-opacity-50">>></span> ${msg}`;
+                monitor.appendChild(linha);
+                monitor.scrollTop = monitor.scrollHeight;
+            }
+
+            // Finalização nos Logs
+            const final = document.createElement('div');
+            final.className = 'mt-4 fw-bold text-info animate-in border-top border-secondary pt-3';
+            final.innerHTML = "✨ TUDO PRONTO! O arquivo portátil foi gerado.";
+            monitor.appendChild(final);
+            monitor.scrollTop = monitor.scrollHeight;
+            
+            // ====================================================================
+            // MUTAÇÃO DO BOTÃO: Transforma em botão de download do ZIP
+            // ====================================================================
+            btn.disabled = false; // Reativa o botão para o clique do download
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-success', 'animate-in'); // Volta a ser verde com destaque
+            spanBtn.innerText = "BAIXAR PROJETO COMPLETO (.ZIP)";
+            iconBtn.className = "bi bi-file-earmark-zip-fill me-2";
+            
+            // Altera o comportamento do botão para baixar o arquivo diretamente
+            btn.onclick = function() {
+                window.location.href = data.url_zip;
+            };
+
+        } else {
+            throw new Error(data.mensagem);
+        }
+
+    } catch (error) {
+        const erroLinha = document.createElement('div');
+        erroLinha.className = 'log-entry log-error animate-in mt-3 fw-bold';
+        erroLinha.innerHTML = `❌ ERRO: ${error.message}`;
+        monitor.appendChild(erroLinha);
+        
+        btn.disabled = false;
+        btn.classList.remove('btn-secondary', 'btn-success');
+        btn.classList.add('btn-danger');
+        spanBtn.innerText = "TENTAR NOVAMENTE";
+        iconBtn.className = "bi bi-exclamation-triangle-fill me-2";
+        
+        // Garante que o clique do botão tente rodar o processo de novo se falhar
+        btn.onclick = function() { iniciarGeracao(sistemaId); };
+    }
+}
+
+async function iniciarGeracao2(sistemaId) {
+    const btn = document.getElementById('btn-gerar');
+    const monitor = document.getElementById('log-monitor');
+    const spanBtn = btn.querySelector('span');
+    const iconBtn = btn.querySelector('i');
+
+    // Estado inicial
+    monitor.innerHTML = '<div class="log-entry log-info animate-in">>> Conectando ao serviço de geração...</div>';
+    btn.disabled = true;
     btn.classList.replace('btn-success', 'btn-secondary');
     spanBtn.innerText = "EXECUTANDO GERAÇÃO...";
     iconBtn.className = "bi bi-arrow-repeat spin-animation me-2";

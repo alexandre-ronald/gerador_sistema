@@ -11,6 +11,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .services import GeradorService
 
+import os
+import zipfile
+from datetime import datetime
+from django.utils.text import slugify
+from django.core.files import File
+from django.conf import settings
+from django.shortcuts import get_object_or_404, redirect
+from django.http import FileResponse
+
+
 
 import json
 
@@ -394,7 +404,143 @@ def gerar_sistema_view(request, pk):
     }
     return render(request, 'sistema/gerar_sistema.html', context)
 
+import os
+import zipfile
+from datetime import datetime
+from django.utils.text import slugify
+from django.conf import settings
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from .models import Sistema  # Ajuste para o seu model real de Sistema
+
 def processar_geracao_ajax(request, pk):
+    """Executa o motor de geração e retorna os logs em JSON com script e ZIP portátil"""
+    try:
+        # 1. Instancia o serviço e roda o gerador padrão
+        gerador = GeradorService(pk)
+        logs_execucao = gerador.gerar_projeto_completo()
+        
+        # Recupera o objeto do sistema para pegar caminhos e nomes
+        # (Se o seu gerador já guarda a instância em gerador.sistema, pode usar direto)
+        sistema = get_object_or_404(Sistema, pk=pk)
+        diretorio_destino = sistema.caminho_geracao  # Diretório físico gerado
+
+        # Validar se o diretório de geração realmente existe
+        if not diretorio_destino or not os.path.exists(diretorio_destino):
+            raise Exception(f"Diretório de destino '{diretorio_destino}' não foi localizado pelo compressor.")
+
+        # ====================================================================
+        # PASSO 1: Criar o 'instalacao.bat' dentro da raiz do diretório gerado
+        # ====================================================================
+        logs_execucao.append("Injetando script de automação 'instalacao.bat'...")
+        caminho_bat = os.path.join(diretorio_destino, 'instalacao.bat')
+        
+        conteudo_bat = f"""@echo off
+SETLOCAL EnableDelayedExpansion
+title Instalador do Sistema - {sistema.nome}
+
+echo ====================================================================
+echo   Configurando ambiente local para: {sistema.nome}
+echo ====================================================================
+echo.
+
+:: 1. Criar ambiente isolado
+echo [*] Criando ambiente virtual Python (.venv)...
+python -m venv .venv
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao criar ambiente virtual. Verifique se o Python esta no PATH.
+    pause & exit /b %errorlevel%
+)
+
+:: 2. Ativar venv e instalar dependencias
+echo [*] Ativando ambiente virtual...
+ Salvador:
+call .venv\\Scripts\\activate
+
+echo [*] Atualizando o gerenciador de pacotes (pip)...
+python -m pip install --upgrade pip
+
+echo [*] Instalando dependencias do framework...
+pip install django django-crispy-forms crispy-bootstrap5 pillow
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao instalar dependencias do Django.
+    pause & exit /b %errorlevel%
+)
+
+:: 3. Rodar as migrações do banco gerado
+echo [*] Configurando banco de dados inicial (Migrate)...
+python manage.py makemigrations
+python manage.py migrate
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao criar as tabelas no Banco de Dados.
+    pause & exit /b %errorlevel%
+)
+
+:: 4. Prompt para criar o admin do usuário final
+echo.
+echo ====================================================================
+echo   CRIE O SEU USUARIO ADMINISTRADOR DE ACESSO
+echo ====================================================================
+python manage.py createsuperuser
+echo.
+
+:: 5. Iniciar a aplicação
+echo ====================================================================
+echo   Tudo pronto! Seu sistema foi configurado localmente.
+echo   O servidor sera iniciado em: http://127.0.0.1:8000/
+echo ====================================================================
+echo.
+pause
+python manage.py runserver
+"""
+        with open(caminho_bat, 'w', encoding='utf-8') as bat_file:
+            bat_file.write(conteudo_bat)
+
+
+        # ====================================================================
+        # PASSO 2: Compactar o diretório inteiro em um arquivo ZIP portátil
+        # ====================================================================
+        logs_execucao.append("Iniciando compactação portátil em arquivo .ZIP...")
+        
+        # Gerando nome dinâmico com a Timestamp do momento (AnoMêsDia_HoraMinutoSegundo)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        nome_zip = f"{slugify(sistema.nome)}_{timestamp}.zip"
+        
+        # Define a pasta de uploads padrão do Django no servidor para guardar os zips
+        diretorio_zips = os.path.join(settings.MEDIA_ROOT, 'downloads_sistemas')
+        os.makedirs(diretorio_zips, exist_ok=True)
+        caminho_zip_final = os.path.join(diretorio_zips, nome_zip)
+
+        # Captura todos os arquivos gerados (incluindo o recém-criado bat)
+        with zipfile.ZipFile(caminho_zip_final, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for raiz, dirs, arquivos in os.walk(diretorio_destino):
+                for arquivo in arquivos:
+                    caminho_completo = os.path.join(raiz, arquivo)
+                    # Caminho relativo evita colocar caminhos absolutos do servidor dentro do ZIP
+                    caminho_relativo = os.path.relpath(caminho_completo, diretorio_destino)
+                    zipf.write(caminho_completo, caminho_relativo)
+
+        # Guardar a referência no banco de dados para o card histórico funcionar
+        # Nota: Lembre-se de criar o campo arquivo_zip no model se ainda não criou
+        sistema.arquivo_zip = f"downloads_sistemas/{nome_zip}"
+        sistema.save()
+
+        logs_execucao.append(f"Arquivo compactado gerado com sucesso: {nome_zip}")
+        logs_execucao.append("Processo de exportação finalizado com sucesso!")
+
+        return JsonResponse({
+            "status": "sucesso",
+            "logs": logs_execucao,
+            "url_zip": sistema.arquivo_zip.url
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "erro",
+            "mensagem": str(e)
+        }, status=400)
+
+def processar_geracao_ajax2(request, pk):
     """Executa o motor de geração e retorna os logs em JSON"""
     try:
         # Instancia o serviço que criamos anteriormente
@@ -425,3 +571,116 @@ def gerar_sucesso_view(request, pk):
         'caminho': sistema.caminho_geracao
     }
     return render(request, 'sistema/gerar_sucesso.html', context)
+
+def gerar_e_zipar_sistema(request, sistema_id):
+    sistema = get_object_or_404(Sistema, id=sistema_id, usuario=request.user)
+    
+    # 1. Definir caminhos (ajuste para a lógica onde seu gerador cria as pastas)
+    diretorio_sistema = os.path.join(settings.MEDIA_ROOT, 'gerador_temp', sistema.slug)
+    
+    # [AQUI: Seu gerador existente cria a estrutura de pastas do Django: manage.py, apps, etc.]
+    # ex: criar_estrutura_django(diretorio_sistema, sistema)
+
+    # 2. Criar o arquivo instalacao.bat dentro da raiz do sistema gerado
+    caminho_bat = os.path.join(diretorio_sistema, 'instalacao.bat')
+    conteudo_bat = gerar_conteudo_bat(sistema.slug)
+    with open(caminho_bat, 'w', encoding='utf-8') as bat_file:
+        bat_file.write(conteudo_bat)
+
+    # 3. Criar o arquivo ZIP com Timestamp no nome
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    nome_zip = f"{sistema.slug}_{timestamp}.zip"
+    caminho_zip_temporario = os.path.join(settings.MEDIA_ROOT, 'gerador_temp', nome_zip)
+
+    with zipfile.ZipFile(caminho_zip_temporario, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for raiz, dirs, arquivos in os.walk(diretorio_sistema):
+            for arquivo in arquivos:
+                caminho_completo = os.path.join(raiz, arquivo)
+                # Guarda no zip mantendo a estrutura relativa de pastas
+                caminho_relativo = os.path.relpath(caminho_completo, diretorio_sistema)
+                zipf.write(caminho_completo, caminho_relativo)
+
+    # 4. Salvar o ZIP no Model para persistência posterior
+    with open(caminho_zip_temporario, 'rb') as f:
+        sistema.arquivo_zip.save(nome_zip, File(f), save=True)
+
+    # Limpeza do arquivo temporário local se necessário
+    if os.path.exists(caminho_zip_temporario):
+        os.remove(caminho_zip_temporario)
+
+    return redirect('meus_sistemas')
+
+def gerar_conteudo_bat(nome_projeto):
+    return f"""@echo off
+SETLOCAL EnableDelayedExpansion
+title Instalador Automatico - {nome_projeto}
+
+echo ====================================================================
+echo    Iniciando a instalacao automatica do sistema: {nome_projeto}
+echo ====================================================================
+echo.
+
+:: 1. Criando o ambiente virtual (.venv)
+echo [*] Criando ambiente virtual Python (.venv)...
+python -m venv .venv
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao criar o ambiente virtual. Certifique-se de que o Python esta no PATH.
+    pause
+    exit /b %errorlevel%
+)
+echo [OK] Ambiente virtual criado com sucesso.
+echo.
+
+:: 2. Ativando a venv e Instalando pacotes
+echo [*] Ativando ambiente virtual e instalando pacotes...
+call .venv\\Scripts\\activate
+
+:: Garantir atualizacao do pip
+python -m pip install --upgrade pip
+
+:: Instala os pacotes padrão do Django e complementos
+echo [*] Instalando Django e dependencias...
+pip install django django-crispy-forms crispy-bootstrap5 pillow
+
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha na instalacao dos pacotes pip.
+    pause
+    exit /b %errorlevel%
+)
+echo [OK] Dependencias instaladas com sucesso.
+echo.
+
+:: 3. Executando as Migraçoes
+echo [*] Preparando banco de dados (Migrate)...
+python manage.py makemigrations
+python manage.py migrate
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao executar as migracoes do Banco de Dados.
+    pause
+    exit /b %errorlevel%
+)
+echo [OK] Banco de dados configurado.
+echo.
+
+:: 4. Criação do Superusuário (Interativo)
+echo ====================================================================
+echo    CRIACAO DO USUARIO ADMINISTRADOR (SUPERUSER)
+echo ====================================================================
+echo Digite os dados para acessar o painel administrativo posteriormente:
+echo.
+python manage.py createsuperuser
+echo.
+echo [OK] Configuracao do Administrador concluida.
+echo.
+
+:: 5. Inicialização do Servidor
+echo ====================================================================
+echo    Instalacao Concluida com Sucesso!
+echo    O servidor sera iniciado em: http://127.0.0.1:8000/
+echo ====================================================================
+echo.
+echo Pressione qualquer tecla para rodar o sistema...
+pause > nul
+
+python manage.py runserver
+"""

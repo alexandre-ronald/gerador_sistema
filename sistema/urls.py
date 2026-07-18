@@ -15,6 +15,8 @@ urlpatterns = [
 
     # ROTA 1: A página com o Monitor de Log (HTML)
     path('gerar/<int:pk>/', views.gerar_sistema_view, name='gerar_sistema'),
+    path('sistema/gerar/<int:sistema_id>/', views.gerar_e_zipar_sistema, name='gerar_sistema1'),
+
 
     # ROTA 2: A API que o JavaScript chama para processar (JSON)
     path('gerar/<int:pk>/processar/', views.processar_geracao_ajax, name='processar_geracao_ajax'),

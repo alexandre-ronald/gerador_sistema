@@ -25,6 +25,11 @@ class GeradorService:
                 self._gerar_modulo(modulo)
 
             self._gerar_templates_globais()
+
+            print (self.sistema.gerar_docker)
+
+            if self.sistema.gerar_docker:
+                self._gerar_docker()
             
             self.log("✅ Geração concluída com sucesso!")
             return self.logs
@@ -41,6 +46,18 @@ class GeradorService:
         with open(caminho_full, 'w', encoding='utf-8') as f:
             f.write(conteudo)
         self.log(f"Arquivo criado: {caminho_relativo}")
+
+    def _gerar_docker(self):
+        self.log("🐳 Criando arquivos do ambiente Docker...")
+        ctx = {
+            'sistema': self.sistema,
+            'nome_projeto': self.nome_projeto
+        }
+        
+        # Renderiza e escreve os manifestos Docker na raiz do projeto gerado
+        self._escrever_arquivo('Dockerfile', 'gerador/snippets/dockerfile.txt', ctx)
+        self._escrever_arquivo('docker-compose.yml', 'gerador/snippets/docker_compose.txt', ctx)
+        self._escrever_arquivo('.dockerignore', 'gerador/snippets/dockerignore.txt', ctx)
 
     def _gerar_modulo(self, modulo):
         app_name = slugify(modulo.nome).replace('-', '_')

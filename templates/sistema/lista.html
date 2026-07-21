@@ -11,6 +11,16 @@
       transform: translate(15%, 15%);
       color: rgba(255, 255, 255, 1);
    }
+   .arrow-icon {
+        position: absolute;
+        bottom: 120px;
+        right: -0px;
+        opacity: 0.05;
+        transform: rotate(-30deg);
+        transition: all 0.35s ease;
+        color: var(--card-color);
+        font-size: 10rem !important;
+    }
    .card-sistema {
       border: 1px solid #e5e7eb;
       border-radius: 18px;
@@ -75,7 +85,7 @@
    .sistema-btn {
       min-height: 22px;
       border-radius: 6px;
-      font-size: .8rem;
+      font-size: .9rem;
       font-weight: 500;
       display: inline-flex;
       align-items: center;
@@ -157,19 +167,19 @@
                            </div>
                            <div class="text-muted small">{{ sistema.descricao|default:"Sem descrição"|truncatewords:24 }}</div>
                         </div>
-                        <div >
-                           <img src="{% static 'images/4.png' %}" alt="..." style="width: 7rem">
+                        <div class="arrow-icon" >
+                            <i class="bi bi-robot"></i>
                         </div>
                      </div>
                      <div class="sistema-atualizacao mb-4">
                         <i class="bi bi-calendar3 me-2"></i>
                         <span> Atualizado em <strong> {{ sistema.atualizado_em|date:"d/m/Y" }} </strong>  às <strong> {{ sistema.atualizado_em|date:"H:i" }} </strong> </span>
                      </div>
-                     <hr class="mt-auto mb-4">
+                     <hr class="mt-auto mb-3">
                      <div class="row g-2">
                         <div class="col">
                            <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-outline-secondary sistema-btn w-100"> 
-                              <i class="bi bi-sliders me-2 "></i> Configurações 
+                              <i class="bi bi-sliders me-2 "></i> Parâmetros 
                            </a>
                         </div>
                         <div class="col">
@@ -179,13 +189,14 @@
                         </div>
                         <div class="col">
                            <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-outline-success sistema-btn sistema-btn-principal w-100"> 
-                              <i class="bi bi-play-fill me-1"></i> Gerar </a>
+                              <i class="bi bi-robot me-1"></i> Gerar </a>
                         </div>
                         <!-- DOWNLOAD -->
                         <div class="col">
                            {% if sistema.arquivo_zip %}
-                              <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-outline-secondary sistema-btn w-100" title="Baixar último ZIP"> <i class="bi bi-file-earmark-zip"></i>
-                                 <span class="d-none d-xl-inline ms-1"> ZIP  </span>
+                              <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-outline-secondary sistema-btn w-100" title="Baixar último ZIP"> 
+                                 <i class="bi bi-download me-1"></i>
+                                 <span class="d-none d-xl-inline ms-1"> Baixar  </span>
                               </a>
                            {% else %}
                               <button

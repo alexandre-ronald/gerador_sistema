@@ -6,6 +6,11 @@
 {% block content %}
 
 <style>
+   .hero-watermark {
+      font-size: 14rem;
+      transform: translate(15%, 15%);
+      color: rgba(255, 255, 255, 1);
+   }
    .card-sistema {
       border: 1px solid #e5e7eb;
       border-radius: 18px;
@@ -68,10 +73,10 @@
       color: #64748b;
    }
    .sistema-btn {
-      min-height: 42px;
+      min-height: 22px;
       border-radius: 6px;
-      font-size: .92rem;
-      font-weight: 600;
+      font-size: .8rem;
+      font-weight: 500;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -135,7 +140,7 @@
    
       <div class="row g-4">
          {% for sistema in sistemas %}
-            <div class="col-xl-4 mb-4">
+            <div class="col-xl-4 mb-1">
                <!-- Dashboard example card 1-->
                <div class="card card-sistema h-100" >
                   <div class="card-body d-flex justify-content-center flex-column">
@@ -152,7 +157,9 @@
                            </div>
                            <div class="text-muted small">{{ sistema.descricao|default:"Sem descrição"|truncatewords:24 }}</div>
                         </div>
-                        <img src="{% static 'images/browser-stats.svg' %}" alt="..." style="width: 6rem">
+                        <div >
+                           <img src="{% static 'images/4.png' %}" alt="..." style="width: 7rem">
+                        </div>
                      </div>
                      <div class="sistema-atualizacao mb-4">
                         <i class="bi bi-calendar3 me-2"></i>
@@ -171,7 +178,7 @@
                               <i class="bi bi-trash3 me-2"></i> Excluir </a>
                         </div>
                         <div class="col">
-                           <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-success sistema-btn sistema-btn-principal w-100"> 
+                           <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-outline-success sistema-btn sistema-btn-principal w-100"> 
                               <i class="bi bi-play-fill me-1"></i> Gerar </a>
                         </div>
                         <!-- DOWNLOAD -->

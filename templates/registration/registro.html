@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Criar Conta | DjangoForge{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card-auth {
+    border: 1px solid var(--border-color-light);
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  }
+
+  [data-bs-theme="dark"] .card-auth {
+    background: #111827;
+    border-color: var(--border-color-dark);
+  }
+
+  .auth-logo {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    background: var(--django-emerald-light);
+    color: var(--django-emerald);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+
+      <!-- Logo / Marca -->
+      <div class="text-center mb-4">
+        <div class="auth-logo mx-auto mb-3 shadow-sm">
+          <i class="bi bi-person-plus-fill"></i>
+        </div>
+        <h3 class="fw-bold m-0">Criar sua Conta</h3>
+        <p class="text-secondary small mt-1">Cadastre-se para começar a construir seus sistemas no DjangoForge</p>
+      </div>
+
+      <!-- Card do Formulário -->
+      <div class="card card-auth p-4 p-md-4">
+        
+        <!-- Mensagens de Feedback -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show small py-2.5" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close py-2.5" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'sistema:registro' %}" class="d-flex flex-column gap-3">
+          {% csrf_token %}
+
+          <!-- Nome Completo -->
+          <div>
+            <label class="form-label small fw-bold text-body">Nome Completo</label>
+            {{ form.nome_completo }}
+            {% if form.nome_completo.errors %}
+              <div class="text-danger small mt-1">{{ form.nome_completo.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- E-mail -->
+          <div>
+            <label class="form-label small fw-bold text-body">E-mail</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+              <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Senha -->
+          <div>
+            <label class="form-label small fw-bold text-body">Senha</label>
+            {{ form.password }}
+            {% if form.password.errors %}
+              <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Confirmação de Senha -->
+          <div>
+            <label class="form-label small fw-bold text-body">Confirme a Senha</label>
+            {{ form.confirm_password }}
+            {% if form.confirm_password.errors %}
+              <div class="text-danger small mt-1">{{ form.confirm_password.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Botão Submeter -->
+          <button type="submit" class="btn btn-primary w-100 rounded-3 py-2.5 mt-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Finalizar Cadastro</span>
+          </button>
+        </form>
+
+      </div>
+
+      <!-- Link para Login -->
+      <p class="text-center text-secondary small mt-4">
+        Já possui uma conta? 
+        <a href="{% url 'login' %}" class="text-success fw-bold text-decoration-none">Fazer Login</a>
+      </p>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

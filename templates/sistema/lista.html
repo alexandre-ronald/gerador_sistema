@@ -1,244 +1,228 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Sistemas Cadastrados{% endblock %}
+{% block title %}Meus Sistemas | DjangoForge{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Card de Sistema Estilizado */
+  .card-sistema {
+    border: 1px solid var(--border-color-light);
+    border-radius: 0.85rem;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 6px 16px rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    position: relative;
+  }
+
+  [data-bs-theme="dark"] .card-sistema {
+    background: #111827;
+    border-color: var(--border-color-dark);
+  }
+
+  .card-sistema:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03), 0 10px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Marca d'água de fundo */
+  .watermark-icon {
+    position: absolute;
+    bottom: -15px;
+    right: -15px;
+    opacity: 0.04;
+    font-size: 8.5rem;
+    pointer-events: none;
+    color: var(--django-green-dark);
+  }
+
+  [data-bs-theme="dark"] .watermark-icon {
+    color: #ffffff;
+    opacity: 0.03;
+  }
+
+  /* Ícone Principal do Sistema */
+  .sistema-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--django-emerald-light);
+    color: var(--django-emerald);
+    font-size: 1.35rem;
+    flex-shrink: 0;
+  }
+
+  /* Botão de Ação Primária em Verde */
+
+  /* Botão de Ação Primária em Verde */
+  .btn-gerar {
+    background-color: var(--django-emerald);
+    border-color: var(--django-emerald);
+    color: #ffffff;
+    font-weight: 300;
+  }
+
+  .btn-gerar:hover {
+    background-color: var(--django-emerald-hover);
+    border-color: var(--django-emerald-hover);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="container-fluid p-0">
 
-<style>
-   .hero-watermark {
-      font-size: 14rem;
-      transform: translate(15%, 15%);
-      color: rgba(255, 255, 255, 1);
-   }
-   .arrow-icon {
-        position: absolute;
-        bottom: 120px;
-        right: -0px;
-        opacity: 0.05;
-        transform: rotate(-30deg);
-        transition: all 0.35s ease;
-        color: var(--card-color);
-        font-size: 10rem !important;
-    }
-   .card-sistema {
-      border: 1px solid #e5e7eb;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-      transition: all .25s ease;
-      overflow: hidden;
-   }
-   .card-sistema:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 16px 35px rgba(15, 23, 42, 0.12);
-   }
-   /* ÍCONE */
-   .sistema-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #eaf2ff;
-      color: #2563eb;
-      font-size: 1.6rem;
-   }
-   /* TÍTULO */
-   .card-sistema .card-title {
-      color: #172033;
-      font-size: 1.15rem;
-      letter-spacing: -.2px;
-   }
-   .sistema-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: #eaf2ff;
-      color: #2563eb;
-      font-size: .75rem;
-      font-weight: 600;
-   }
-   .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #2563eb;
-   }
-   .sistema-descricao {
-      color: #64748b;
-      font-size: .9rem;
-      line-height: 1.6;
-   }
-   .sistema-atualizacao {
-      display: flex;
-      align-items: center;
-      color: #64748b;
-      font-size: .78rem;
-   }
-   .sistema-atualizacao i {
-      color: #64748b;
-   }
-   .sistema-btn {
-      min-height: 22px;
-      border-radius: 6px;
-      font-size: .9rem;
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .2s ease;
-      padding: .3rem .6rem;
-   }
-   .sistema-btn:hover {
-      transform: translateY(-1px);
-   }
-   .sistema-btn-principal {
-      box-shadow: 0 4px 10px rgba(25, 135, 84, .2);
-   }
-   .card-sistema .dropdown-menu {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(15, 23, 42, .12);
-   }
-   .card-sistema .dropdown-item {
-      padding: .2rem .3rem;
-      font-size: .85rem;
-   }
-   .card-sistema .dropdown-item:hover {
-      background: #f8fafc;
-   }
+  <!-- CABEÇALHO DA PÁGINA -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold m-0 tracking-tight d-flex align-items-center gap-2">
+        <i class="bi bi-folder2-open text-success"></i> Meus Sistemas
+      </h3>
+      <p class="text-secondary m-0 small">
+        Gerencie os projetos cadastrados e compile o código-fonte em Django automaticamente.
+      </p>
+    </div>
 
-</style>
+    <div class="d-flex gap-2">
+      <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-padrao rounded-3 px-3 shadow-sm d-flex align-items-center gap-2">
+        <i class="bi bi-plus-lg"></i>
+        <span>Novo Sistema</span>
+      </a>
+      <a href="{% url 'sistema:dashboard' %}" class="btn btn-outline-secondary rounded-3 px-3 border">
+        <i class="bi bi-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+  </div>
 
+  <!-- GRID DE CARDS -->
+  <div class="row g-3">
+    {% for sistema in sistemas %}
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="card card-sistema h-100">
+          <div class="card-body p-4 d-flex flex-column justify-content-between">
+            
+            <div>
+              <!-- Marca d'água -->
+              <div class="watermark-icon">
+                <i class="bi bi-cpu-fill"></i>
+              </div>
 
-<div class="container-fluid py-4" style="width:95%;">
+              <!-- Topo do Card (Ícone, Nome e Slug) -->
+              <div class="d-flex align-items-start gap-3 mb-3">
+                <div class="sistema-icon">
+                  <i class="bi bi-window-stack"></i>
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                  <h5 class="fw-bold text-body m-0 text-truncate" title="{{ sistema.nome }}">
+                    {{ sistema.nome }}
+                  </h5>
+                  <small class="text-secondary d-block text-truncate" style="font-size: 0.78rem;">
+                    /{{ sistema.slug }}
+                  </small>
+                </div>
+              </div>
 
+              <!-- Descrição -->
+              <p class="text-secondary small mb-3 lh-sm" style="min-height: 2.4em;">
+                {{ sistema.descricao|default:"Sem descrição informada para este projeto."|truncatewords:20 }}
+              </p>
 
-   <!-- CABEÇALHO -->
+              <!-- Tags / Features do Gerador -->
+              <div class="d-flex flex-wrap gap-1 mb-3">
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill" style="font-size: 0.7rem;">
+                  <i class="bi bi-database me-1"></i>{{ sistema.get_banco_dados_display }}
+                </span>
+                
+                {% if sistema.usar_custom_user %}
+                  <span class="badge bg-success-subtle text-success rounded-pill" style="font-size: 0.7rem;">User</span>
+                {% endif %}
+                
+                {% if sistema.gerar_api_rest %}
+                  <span class="badge bg-primary-subtle text-primary rounded-pill" style="font-size: 0.7rem;">DRF</span>
+                {% endif %}
+                
+                {% if sistema.gerar_docker %}
+                  <span class="badge bg-info-subtle text-info rounded-pill" style="font-size: 0.7rem;">Docker</span>
+                {% endif %}
+              </div>
 
-   <div class="d-flex justify-content-between align-items-center mb-4">
-
-      <div>
-
-         <h4 class="">
-            <i class="bi bi-diagram-3"></i> Meus Sistemas
-         </h4>
-
-         <p class="text-muted mb-0">
-            Gerencie os sistemas que serão gerados automaticamente pelo construtor.
-         </p>
-
-      </div>
-
-      <div class="d-flex gap-2">
-
-         <a href="{% url 'sistema:criar' %}" class="btn btn-success btn-sm">
-            <i class="bi bi-plus-circle"></i> Novo Sistema
-         </a>
-
-         <a href="" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i>  Voltar
-         </a>
-
-      </div>
-
-   </div>
-   
-      <div class="row g-4">
-         {% for sistema in sistemas %}
-            <div class="col-xl-4 mb-1">
-               <!-- Dashboard example card 1-->
-               <div class="card card-sistema h-100" >
-                  <div class="card-body d-flex justify-content-center flex-column">
-                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="me-3">
-                           <div class="sistema-icon  mb-2">
-                              <i class="bi bi-terminal-x"></i>
-                           </div>
-                           <div>
-                              <h5 class="card-title fw-bold mb-2">
-                                 {{ sistema.nome }}
-                              </h5>
-                             
-                           </div>
-                           <div class="text-muted small">{{ sistema.descricao|default:"Sem descrição"|truncatewords:24 }}</div>
-                        </div>
-                        <div class="arrow-icon" >
-                            <i class="bi bi-robot"></i>
-                        </div>
-                     </div>
-                     <div class="sistema-atualizacao mb-4">
-                        <i class="bi bi-calendar3 me-2"></i>
-                        <span> Atualizado em <strong> {{ sistema.atualizado_em|date:"d/m/Y" }} </strong>  às <strong> {{ sistema.atualizado_em|date:"H:i" }} </strong> </span>
-                     </div>
-                     <hr class="mt-auto mb-3">
-                     <div class="row g-2">
-                        <div class="col">
-                           <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-outline-warning sistema-btn w-100"> 
-                              <i class="bi bi-sliders me-2 "></i> Editar 
-                           </a>
-                        </div>
-                        <div class="col">
-                           <a href="{% url 'sistema:excluir_sistema' sistema.pk %}" onclick="return confirm('Deseja excluir o sistema?');" 
-                              class="btn btn-outline-danger sistema-btn w-100 ">
-                              <i class="bi bi-trash3 me-2"></i> Excluir </a>
-                        </div>
-                        <div class="col">
-                           <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-outline-success sistema-btn sistema-btn-principal w-100"> 
-                              <i class="bi bi-robot me-1"></i> Gerar </a>
-                        </div>
-                        <!-- DOWNLOAD -->
-                        <div class="col">
-                           {% if sistema.arquivo_zip %}
-                              <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-outline-secondary sistema-btn w-100" title="Baixar último ZIP"> 
-                                 <i class="bi bi-download me-1"></i>
-                                 <span class="d-none d-xl-inline ms-1"> Baixar  </span>
-                              </a>
-                           {% else %}
-                              <button
-                                 class="btn btn-outline-secondary sistema-btn w-100"
-                                 disabled
-                                 title="Gere o sistema primeiro">
-                                 <i class="bi bi-file-earmark-zip"></i>
-                              </button>
-                           {% endif %}
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         {% empty %}
-
-         <div class="col-12">
-
-            <div class="text-center py-5">
-
-               <i class="bi bi-diagram-3 fs-1 text-muted"></i>
-
-               <p class="text-muted mt-3">
-                  Nenhum sistema cadastrado ainda
-               </p>
-
-               <a href="{% url 'sistema:criar' %}" class="btn btn-primary">
-                  Criar primeiro sistema
-               </a>
-
+              <!-- Data de Atualização -->
+              <div class="text-secondary small d-flex align-items-center mb-3" style="font-size: 0.78rem;">
+                <i class="bi bi-clock-history me-1.5 text-success"></i>
+                <span>Atualizado em <strong>{{ sistema.atualizado_em|date:"d/m/Y" }}</strong> às <strong>{{ sistema.atualizado_em|date:"H:i" }}</strong></span>
+              </div>
             </div>
 
-         </div>
+            <!-- Rodapé de Ações do Card -->
+            <div class="border-top pt-3 mt-2">
+              <div class="row g-2">
+                
+                <!-- Botão Editar -->
+                <div class="col-3">
+                  <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-sm btn-outline-secondary w-100 rounded-2" title="Editar Parâmetros">
+                    <i class="bi bi-sliders"></i> Editar
+                  </a>
+                </div>
 
-         {% endfor %}
-         
+                <!-- Botão Excluir -->
+                <div class="col-3">
+                  <a href="{% url 'sistema:excluir_sistema' sistema.pk %}" onclick="return confirm('Deseja realmente excluir o sistema {{ sistema.nome }}?');" class="btn btn-sm btn-outline-danger w-100 rounded-2" title="Excluir Sistema">
+                    <i class="bi bi-trash"></i> Excluir 
+                  </a>
+                </div>
+
+                <!-- Botão Gerar Código -->
+                <div class="col-3">
+                  <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-sm btn-gerar w-100 rounded-2" title="Compilar Projeto">
+                    <i class="bi bi-cpu"></i> Compilar
+                  </a>
+                </div>
+
+                <!-- Botão Download ZIP -->
+                <div class="col-3">
+                  {% if sistema.arquivo_zip %}
+                    <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-sm btn-outline-success w-100 rounded-2" title="Baixar Pacote .ZIP">
+                      <i class="bi bi-download"></i> Baixar
+                    </a>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-secondary w-100 rounded-2" disabled title="Gere o sistema primeiro para baixar o ZIP">
+                      <i class="bi bi-download opacity-50"></i>
+                    </button>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
-   <!-- GRID -->
-   
+    {% empty %}
 
-   </div>
+      <!-- Estado Vazio -->
+      <div class="col-12">
+        <div class="card card-sistema text-center py-5">
+          <div class="card-body">
+            <div class="p-3 bg-body-tertiary d-inline-block rounded-circle mb-3">
+              <i class="bi bi-folder-plus fs-1 text-secondary"></i>
+            </div>
+            <h5 class="fw-bold">Nenhum sistema cadastrado</h5>
+            <p class="text-secondary small mb-3">Você ainda não criou nenhum projeto. Comece configurando o primeiro!</p>
+            <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-sm rounded-3 px-3 shadow-sm">
+              <i class="bi bi-plus-lg me-1"></i> Criar Primeiro Sistema
+            </a>
+          </div>
+        </div>
+      </div>
+
+    {% endfor %}
+  </div>
 
 </div>
-
 {% endblock %}

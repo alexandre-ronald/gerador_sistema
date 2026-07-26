@@ -5,12 +5,12 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <h2 class="fw-bold m-0">Gestão de Usuários</h2>
+    <h4 class="fw-medium m-0">Gestão de Usuários</h4>
     <p class="text-secondary m-0">Controle de acessos e permissões do sistema.</p>
   </div>
-  <button class="btn btn-primary rounded-3">
+  <a class="btn btn-primary rounded-3" href="{% url 'sistema:registro' %}">
     <i class="bi bi-person-plus-fill me-1"></i> Adicionar Usuário
-  </button>
+  </a>
 </div>
 
 <div class="card card-modern p-4">

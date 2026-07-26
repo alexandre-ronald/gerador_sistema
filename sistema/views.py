@@ -1,28 +1,110 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-
-from .forms import SistemaForm   # vamos criar esse form agora
-from django.db import transaction
-
-from django.http import JsonResponse
-from .models import Sistema, Modulo, Entidade, Campo
-from django.views.decorators.csrf import csrf_exempt
-
-from .services import GeradorService
-
+import json
 import os
 import zipfile
 from datetime import datetime
-from django.utils.text import slugify
-from django.core.files import File
+
+from django import forms
 from django.conf import settings
-from django.shortcuts import get_object_or_404, redirect
-from django.http import FileResponse
-from django.contrib.auth.models import User
+from django.contrib import messages
+from django.contrib.auth import get_user_model, login
+from django.contrib.auth.decorators import login_required
+from django.core.files import File
+from django.db import transaction
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
+from django.views.decorators.csrf import csrf_exempt
+
+from .forms import SistemaForm  # vamos criar esse form agora
+from .models import Campo, Entidade, Modulo, Sistema
+from .services import GeradorService
+
+User = get_user_model()
 
 
-import json
+# Form de Cadastro Customizado
+class RegistroUsuarioForm(forms.ModelForm):
+    nome_completo = forms.CharField(
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control bg-body', 'placeholder': 'Seu nome completo'})
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control bg-body', 'placeholder': 'seu@email.com'})
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control bg-body', 'placeholder': '••••••••'}),
+        label="Senha"
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control bg-body', 'placeholder': '••••••••'}),
+        label="Confirme a Senha"
+    )
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError("Este e-mail já está cadastrado no sistema.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get("password")
+        confirm_password = cleaned_data.get("confirm_password")
+
+        if password and confirm_password and password != confirm_password:
+            self.add_error('confirm_password', "As senhas não coincidem.")
+        return cleaned_data
+
+
+# View de Cadastro com Transação Atômica
+def registrar_usuario_view(request):
+
+    if not request.user.is_authenticated:
+        return redirect('sistema:dashboard')
+
+    if request.method == 'POST':
+        form = RegistroUsuarioForm(request.POST)
+        if form.is_valid():
+            try:
+                # Início da Transação Atômica
+                with transaction.atomic():
+                    email = form.cleaned_data['email']
+                    password = form.cleaned_data['password']
+                    nome_completo = form.cleaned_data['nome_completo']
+
+                    # Divide nome e sobrenome
+                    partes_nome = nome_completo.strip().split(' ', 1)
+                    first_name = partes_nome[0]
+                    last_name = partes_nome[1] if len(partes_nome) > 1 else ''
+
+                    # Cria o usuário com username igual ao e-mail
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        password=password,
+                        first_name=first_name,
+                        last_name=last_name
+                    )
+
+                # Realiza login automático após o cadastro bem-sucedido
+                login(request, user)
+                messages.success(request, f"Seja bem-vindo(a) ao DjangoForge, {first_name}!")
+                return redirect('sistema:dashboard')
+
+            except Exception as e:
+                messages.error(request, f"Erro interno ao processar o cadastro: {e!s}")
+        else:
+            messages.error(request, "Por favor, corrija os erros no formulário abaixo.")
+    else:
+        form = RegistroUsuarioForm()
+
+    return render(request, 'registration/registro.html', {'form': form})
 
 @login_required
 def lista_sistemas(request):
@@ -85,35 +167,6 @@ def editar_sistema2(request, pk):
         'form': form,
         'sistema': sistema,   # para o título e valores nos inputs
     })
-
-
-@login_required
-def gerar_sistema_processar(request, sistema_id):
-    if request.method != "POST":
-        return JsonResponse({"status": "erro", "mensagem": "Método inválido"}, status=405)
-
-    try:
-        sistema = Sistema.objects.get(id=sistema_id)
-
-        logs = gerar_sistema(sistema)
-
-        return JsonResponse({
-            "status": "sucesso",
-            "logs": logs
-        })
-
-    except Exception as e:
-        return JsonResponse({
-            "status": "erro",
-            "mensagem": str(e)
-        }, status=500)
-
-
-def to_int(value):
-    try:
-        return int(value)
-    except:
-        return None
 
 
 @csrf_exempt
@@ -405,14 +458,6 @@ def gerar_sistema_view(request, pk):
     }
     return render(request, 'sistema/gerar_sistema.html', context)
 
-import os
-import zipfile
-from datetime import datetime
-from django.utils.text import slugify
-from django.conf import settings
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from .models import Sistema  # Ajuste para o seu model real de Sistema
 
 def processar_geracao_ajax(request, pk):
     """Executa o motor de geração e retorna os logs em JSON com script e ZIP portátil"""

@@ -30,6 +30,8 @@ urlpatterns = [
     path('search/', views.search_view, name='search'),
     path('profile/', views.profile_view, name='profile'),
     path('settings/', views.settings_view, name='settings'),
+
+    path('usuario/novo/', views.registrar_usuario_view, name='registro'),
     
     
     

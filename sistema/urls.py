@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
-''
+
 app_name = 'sistema'  # namespace
 
 urlpatterns = [
@@ -32,7 +32,8 @@ urlpatterns = [
     path('settings/', views.settings_view, name='settings'),
 
     path('usuario/novo/', views.registrar_usuario_view, name='registro'),
+    path('sistemas/<int:pk>/download/', views.baixar_zip_sistema, name='baixar_zip'),
     
     
     
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] 

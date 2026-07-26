@@ -14,10 +14,11 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
-
+from django.http import FileResponse, Http404
 from .forms import SistemaForm  # vamos criar esse form agora
 from .models import Campo, Entidade, Modulo, Sistema
 from .services import GeradorService
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -577,7 +578,7 @@ python manage.py runserver
         return JsonResponse({
             "status": "sucesso",
             "logs": logs_execucao,
-            "url_zip": sistema.arquivo_zip.url
+            'url_zip': reverse('sistema:baixar_zip', kwargs={'pk': sistema.pk})
         })
 
     except Exception as e:
@@ -615,6 +616,7 @@ def gerar_sucesso_view(request, pk):
         'sistema': sistema,
         'nome_projeto': nome_projeto,
         'caminho': sistema.caminho_geracao
+        
     }
     return render(request, 'sistema/gerar_sucesso.html', context)
 
@@ -772,3 +774,19 @@ def profile_view(request):
 @login_required
 def settings_view(request):
     return render(request, 'sistema/settings.html')
+
+@login_required
+def baixar_zip_sistema(request, pk):
+    # Garante que o usuário só baixe o ZIP do SEU próprio sistema
+    sistema = get_object_or_404(Sistema, pk=pk, usuario=request.user)
+    
+    if not sistema.arquivo_zip or not os.path.exists(sistema.arquivo_zip.path):
+        raise Http404("O arquivo ZIP deste sistema não foi encontrado.")
+
+    # Retorna o arquivo diretamente na resposta HTTP
+    response = FileResponse(
+        open(sistema.arquivo_zip.path, 'rb'),
+        as_attachment=True,
+        filename=os.path.basename(sistema.arquivo_zip.name)
+    )
+    return response

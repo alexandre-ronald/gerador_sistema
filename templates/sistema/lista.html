@@ -186,10 +186,11 @@
 
                 <!-- Botão Download ZIP -->
                 <div class="col-3">
+
                   {% if sistema.arquivo_zip %}
-                    <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-sm btn-outline-success w-100 rounded-2" title="Baixar Pacote .ZIP">
-                      <i class="bi bi-download"></i> Baixar
-                    </a>
+                     <a href="{% url 'sistema:baixar_zip' sistema.pk %}" class="btn btn-sm btn-outline-success w-100 rounded-2" title="Baixar Pacote .ZIP">
+                     <i class="bi bi-download"></i> Baixar
+                  </a>
                   {% else %}
                     <button class="btn btn-sm btn-outline-secondary w-100 rounded-2" disabled title="Gere o sistema primeiro para baixar o ZIP">
                       <i class="bi bi-download opacity-50"></i>

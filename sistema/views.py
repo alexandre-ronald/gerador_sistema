@@ -19,14 +19,15 @@ from django.core.files import File
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect
 from django.http import FileResponse
-
+from django.contrib.auth.models import User
 
 
 import json
 
 @login_required
 def lista_sistemas(request):
-    sistemas = Sistema.objects.all().order_by('nome')
+    #sistemas = Sistema.objects.all().order_by('nome')
+    sistemas = Sistema.objects.filter(usuario=request.user).order_by('-atualizado_em')
     context = {
         'sistemas': sistemas,
     }
@@ -684,3 +685,45 @@ pause > nul
 
 python manage.py runserver
 """
+@login_required
+@login_required
+def dashboard_view(request):
+    sistemas = Sistema.objects.filter(usuario=request.user).prefetch_related('modulos')
+    
+    # Contadores consolidados do usuário
+    total_modulos = Modulo.objects.filter(sistema__usuario=request.user).count()
+    total_entidades = Entidade.objects.filter(modulo__sistema__usuario=request.user).count()
+    total_zips = sistemas.exclude(arquivo_zip='').exclude(arquivo_zip__isnull=True).count()
+
+    context = {
+        'sistemas': sistemas,
+        'total_modulos': total_modulos,
+        'total_entidades': total_entidades,
+        'total_zips': total_zips,
+    }
+    
+    return render(request, 'sistema/dashboard.html', context)
+
+@login_required
+def analytics_view(request):
+    return render(request, 'sistema/analytics.html')
+
+@login_required
+def users_view(request):
+    # Traz a lista de usuários cadastrados no banco do Django
+    users_list = User.objects.all().order_by('-date_joined')
+    return render(request, 'sistema/users.html', {'users_list': users_list})
+
+@login_required
+def search_view(request):
+    query = request.GET.get('q', '')
+    results = [] 
+    return render(request, 'sistema/search.html', {'query': query, 'results': results})
+
+@login_required
+def profile_view(request):
+    return render(request, 'sistema/profile.html')
+
+@login_required
+def settings_view(request):
+    return render(request, 'sistema/settings.html')

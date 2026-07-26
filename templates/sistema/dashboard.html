@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | Gerador de Sistemas{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h3 class="fw-medium m-0 tracking-tight">Painel de Controle</h3>
+    <p class="text-secondary m-0 small">Acompanhe os sistemas, módulos e modelos cadastrados no gerador.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-sm rounded-3 px-3 shadow-sm d-flex align-items-center gap-2">
+      <i class="bi bi-plus-circle"></i>
+      <span>Novo Sistema</span>
+    </a>
+  </div>
+</div>
+
+<!-- Cards de Métricas Reais -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Sistemas Cadastrados</span>
+          <h3 class="fw-bold my-1">{{ sistemas.count|default:"0" }}</h3>
+          <span class="text-primary small fw-semibold"><i class="bi bi-layers me-1"></i>Projetos ativos</span>
+        </div>
+        <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-cpu"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Módulos (Apps)</span>
+          <h3 class="fw-bold my-1">{{ total_modulos|default:"0" }}</h3>
+          <span class="text-info small fw-semibold"><i class="bi bi-box-seam me-1"></i>Estruturas ativas</span>
+        </div>
+        <div class="stat-icon bg-info bg-opacity-10 text-info">
+          <i class="bi bi-grid-3x3-gap"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Entidades (Models)</span>
+          <h3 class="fw-bold my-1">{{ total_entidades|default:"0" }}</h3>
+          <span class="text-success small fw-semibold"><i class="bi bi-table me-1"></i>Tabelas mapeadas</span>
+        </div>
+        <div class="stat-icon bg-success bg-opacity-10 text-success">
+          <i class="bi bi-database-gear"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Arquivos Gerados</span>
+          <h3 class="fw-bold my-1">{{ total_zips|default:"0" }}</h3>
+          <span class="text-warning small fw-semibold"><i class="bi bi-file-earmark-zip me-1"></i>Pacotes ZIP</span>
+        </div>
+        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+          <i class="bi bi-file-earmark-arrow-down"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela de Sistemas Mapeados ao Model Sistema -->
+<div class="card card-modern p-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h5 class="fw-medium m-0">Sistemas Mapeados</h5>
+      <p class="text-secondary m-0 small">Visão detalhada das flags de geração e arquitetura do projeto.</p>
+    </div>
+    
+    <div class="d-flex gap-2">
+      <div class="search-box position-relative" style="max-width: 260px;">
+        <input type="text" class="form-control form-control-sm bg-body-tertiary border-0 ps-4" placeholder="Filtrar sistemas...">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-secondary" style="font-size: 0.8rem;"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr class="text-secondary small">
+          <th>SISTEMA / SLUG</th>
+          <th>BANCO DE DADOS</th>
+          <th>MENU</th>
+          <th>MÓDULOS</th>
+          <th>FLAGS DO GERADOR</th>
+          <th>DOWNLOAD ZIP</th>
+          <th class="text-end">AÇÕES</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sistema in sistemas %}
+        <tr>
+          <!-- Nome do Sistema e Slug -->
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+                <i class="bi bi-window-stack"></i>
+              </div>
+              <div>
+                <div class="fw-semibold text-body">{{ sistema.nome }}</div>
+                <small class="text-secondary text-truncate" style="font-size: 0.75rem;">{{ sistema.descricao }}</small>
+              </div>
+            </div>
+          </td>
+
+          <!-- Banco de Dados (BD_CHOICES) -->
+          <td>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+              <i class="bi bi-database me-1"></i>{{ sistema.get_banco_dados_display }}
+            </span>
+          </td>
+
+          <!-- Estilo do Menu (MENU_CHOICES) -->
+          <td>
+            <span class="badge bg-light text-dark border rounded-2 small">
+              {% if sistema.tipo_menu == 'lateral' %}
+                <i class="bi bi-layout-sidebar-inset me-1 text-primary"></i>
+              {% else %}
+                <i class="bi bi-layout-three-columns me-1 text-info"></i>
+              {% endif %}
+              {{ sistema.get_tipo_menu_display }}
+            </span>
+          </td>
+
+          <!-- Módulos Cadastrados (relacionamento) -->
+          <td>
+            <span class="fw-semibold text-body">{{ sistema.modulos.count }}</span>
+            <small class="text-secondary">módulo(s)</small>
+          </td>
+
+          <!-- Flags Globais do Gerador -->
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% if sistema.usar_custom_user %}
+                <span class="badge bg-success-subtle text-success rounded-1" title="Custom User Model" style="font-size: 0.7rem;">User</span>
+              {% endif %}
+              
+              {% if sistema.gerar_api_rest %}
+                <span class="badge bg-primary-subtle text-primary rounded-1" title="Django Rest Framework" style="font-size: 0.7rem;">DRF</span>
+              {% endif %}
+              
+              {% if sistema.gerar_docker %}
+                <span class="badge bg-info-subtle text-info rounded-1" title="Dockerfile e Compose" style="font-size: 0.7rem;">Docker</span>
+              {% endif %}
+
+              {% if sistema.usar_auditoria %}
+                <span class="badge bg-warning-subtle text-warning rounded-1" title="Sistema de Auditoria" style="font-size: 0.7rem;">Auditoria</span>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Arquivo ZIP -->
+          <td>
+            {% if sistema.arquivo_zip %}
+              <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 text-decoration-none">
+                <i class="bi bi-download me-1"></i> Baixar ZIP
+              </a>
+            {% else %}
+              <span class="badge bg-body-tertiary text-secondary border rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                <i class="bi bi-clock me-1"></i> Não Gerado
+              </span>
+            {% endif %}
+          </td>
+
+          <!-- Ações -->
+          <td class="text-end">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-icon btn-light border-0 rounded-circle text-secondary" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom">
+                <li>
+                  <a class="dropdown-item py-1.5 rounded-2 small" href="{% url 'sistema:editar_sistema' sistema.pk %}">
+                    <i class="bi bi-pencil me-2 text-primary"></i>Editar Sistema
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item py-1.5 rounded-2 small" href="{% url 'sistema:gerar_sistema' sistema.pk %}">
+                    <i class="bi bi-robot me-2 text-success"></i>Gerar
+                  </a>
+                </li>
+
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <a href="{% url 'sistema:excluir_sistema' sistema.pk %}" onclick="return confirm('Deseja excluir o sistema?');" 
+                        class="dropdown-item py-1.5 rounded-2 small text-danger">
+                        <i class="bi bi-trash3 me-2"></i> Excluir </a>
+                </li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-5">
+            <div class="p-3 bg-body-tertiary d-inline-block rounded-circle mb-3">
+              <i class="bi bi-cpu fs-1 text-secondary"></i>
+            </div>
+            <h6 class="fw-bold">Nenhum sistema gerado ainda</h6>
+            <p class="text-secondary small mb-3">Cadastre seu primeiro sistema para configurar módulos, entidades e campos.</p>
+            <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-sm rounded-3 px-3">
+              <i class="bi bi-plus-lg me-1"></i> Criar Sistema
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

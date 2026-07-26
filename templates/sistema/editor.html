@@ -1,895 +1,817 @@
 {% extends "base.html" %}
-{% block title %}Editor de Sistema{% endblock %}
 
-{% block content %}
+{% block title %}Editor de Sistema | DjangoForge{% endblock %}
+
+{% block extra_css %}
 <style>
-    /* Estilos customizados para dar um toque mais premium */
-    .code-preview {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Fira Code', 'Courier New', Courier, monospace;
-        font-size: 13px;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-    .code-preview::-webkit-scrollbar { width: 8px; }
-    .code-preview::-webkit-scrollbar-track { background: #2d2d2d; border-radius: 2px; }
-    .code-preview::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
-    .code-preview::-webkit-scrollbar-thumb:hover { background: #777; }
-    
-    .modulo-card { border-left: 4px solid #0d6efd; }
-    .entidade-card { border-left: 3px solid #6c757d; margin-left: 1.5rem; }
+  /* ================= ESTILOS DO EDITOR E STEPPER ================= */
+  .code-preview {
+    background-color: #0b0f19;
+    color: #a7f3d0;
+    font-family: 'Fira Code', 'Courier New', Courier, monospace;
+    font-size: 13px;
+    max-height: 75vh;
+    overflow-y: auto;
+    border-radius: 0 0 0.85rem 0.85rem;
+  }
+  
+  .code-preview::-webkit-scrollbar { width: 6px; }
+  .code-preview::-webkit-scrollbar-track { background: #111827; }
+  .code-preview::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.3); border-radius: 3px; }
+  .code-preview::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.6); }
 
-    .button {
-        font-size: 10px;
-    }
+  .modulo-card { 
+    border-left: 4px solid var(--django-emerald) !important; 
+  }
+  
+  .entidade-card { 
+    border-left: 3px solid var(--django-green-medium) !important; 
+    margin-left: 1rem; 
+  }
 
-    .stepper-modern {
-        gap: 10px;
-    }
-
-    .step {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1;
-    }
-
-    .step-circle {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        background: #e9ecef;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        transition: all 0.3s ease;
-    }
-
-    .step-info {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.2;
-    }
-
-    .step-title {
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .step-sub {
-        font-size: 11px;
-        color: #6c757d;
-    }
-
-    .step-line {
-        flex: 1;
-        height: 2px;
-        background: #e9ecef;
-    }
-
-    /* ATIVO */
-    .step.active .step-circle {
-        background: #0d6efd;
-        color: #fff;
-    }
-
-    .step.active .step-title,
-    .step.active .step-sub {
-        color: #0d6efd;
-    }
-
-    /* COMPLETO */
-    .step.completed .step-circle {
-        background: #198754;
-        color: #fff;
-    }
-
-    .step.completed + .step-line {
-        background: #198754;
-    }
-
-</style>
-
-<style>
-/* ===== STEPPER PREMIUM ===== */
-.stepper-modern {
+  /* Stepper Moderno com Paleta Verde */
+  .stepper-modern {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
+    gap: 12px;
+  }
 
-.step {
+  .step {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex: 1;
-}
+  }
 
-.step-circle {
+  .step-circle {
     width: 42px;
     height: 42px;
-    border-radius: 20px;
-    background: #e9ecef;
-    color: #6c757d;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    transition: all .3s ease;
-}
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all .25s ease;
+  }
 
-.step-info {
+  [data-bs-theme="dark"] .step-circle {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+  }
+
+  .step-info {
     display: flex;
     flex-direction: column;
     line-height: 1.2;
-}
+  }
 
-.step-title {
-    font-size: 14px;
-    font-weight: 600;
-}
+  .step-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
 
-.step-sub {
-    font-size: 11px;
-    color: #6c757d;
-}
+  .step-sub {
+    font-size: 0.725rem;
+    color: #64748b;
+  }
 
-.step-line {
+  .step-line {
     flex: 1;
     height: 2px;
-    background: #e9ecef;
-}
+    background: #e2e8f0;
+  }
 
-/* estados */
-.step.active .step-circle {
-    background: #0d6efd;
-    color: #fff;
-}
+  [data-bs-theme="dark"] .step-line {
+    background: var(--border-color-dark);
+  }
 
-.step.completed .step-circle {
-    background: #198754;
-    color: #fff;
-}
+  /* Estados Ativo e Concluído */
+  .step.active .step-circle {
+    background: var(--django-emerald);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
 
-.step.completed + .step-line {
-    background: #198754;
-}
+  .step.active .step-title {
+    color: var(--django-green-dark);
+  }
 
-/* ===== OUTROS ===== */
-.code-preview {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    font-size: 13px;
-    max-height: 80vh;
-    overflow-y: auto;
-}
+  [data-bs-theme="dark"] .step.active .step-title {
+    color: #34d399;
+  }
 
-.modulo-card { border-left: 4px solid #0d6efd; }
-.entidade-card { border-left: 3px solid #6c757d; margin-left: 1.5rem; }
+  .step.completed .step-circle {
+    background: var(--django-green-dark);
+    color: #34d399;
+  }
 
+  .step.completed + .step-line {
+    background: var(--django-emerald);
+  }
+
+  .animate-in {
+    animation: fadeIn 0.2s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
+{% endblock %}
 
+{% block content %}
+<div class="container-fluid p-0">
 
-<div class="container-fluid py-4" style="width:95%;">
+  <!-- Cabeçalho -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h4 class="fw-medium m-0 tracking-tight">
+        <i class="bi bi-cpu text-success me-2"></i>Editor de Sistema
+      </h4>
+      <p class="text-secondary m-0 small">
+        Defina os parâmetros do projeto, mapeie apps (módulos), tabelas (models) e campos.
+      </p>
+    </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary rounded-3 px-3 border">
+        <i class="bi bi-arrow-left me-1"></i> Voltar para Lista
+      </a>
+    </div>
+  </div>
 
-            <h4 class="">
-            <i class="bi bi-pencil-square"></i> Novo Sistema
-            </h4>
+  <div class="row g-4">
 
-            <p class="text-muted mb-0">
-            Preencha os dados para registrar um novo sistema que será gerado posteriormente.
-            </p>
+    <!-- COLUNA ESQUERDA: WIZARD DE CONFIGURAÇÃO -->
+    <div class="col-lg-7 col-xl-7">
+      
+      <!-- CARD STEPPER DE NAVEGAÇÃO -->
+      <div class="card card-modern mb-4">
+        <div class="card-body p-3">
+          <div class="stepper-modern">
 
+            <!-- STEP 1 -->
+            <div class="step active" id="step-1-indicator">
+              <div class="step-circle">
+                <i class="bi bi-folder"></i>
+              </div>
+              <div class="step-info">
+                <span class="step-title">1. Projeto</span>
+                <span class="step-sub">Parâmetros globais</span>
+              </div>
+            </div>
+
+            <div class="step-line"></div>
+
+            <!-- STEP 2 -->
+            <div class="step" id="step-2-indicator">
+              <div class="step-circle">
+                <i class="bi bi-layers"></i>
+              </div>
+              <div class="step-info">
+                <span class="step-title">2. Módulos</span>
+                <span class="step-sub">Apps Django</span>
+              </div>
+            </div>
+
+            <div class="step-line"></div>
+
+            <!-- STEP 3 -->
+            <div class="step" id="step-3-indicator">
+              <div class="step-circle">
+                <i class="bi bi-diagram-3"></i>
+              </div>
+              <div class="step-info">
+                <span class="step-title">3. Modelagem</span>
+                <span class="step-sub">Entidades e campos</span>
+              </div>
+            </div>
+
+          </div>
         </div>
+      </div>
+
+      <!-- PASSO 1: CONFIGURAÇÕES GLOBAIS -->
+      <div id="step-1" class="wizard-step animate-in">
+        <div class="card card-modern mb-4">
+          <div class="card-body p-4">
+            <h5 class="fw-medium mb-4 d-flex align-items-center gap-2">
+              <i class="bi bi-sliders text-success"></i>Configurações Básicas
+            </h5>
+            
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="form-floating">
+                  <input id="sistema_nome" class="form-control bg-body" placeholder="Nome do Sistema">
+                  <label>Nome do Sistema</label>
+                </div>
+              </div>
+
+              <div class="col-md-8">
+                <div class="form-floating">
+                  <textarea id="descricao" class="form-control bg-body" placeholder="Descrição" style="height: 58px"></textarea>
+                  <label>Descrição do Projeto</label>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="form-floating">
+                  <input id="caminho" class="form-control bg-body" placeholder="Caminho de Geração">
+                  <label>Pasta de Destino do Código</label>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="form-floating">
+                  <select id="tipo_menu" class="form-select bg-body">
+                    <option value="lateral">Menu Lateral (Sidebar)</option>
+                    <option value="superior">Menu Superior (Navbar)</option>
+                  </select>
+                  <label>Estilo do Menu</label>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="form-floating">
+                  <select id="banco_dados" class="form-select bg-body">
+                    <option value="sqlite3">SQLite</option>
+                    <option value="postgresql">PostgreSQL</option>
+                    <option value="mysql">MySQL</option>
+                    <option value="sqlserver">SQL Server</option>
+                    <option value="oracle">Oracle</option>
+                  </select>
+                  <label>Banco de Dados</label>
+                </div>
+              </div>
+
+              <!-- SWITCHES INFRAESTRUTURA -->
+              <div class="col-12 mt-4">
+                <h6 class="text-uppercase text-secondary fw-bold mb-3 small border-top pt-3">
+                  Infraestrutura e Recursos
+                </h6>
+                <div class="d-flex flex-wrap gap-4">
+                  
+                  <div class="form-check form-switch fs-6">
+                    <input class="form-check-input" type="checkbox" role="switch" id="usar_custom_user" checked>
+                    <label class="form-check-label text-body small fw-medium" for="usar_custom_user">
+                      <i class="bi bi-people-fill text-success me-1"></i> Custom User Model
+                    </label>
+                  </div>
+
+                  <div class="form-check form-switch fs-6">
+                    <input class="form-check-input" type="checkbox" role="switch" id="usar_auditoria">
+                    <label class="form-check-label text-body small fw-medium" for="usar_auditoria">
+                      <i class="bi bi-shield-check text-warning me-1"></i> Auditoria de Logs
+                    </label>
+                  </div>
+
+                  <div class="form-check form-switch fs-6">
+                    <input class="form-check-input" type="checkbox" role="switch" id="gerar_api_rest">
+                    <label class="form-check-label text-body small fw-medium" for="gerar_api_rest">
+                      <i class="bi bi-hdd-network text-info me-1"></i> Django REST Framework
+                    </label>
+                  </div>
+
+                  <div class="form-check form-switch fs-6">
+                    <input class="form-check-input" type="checkbox" role="switch" id="gerar_docker">
+                    <label class="form-check-label text-body small fw-medium" for="gerar_docker">
+                      <i class="bi bi-box-seam text-primary me-1"></i> Docker & Compose
+                    </label>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- PASSO 2: MÓDULOS (APPS) -->
+      <div id="step-2" class="wizard-step d-none animate-in">
+        <div class="card card-modern p-4 mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h5 class="fw-bold mb-0">Módulos do Sistema</h5>
+              <p class="text-secondary small m-0">Estes módulos serão convertidos em Django Apps.</p>
+            </div>
+            <button class="btn btn-primary btn-sm px-3 rounded-3" onclick="addModulo()">
+              <i class="bi bi-plus-lg me-1"></i> Novo Módulo
+            </button>
+          </div>
+          <div id="container-modulos-step2" class="d-flex flex-column gap-2"></div>
+        </div>
+      </div>
+
+      <!-- PASSO 3: MODELAGEM -->
+      <div id="step-3" class="wizard-step d-none animate-in">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Entidades e Campos</h5>
+        </div>
+        <div id="modulos"></div>
+      </div>
+
+      <!-- BOTÕES DE NAVEGAÇÃO E SALVAMENTO -->
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        <button id="btn-prev" class="btn btn-outline-secondary px-4 shadow-sm invisible rounded-3" onclick="changeStep(-1)">
+          <i class="bi bi-arrow-left me-2"></i> Voltar
+        </button>
 
         <div class="d-flex gap-2">
+          <button id="btn-salvar-projeto" class="btn btn-primary px-4 shadow-sm rounded-3 d-flex align-items-center gap-2" onclick="salvarSistema(event)">
+            <i class="bi bi-save"></i>
+            <span>Salvar Projeto</span> 
+          </button>
 
-            <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i>  Voltar para Lista de Sistemas
-            </a>
-
+          <button id="btn-next" class="btn btn-outline-primary px-4 shadow-sm rounded-3" onclick="changeStep(1)">
+            Próximo <i class="bi bi-arrow-right ms-2"></i>
+          </button>
         </div>
+      </div>
+
     </div>
 
-
-    <div class="row g-4">
-
-        <div class="col-lg-12">
-            
-    
-            <div class="card border-0 shadow-sm rounded-2 mb-4">
-                <div class="card-body px-4 py-3">
-
-                    <div class="stepper-modern d-flex align-items-center">
-
-                        <!-- STEP 1 -->
-                        <div class="step active" id="step-1-indicator">
-                            <div class="step-circle">
-                                <i class="bi bi-folder"></i>
-                            </div>
-                            <div class="step-info">
-                                <span class="step-title">Projeto</span>
-                                <small class="step-sub">Informações básicas</small>
-                            </div>
-                        </div>
-
-                        <div class="step-line"></div>
-
-                        <!-- STEP 2 -->
-                        <div class="step" id="step-2-indicator">
-                            <div class="step-circle">
-                                <i class="bi bi-layers"></i>
-                            </div>
-                            <div class="step-info">
-                                <span class="step-title">Módulos</span>
-                                <small class="step-sub">Apps do sistema</small>
-                            </div>
-                        </div>
-
-                        <div class="step-line"></div>
-
-                        <!-- STEP 3 -->
-                        <div class="step" id="step-3-indicator">
-                            <div class="step-circle">
-                                <i class="bi bi-diagram-3"></i>
-                            </div>
-                            <div class="step-info">
-                                <span class="step-title">Modelagem</span>
-                                <small class="step-sub">Entidades e campos</small>
-                            </div>
-                        </div>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <div id="step-1" class="wizard-step">
-                <div class="card border-0 shadow-sm  mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="fw-bold mb-4"><i class="bi bi-gear-fill me-2 text-primary"></i>Configurações do Projeto</h5>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <div class="form-floating">
-                                    <input id="sistema_nome" class="form-control bg-light" placeholder="Nome">
-                                    <label>Nome do Sistema</label>
-                                </div>
-                            </div>
-                             <div class="col-md-6">
-                                <div class="form-floating">
-                                    <textarea id="descricao" class="form-control bg-light" style="height: 58px"></textarea>
-                                    <label>Descrição</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-floating">
-                                    <input id="caminho" class="form-control bg-light" placeholder="Caminho">
-                                    <label>Pasta de Destino</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-floating">
-                                    <select id="tipo_menu" class="form-select bg-light">
-                                        <option value="lateral">Menu Lateral (Sidebar)</option>
-                                        <option value="superior">Menu Superior (Navbar)</option>
-                                    </select>
-                                    <label>Estilo do Menu</label>
-                                </div>
-                            </div>
-                             <div class="col-md-3">
-                                <div class="form-floating">
-                                    <select id="banco_dados" class="form-select bg-light">
-                                        <option value="sqlite3">SQLite</option>
-                                        <option value="postgresql">PostgreSQL</option>
-                                        <option value="mysql">MySQL</option>
-                                    </select>
-                                    <label>Banco de Dados</label>
-                                </div>
-                            </div>
-                           
-                            <div class="col-12 mt-4">
-                                <h6 class="text-uppercase text-muted fw-bold mb-3 small border-top pt-3">Opções de Infraestrutura</h6>
-                                <div class="d-flex flex-wrap gap-4">
-                                    
-                                    <div class="form-check form-switch fs-6">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="usar_custom_user" checked>
-                                        <label class="form-check-label text-secondary" for="usar_custom_user">
-                                            <i class="bi bi-people-fill text-primary me-1"></i> Custom User Model
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-check form-switch fs-6">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="usar_auditoria">
-                                        <label class="form-check-label text-secondary" for="usar_auditoria">
-                                            <i class="bi bi-shield-check text-warning me-1"></i> Auditoria (Logs de Criação)
-                                        </label>
-                                    </div>
-
-                                    <div class="form-check form-switch fs-6">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="gerar_api_rest">
-                                        <label class="form-check-label text-secondary" for="gerar_api_rest">
-                                            <i class="bi bi-hdd-network-fill text-success me-1"></i> API REST (DRF)
-                                        </label>
-                                    </div>
-
-                                    <div class="form-check form-switch fs-6">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="gerar_docker">
-                                        <label class="form-check-label text-secondary" for="gerar_docker">
-                                            <i class="bi bi-box-fill text-info me-1"></i> Docker & Compose
-                                        </label>
-                                    </div>
-                                    
-
-                                </div>
-                            </div>
-                            
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="step-2" class="wizard-step d-none">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0 text-secondary">Módulos (Apps Django)</h5>
-                    <button class="btn btn-primary btn-sm px-3" onclick="addModulo()">+ Novo Módulo</button>
-                </div>
-                <div id="container-modulos-step2">
-                    </div>
-            </div>
-
-            <div id="step-3" class="wizard-step d-none">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0 text-secondary">Entidades e Campos</h5>
-                </div>
-                <div id="modulos"></div> </div>
-
-            <div class="d-flex justify-content-between mt-4">
-                <button id="btn-prev" class="btn btn-outline-primary  px-4 shadow-sm invisible" onclick="changeStep(-1)">
-                    <i class="bi bi-arrow-left me-2"></i> Voltar
-                </button>
-                <div>
-                    <button id="btn-salvar-projeto" class="btn btn-success px-4 shadow-sm me-2" onclick="salvarSistema(event)">
-                        <i class="bi bi-save me-1"></i>  <span>Salvar Projeto</span> 
-                    </button>
-
-                    <button id="btn-next" class="btn btn-outline-primary  px-4 shadow-sm" onclick="changeStep(1)">
-                        Próximo <i class="bi bi-arrow-right ms-2"></i>
-                    </button>
-                </div>
-            </div>
+    <!-- COLUNA DIREITA: PREVIEW DO MODELS.PY -->
+    <div class="col-lg-5 col-xl-5">
+      <div class="card card-modern sticky-top" style="top: 85px;">
+        <div class="card-header bg-dark text-light border-0 py-3 rounded-top-3 d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-code-slash text-success fs-5"></i>
+            <span class="fw-bold small">Preview: models.py</span>
+          </div>
+          <span class="badge bg-success bg-opacity-20 text-write rounded-pill px-2.5 py-1" style="font-size: 0.72rem;">
+            Auto-compilado
+          </span>
         </div>
-
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-2 sticky-top" style="top: 1.5rem;">
-                <div class="card-header bg-dark text-light border-0 py-3 rounded-top-2 d-flex align-items-center gap-2">
-                    <i class="bi bi-code-slash text-info"></i>
-                    <span class="fw-bold">Preview models.py</span>
-                </div>
-                <div class="card-body p-0">
-                    <pre id="preview" class="code-preview p-4 m-0 rounded-bottom-2"></pre>
-                </div>
-            </div>
+        <div class="card-body p-0">
+          <pre id="preview" class="code-preview p-3 m-0"></pre>
         </div>
-
+      </div>
     </div>
+
+  </div>
 
 </div>
 
+<!-- DATA SCRIPTS -->
 <script id="estrutura-data" type="application/json">
-    {{ estrutura_json|default:"{}"|safe }}
+  {{ estrutura_json|default:"{}"|safe }}
 </script>
 
 <script>
-    let sistemaId = {{ sistema_id|default:"null" }};
-</script>
+  let sistemaId = {{ sistema_id|default:"null" }};
+  const isEditMode = sistemaId !== null;
+  let estrutura;
 
-<script>
+  try {
+    estrutura = JSON.parse(document.getElementById("estrutura-data").textContent);
+  } catch(e) {
+    estrutura = { sistema: {}, modulos: [] };
+  }
 
-    const isEditMode = sistemaId !== null;
+  if (!estrutura.modulos) {
+    estrutura = { sistema: {}, modulos: [] };
+  }
 
-    let estrutura;
+  // INITIALIZATION
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("sistema_nome").value = estrutura?.sistema?.nome || "";
+    document.getElementById("descricao").value = estrutura?.sistema?.descricao || "";
+    document.getElementById("caminho").value = estrutura?.sistema?.caminho || "";
+    document.getElementById("banco_dados").value = estrutura?.sistema?.banco_dados || "sqlite3";
+    document.getElementById("tipo_menu").value = estrutura?.sistema?.tipo_menu || "lateral";
+    
+    document.getElementById("usar_custom_user").checked = estrutura?.sistema?.usar_custom_user ?? true;
+    document.getElementById("gerar_api_rest").checked = estrutura?.sistema?.gerar_api_rest ?? false;
+    document.getElementById("gerar_docker").checked = estrutura?.sistema?.gerar_docker ?? false;
+    document.getElementById("usar_auditoria").checked = estrutura?.sistema?.usar_auditoria ?? false;
 
-    try {
-        estrutura = JSON.parse(document.getElementById("estrutura-data").textContent);
-    } catch(e) {
-        estrutura = { sistema: {}, modulos: [] };
-    }
+    render();
+  });
 
-    if (!estrutura.modulos) {
-        estrutura = { sistema: {}, modulos: [] };
-    }
-
-    // INIT
-    document.addEventListener("DOMContentLoaded", () => {
-        // Textos
-        sistema_nome.value = estrutura?.sistema?.nome || "";
-        descricao.value = estrutura?.sistema?.descricao || "";
-        caminho.value = estrutura?.sistema?.caminho || "";
-                
-        // Select
-        document.getElementById("banco_dados").value = estrutura?.sistema?.banco_dados || "sqlite3";
-
-        // Select
-        document.getElementById("tipo_menu").value = estrutura?.sistema?.tipo_menu || "lateral";
-        
-        // Booleans (Switches) - Note o uso do ?? para checar null/undefined, assumindo o valor padrão caso seja um sistema novo
-        document.getElementById("usar_custom_user").checked = estrutura?.sistema?.usar_custom_user ?? true;
-        document.getElementById("gerar_api_rest").checked = estrutura?.sistema?.gerar_api_rest ?? false;
-        document.getElementById("gerar_docker").checked = estrutura?.sistema?.gerar_docker ?? false;
-        document.getElementById("usar_auditoria").checked = estrutura?.sistema?.usar_auditoria ?? false;
-
-        render();
+  // AÇÕES E MODIFICADORES
+  function addModulo() {
+    estrutura.modulos.push({
+      nome: "NovoModulo",
+      descricao: "",
+      entidades: []
     });
-    // AÇÕES
-    function addModulo() {
-        // 1. Adiciona o objeto ao array de dados
-        estrutura.modulos.push({
-            nome: "NovoModulo",
-            descricao: "",
-            entidades: []
-        });
 
-        // 2. Se estivermos no Passo 2, redesenha a lista simplificada
-        if (currentStep === 2) {
-            renderStep2();
-        } 
-        // 3. Se estivermos no Passo 3, redesenha a modelagem completa
-        else if (currentStep === 3) {
-            render();
-        }
-
-        // 4. Atualiza o JSON lateral (se você tiver essa função de preview)
-        if (typeof updatePreview === "function") {
-            updatePreview();
-        }
+    if (currentStep === 2) {
+      renderStep2();
+    } else if (currentStep === 3) {
+      render();
     }
 
-    function addEntidade(m) {
-        estrutura.modulos[m].entidades.push({
-            nome: `Entidade${estrutura.modulos[m].entidades.length + 1}`,
-            campos: []
-        });
-        render();
+    if (typeof updatePreview === "function") {
+      updatePreview();
     }
+  }
 
-    function addCampo(m, e) {
-        estrutura.modulos[m].entidades[e].campos.push({
-            nome: `campo_${estrutura.modulos[m].entidades[e].campos.length + 1}`,
-            tipo: "CharField"
-        });
-        render();
-    }
+  function addEntidade(m) {
+    estrutura.modulos[m].entidades.push({
+      nome: `Entidade${estrutura.modulos[m].entidades.length + 1}`,
+      campos: []
+    });
+    render();
+  }
 
-    // RENDER
-    function render() {
-        let html = "";
+  function addCampo(m, e) {
+    estrutura.modulos[m].entidades[e].campos.push({
+      nome: `campo_${estrutura.modulos[m].entidades[e].campos.length + 1}`,
+      tipo: "CharField"
+    });
+    render();
+  }
 
-        if (estrutura.modulos.length === 0) {
-            html = `
-            <div class="text-center py-5 text-muted bg-white rounded-4 shadow-sm border border-dashed">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                <p>Nenhum módulo criado. Clique em "Novo Módulo" para começar.</p>
-            </div>`;
-        }
+  // RENDERIZAÇÃO DO PASSO 3 (MODELAGEM COMPLETA)
+  function render() {
+    let html = "";
+    const container = document.getElementById("modulos");
 
-        estrutura.modulos.forEach((mod, m) => {
-            html += `
-            <div class="card border-0 shadow-sm rounded-4 mb-4 modulo-card">
-                <div class="card-header bg-primary bg-opacity-10 border-0 py-3 d-flex justify-content-between align-items-center rounded-top-4">
-                    <div class="d-flex align-items-center gap-2 w-50">
-                        <i class="bi bi-box-seam text-primary"></i>
-                        <input class="form-control form-control-sm border-primary text-primary fw-bold bg-white"
-                            value="${mod.nome}" placeholder="Nome do Módulo"
-                            oninput="estrutura.modulos[${m}].nome=this.value;updatePreview()">
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary btn-sm px-3" onclick="addEntidade(${m})">
-                            <i class="bi bi-plus"></i> Entidade
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm rounded-circle" title="Excluir Módulo"
-                                onclick="if(confirm('Excluir este módulo inteiro?')){estrutura.modulos.splice(${m},1);render()}">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card-body bg-light rounded-bottom-4 pt-4">
-            `;
-
-            if (mod.entidades.length === 0) {
-                html += `<p class="text-muted small text-center mb-0">Nenhuma entidade neste módulo.</p>`;
-            }
-
-            mod.entidades.forEach((ent, e) => {
-                html += `
-                <div class="card border-0 shadow-sm rounded-3 mb-4 entidade-card">
-                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center rounded-top-3">
-                        <div class="d-flex align-items-center gap-2 w-50">
-                            <i class="bi bi-table text-secondary"></i>
-                            <input class="form-control form-control-sm fw-bold border-secondary bg-light"
-                                value="${ent.nome}" placeholder="Nome da Entidade"
-                                oninput="estrutura.modulos[${m}].entidades[${e}].nome=this.value;updatePreview()">
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary btn-sm px-3" onclick="addCampo(${m},${e})">
-                                <i class="bi bi-plus"></i> Campo
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm rounded-circle" title="Excluir Entidade"
-                                    onclick="if(confirm('Excluir esta entidade?')){estrutura.modulos[${m}].entidades.splice(${e},1);render()}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover table-borderless align-middle mb-0 small">
-                            <thead class="table-light text-muted">
-                                <tr>
-                                    <th class="ps-3 w-25">Nome do Campo</th>
-                                    <th class="w-25">Tipo de Dado</th>
-                                    <th class="w-25">Configurações</th>
-                                    <th class="w-25">Atributos</th>
-                                    <th class="text-end pe-3">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-
-                if (ent.campos.length === 0) {
-                    html += `<tr><td colspan="5" class="text-center text-muted py-3">Nenhum campo adicionado.</td></tr>`;
-                }
-
-                ent.campos.forEach((c, i) => {
-                    html += `
-                    <tr class="border-bottom border-light">
-                        <td class="ps-3">
-                            <input class="form-control form-control-sm" placeholder="nome_do_campo"
-                                value="${c.nome}"
-                                oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].nome=this.value;updatePreview()">
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm"
-                                    onchange="mudarTipo(${m},${e},${i},this.value)">
-                                ${[
-                                    "CharField","TextField","IntegerField","FloatField","DecimalField",
-                                    "BooleanField","DateField","DateTimeField","EmailField",
-                                    "FileField","ImageField",
-                                    "ForeignKey","ManyToManyField","OneToOneField"
-                                ].map(t => `<option ${c.tipo == t ? 'selected' : ''}>${t}</option>`).join("")}
-                            </select>
-                        </td>
-                        <td>
-                            ${renderConfigCampo(c, m, e, i)}
-                        </td>
-                        <td>
-                            ${renderFlags(c, m, e, i)}
-                        </td>
-                        <td class="text-end pe-3">
-                            <button class="btn btn-light text-danger btn-sm rounded-circle" title="Remover Campo"
-                                    onclick="estrutura.modulos[${m}].entidades[${e}].campos.splice(${i},1);render()">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    `;
-                });
-
-                html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                `;
-            });
-
-            html += `
-                </div>
-            </div>
-            `;
-        });
-
-        modulos.innerHTML = html;
-        updatePreview();
-    }
-
-    // CONFIG DINÂMICA
-    function renderConfigCampo(c, m, e, i) {
-        let html = `<div class="d-flex gap-2">`;
-
-        if (c.tipo === "CharField") {
-            html += `
-            <input class="form-control form-control-sm" placeholder="max_length" title="Tamanho Máximo"
-                value="${c.max_length || 255}"
-                oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].max_length=this.value;updatePreview()">`;
-        }
-
-        if (c.tipo === "DecimalField") {
-            html += `
-            <input class="form-control form-control-sm" placeholder="digits" title="Max Digits"
-                value="${c.max_digits || 10}"
-                oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].max_digits=this.value;updatePreview()">
-            <input class="form-control form-control-sm" placeholder="places" title="Decimal Places"
-                value="${c.decimal_places || 2}"
-                oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].decimal_places=this.value;updatePreview()">`;
-        }
-
-        if (["ForeignKey", "ManyToManyField", "OneToOneField"].includes(c.tipo)) {
-            let entidades = [];
-            estrutura.modulos.forEach(mod => {
-                mod.entidades.forEach(ent => {
-                    entidades.push(ent.nome);
-                });
-            });
-
-            html += `
-            <select class="form-select form-select-sm"
-                    onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].rel=this.value;updatePreview()">
-                <option value="">Destino...</option>
-                ${entidades.map(en => `<option ${c.rel == en ? 'selected' : ''}>${en}</option>`).join("")}
-            </select>`;
-        }
-
-        html += `</div>`;
-        return html;
-    }
-
-    // SWITCHES (FLAGS) SEPARADOS PARA FICAR MAIS LIMPO
-    function renderFlags(c, m, e, i) {
-        return `
-        <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="null_${m}_${e}_${i}"
-                    ${c.null ? 'checked' : ''}
-                    onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].null=this.checked;updatePreview()">
-                <label class="form-check-label text-muted" for="null_${m}_${e}_${i}">Null</label>
-            </div>
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="blank_${m}_${e}_${i}"
-                    ${c.blank ? 'checked' : ''}
-                    onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].blank=this.checked;updatePreview()">
-                <label class="form-check-label text-muted" for="blank_${m}_${e}_${i}">Blank</label>
-            </div>
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="unique_${m}_${e}_${i}"
-                    ${c.unique ? 'checked' : ''}
-                    onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].unique=this.checked;updatePreview()">
-                <label class="form-check-label text-muted" for="unique_${m}_${e}_${i}">Unique</label>
-            </div>
+    if (estrutura.modulos.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5 text-secondary card card-modern border-dashed">
+          <i class="bi bi-box-seam fs-1 d-block mb-2 text-muted"></i>
+          <p class="m-0">Nenhum módulo criado. Clique em "Novo Módulo" para começar.</p>
         </div>`;
+      updatePreview();
+      return;
     }
 
-    // PREVIEW
-    function updatePreview() {
-        let code = "from django.db import models\n\n";
+    estrutura.modulos.forEach((mod, m) => {
+      html += `
+      <div class="card card-modern mb-4 modulo-card">
+        <div class="card-header bg-body-tertiary border-bottom py-2.5 d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2 w-50">
+            <i class="bi bi-box-seam text-success fs-6"></i>
+            <input class="form-control form-control-sm fw-bold bg-body border-secondary-subtle"
+              value="${mod.nome}" placeholder="Nome do Módulo"
+              oninput="estrutura.modulos[${m}].nome=this.value;updatePreview()">
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-success btn-sm px-3 rounded-2" onclick="addEntidade(${m})">
+              <i class="bi bi-plus-lg me-1"></i> Entidade
+            </button>
+            <button class="btn btn-outline-danger btn-sm rounded-circle p-1.5" title="Excluir Módulo"
+              onclick="if(confirm('Excluir este módulo inteiro?')){estrutura.modulos.splice(${m},1);render()}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
 
-        estrutura.modulos.forEach(mod => {
-            if(mod.entidades.length > 0) {
-                code += `# ===========================\n`;
-                code += `# Módulo: ${mod.nome || 'Sem Nome'}\n`;
-                code += `# ===========================\n\n`;
-            }
+        <div class="card-body p-3 bg-body-subtle">
+      `;
 
-            mod.entidades.forEach(ent => {
-                code += `class ${ent.nome || 'Entidade'}(models.Model):\n`;
+      if (mod.entidades.length === 0) {
+        html += `<p class="text-secondary small text-center my-2">Nenhuma entidade neste módulo.</p>`;
+      }
 
-                if (ent.campos.length === 0) code += "    pass\n";
+      mod.entidades.forEach((ent, e) => {
+        html += `
+        <div class="card card-modern mb-3 entidade-card">
+          <div class="card-header bg-body border-bottom py-2 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2 w-50">
+              <i class="bi bi-table text-secondary"></i>
+              <input class="form-control form-control-sm fw-bold bg-body"
+                value="${ent.nome}" placeholder="Nome da Entidade"
+                oninput="estrutura.modulos[${m}].entidades[${e}].nome=this.value;updatePreview()">
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary btn-sm px-3 rounded-2" onclick="addCampo(${m},${e})">
+                <i class="bi bi-plus-lg me-1"></i> Campo
+              </button>
+              <button class="btn btn-outline-danger btn-sm rounded-circle p-1.5" title="Excluir Entidade"
+                onclick="if(confirm('Excluir esta entidade?')){estrutura.modulos[${m}].entidades.splice(${e},1);render()}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
 
-                ent.campos.forEach(c => {
-                    let linha = `    ${c.nome || 'campo'} = `;
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+              <thead>
+                <tr class="text-secondary bg-body-tertiary">
+                  <th class="ps-3 w-25">Campo</th>
+                  <th class="w-25">Tipo</th>
+                  <th class="w-25">Configuração</th>
+                  <th class="w-25">Flags</th>
+                  <th class="text-end pe-3">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
 
-                    if (c.tipo === "CharField") {
-                        linha += `models.CharField(max_length=${c.max_length || 255})`;
-                    } else if (c.tipo === "DecimalField") {
-                        linha += `models.DecimalField(max_digits=${c.max_digits || 10}, decimal_places=${c.decimal_places || 2})`;
-                    } else if (c.tipo === "ForeignKey") {
-                        linha += `models.ForeignKey('${c.rel || "Outra"}', on_delete=models.CASCADE)`;
-                    } else if (c.tipo === "ManyToManyField") {
-                        linha += `models.ManyToManyField('${c.rel || "Outra"}')`;
-                    } else if (c.tipo === "OneToOneField") {
-                        linha += `models.OneToOneField('${c.rel || "Outra"}', on_delete=models.CASCADE)`;
-                    } else {
-                        linha += `models.${c.tipo}()`;
-                    }
-
-                    let extras = [];
-                    if (c.null) extras.push("null=True");
-                    if (c.blank) extras.push("blank=True");
-                    if (c.unique) extras.push("unique=True");
-
-                    if (extras.length) {
-                        linha = linha.replace(")", `, ${extras.join(", ")})`);
-                    }
-
-                    code += linha + "\n";
-                });
-
-                code += "\n\n";
-            });
-        });
-
-        document.getElementById("preview").innerText = code;
-    }
-
-    // MUDAR TIPO
-    function mudarTipo(m, e, i, tipo) {
-        estrutura.modulos[m].entidades[e].campos[i] = {
-            nome: estrutura.modulos[m].entidades[e].campos[i].nome,
-            tipo: tipo
-        };
-        render();
-    }
-
-    // SALVAR
-    function salvarSistema(e) {
-        // Evita comportamento padrão se necessário
-        if(e) e.preventDefault();
-
-        let btn = document.getElementById("btn-salvar-projeto") || e.currentTarget;
-        let icon = btn.querySelector('i');
-        let span = btn.querySelector('span');
-
-        // Validação de segurança para não quebrar o JS se o HTML mudar
-        if (!span || !icon) {
-            console.error("Erro: Certifique-se que o botão tem um <i> e um <span> interno.");
-            // Se falhar, vamos apenas prosseguir com o fetch sem animação visual no botão
+        if (ent.campos.length === 0) {
+          html += `<tr><td colspan="5" class="text-center text-secondary py-3">Nenhum campo adicionado.</td></tr>`;
         }
 
-        // Coleta dos dados do Sistema (Garantindo que os IDs batem com o passo 1 do Wizard)
-        estrutura.sistema = {
-            nome: document.getElementById("sistema_nome").value,
-            descricao: document.getElementById("descricao").value,
-            caminho: document.getElementById("caminho").value,
-            tipo_menu: document.getElementById("tipo_menu").value,
-            banco_dados: document.getElementById("banco_dados").value,
-            usar_custom_user: document.getElementById("usar_custom_user").checked,
-            gerar_api_rest: document.getElementById("gerar_api_rest").checked,
-            gerar_docker: document.getElementById("gerar_docker").checked,
-            usar_auditoria: document.getElementById("usar_auditoria").checked
-        };
-
-        // Feedback Visual de Carregamento
-        if(span) span.innerText = "Salvando...";
-        if(icon) icon.className = "bi bi-hourglass-split";
-        btn.classList.replace("btn-success", "btn-warning");
-        btn.disabled = true; // Desabilita para evitar cliques duplos
-
-        fetch("/api/salvar-modelo/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}" // Certifique-se que o CSRF está presente
-            },
-            body: JSON.stringify(estrutura)
-        })
-        .then(response => {
-            if(!response.ok) return response.json().then(err => { throw err; });
-            return response.json();
-        })
-        .then(data => {
-            if(span) span.innerText = "Salvo com Sucesso!";
-            if(icon) icon.className = "bi bi-check-circle-fill";
-            btn.classList.replace("btn-warning", "btn-success");
-            
-            console.log("Sistema Salvo ID:", data.sistema_id);
-        })
-        .catch(err => {
-            if(span) span.innerText = "Erro ao Salvar";
-            if(icon) icon.className = "bi bi-exclamation-triangle-fill";
-            btn.classList.replace("btn-warning", "btn-danger");
-            console.error("Erro no fetch:", err);
-        })
-        .finally(() => {
-            setTimeout(() => {
-                if(span) span.innerText = "Salvar Projeto";
-                if(icon) icon.className = "bi bi-save";
-                btn.classList.remove("btn-danger", "btn-warning");
-                btn.classList.add("btn-success");
-                btn.disabled = false;
-            }, 3000);
+        ent.campos.forEach((c, i) => {
+          html += `
+          <tr>
+            <td class="ps-3">
+              <input class="form-control form-control-sm bg-body" placeholder="nome_do_campo"
+                value="${c.nome}"
+                oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].nome=this.value;updatePreview()">
+            </td>
+            <td>
+              <select class="form-select form-select-sm bg-body"
+                onchange="mudarTipo(${m},${e},${i},this.value)">
+                ${[
+                  "CharField","TextField","IntegerField","FloatField","DecimalField",
+                  "BooleanField","DateField","DateTimeField","EmailField",
+                  "FileField","ImageField",
+                  "ForeignKey","ManyToManyField","OneToOneField"
+                ].map(t => `<option ${c.tipo == t ? 'selected' : ''}>${t}</option>`).join("")}
+              </select>
+            </td>
+            <td>${renderConfigCampo(c, m, e, i)}</td>
+            <td>${renderFlags(c, m, e, i)}</td>
+            <td class="text-end pe-3">
+              <button class="btn btn-light text-danger btn-sm rounded-circle p-1" title="Remover Campo"
+                onclick="estrutura.modulos[${m}].entidades[${e}].campos.splice(${i},1);render()">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </td>
+          </tr>
+          `;
         });
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+        `;
+      });
+
+      html += `
+        </div>
+      </div>
+      `;
+    });
+
+    container.innerHTML = html;
+    updatePreview();
+  }
+
+  // RENDERIZADORES AUXILIARES
+  function renderConfigCampo(c, m, e, i) {
+    let html = `<div class="d-flex gap-1">`;
+
+    if (c.tipo === "CharField") {
+      html += `
+      <input class="form-control form-control-sm bg-body" placeholder="max_length" title="Tamanho Máximo"
+        value="${c.max_length || 255}"
+        oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].max_length=this.value;updatePreview()">`;
     }
 
-    let currentStep = 1;
-
-    function changeStep(delta) {
-        const nextStep = currentStep + delta;
-        if (nextStep < 1 || nextStep > 3) return;
-
-        // Esconde o atual
-        document.getElementById(`step-${currentStep}`).classList.add('d-none');
-        
-        // Mostra o novo
-        document.getElementById(`step-${nextStep}`).classList.remove('d-none');
-
-        // Atualiza indicadores (Estética)
-        updateIndicators(nextStep);
-
-        currentStep = nextStep;
-        
-        // Controla visibilidade dos botões
-        document.getElementById('btn-prev').classList.toggle('invisible', currentStep === 1);
-        document.getElementById('btn-next').classList.toggle('d-none', currentStep === 3);
-
-        // Se for para o passo 2, renderiza a lista de módulos específica
-        if (currentStep === 2) renderStep2();
-        if (currentStep === 3) render(); // Sua função render original
+    if (c.tipo === "DecimalField") {
+      html += `
+      <input class="form-control form-control-sm bg-body" placeholder="digits" title="Max Digits"
+        value="${c.max_digits || 10}"
+        oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].max_digits=this.value;updatePreview()">
+      <input class="form-control form-control-sm bg-body" placeholder="places" title="Decimal Places"
+        value="${c.decimal_places || 2}"
+        oninput="estrutura.modulos[${m}].entidades[${e}].campos[${i}].decimal_places=this.value;updatePreview()">`;
     }
 
-    function updateIndicators(step) {
-        for (let i = 1; i <= 3; i++) {
-
-            const stepEl = document.getElementById(`step-${i}-indicator`)
-            const circle = stepEl.querySelector(".step-circle")
-
-            stepEl.classList.remove("active", "completed")
-
-            if (i < step) {
-                stepEl.classList.add("completed")
-                circle.innerHTML = '<i class="bi bi-check"></i>'
-            } 
-            else if (i === step) {
-                stepEl.classList.add("active")
-
-                const icons = [
-                    "bi-folder",
-                    "bi-layers",
-                    "bi-diagram-3"
-                ]
-
-                circle.innerHTML = `<i class="bi ${icons[i-1]}"></i>`
-            } 
-            else {
-                const icons = [
-                    "bi-folder",
-                    "bi-layers",
-                    "bi-diagram-3"
-                ]
-
-                circle.innerHTML = `<i class="bi ${icons[i-1]}"></i>`
-            }
-        }
-    }
-
-    // Renderização rápida para o Passo 2 (Gestão de Módulos)
-    function renderStep2() {
-        const container = document.getElementById('container-modulos-step2');
-        let html = "";
-        
-        if (estrutura.modulos.length === 0) {
-            container.innerHTML = `
-                <div class="text-center p-5 bg-light rounded-4 border border-dashed">
-                    <i class="bi bi-box-seam fs-1 text-muted"></i>
-                    <p class="mt-2 text-muted">Nenhum app criado. Comece adicionando um!</p>
-                    <button class="btn btn-primary btn-sm" onclick="addModulo()">+ Adicionar Primeiro Módulo</button>
-                </div>`;
-            return;
-        }
-
-        estrutura.modulos.forEach((mod, m) => {
-            html += `
-            <div class="card border-0 shadow-sm rounded-4 mb-2 animate-in">
-                <div class="card-body d-flex gap-3 align-items-center">
-                    <div class="bg-primary bg-opacity-10 p-2 rounded">
-                        <i class="bi bi-box-seam text-primary"></i>
-                    </div>
-                    <input class="form-control border-0 bg-light fw-bold" 
-                        value="${mod.nome}" 
-                        placeholder="Nome do App (ex: vendas)"
-                        oninput="estrutura.modulos[${m}].nome=this.value; updatePreview()">
-                    <button class="btn btn-link text-danger p-0" onclick="estrutura.modulos.splice(${m},1); renderStep2()">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </div>`;
+    if (["ForeignKey", "ManyToManyField", "OneToOneField"].includes(c.tipo)) {
+      let entidades = [];
+      estrutura.modulos.forEach(mod => {
+        mod.entidades.forEach(ent => {
+          entidades.push(ent.nome);
         });
-        container.innerHTML = html;
+      });
+
+      html += `
+      <select class="form-select form-select-sm bg-body"
+        onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].rel=this.value;updatePreview()">
+        <option value="">Destino...</option>
+        ${entidades.map(en => `<option ${c.rel == en ? 'selected' : ''}>${en}</option>`).join("")}
+      </select>`;
     }
 
+    html += `</div>`;
+    return html;
+  }
+
+  function renderFlags(c, m, e, i) {
+    return `
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="null_${m}_${e}_${i}"
+          ${c.null ? 'checked' : ''}
+          onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].null=this.checked;updatePreview()">
+        <label class="form-check-label text-secondary small" for="null_${m}_${e}_${i}">Null</label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="blank_${m}_${e}_${i}"
+          ${c.blank ? 'checked' : ''}
+          onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].blank=this.checked;updatePreview()">
+        <label class="form-check-label text-secondary small" for="blank_${m}_${e}_${i}">Blank</label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="unique_${m}_${e}_${i}"
+          ${c.unique ? 'checked' : ''}
+          onchange="estrutura.modulos[${m}].entidades[${e}].campos[${i}].unique=this.checked;updatePreview()">
+        <label class="form-check-label text-secondary small" for="unique_${m}_${e}_${i}">Unique</label>
+      </div>
+    </div>`;
+  }
+
+  // GERADOR DE PREVIEW CODE (MODELS.PY)
+  function updatePreview() {
+    let code = "from django.db import models\n\n";
+
+    estrutura.modulos.forEach(mod => {
+      if(mod.entidades.length > 0) {
+        code += `# ===========================\n`;
+        code += `# App / Módulo: ${mod.nome || 'Sem Nome'}\n`;
+        code += `# ===========================\n\n`;
+      }
+
+      mod.entidades.forEach(ent => {
+        code += `class ${ent.nome || 'Entidade'}(models.Model):\n`;
+
+        if (ent.campos.length === 0) code += "    pass\n";
+
+        ent.campos.forEach(c => {
+          let linha = `    ${c.nome || 'campo'} = `;
+
+          if (c.tipo === "CharField") {
+            linha += `models.CharField(max_length=${c.max_length || 255})`;
+          } else if (c.tipo === "DecimalField") {
+            linha += `models.DecimalField(max_digits=${c.max_digits || 10}, decimal_places=${c.decimal_places || 2})`;
+          } else if (c.tipo === "ForeignKey") {
+            linha += `models.ForeignKey('${c.rel || "Outra"}', on_delete=models.CASCADE)`;
+          } else if (c.tipo === "ManyToManyField") {
+            linha += `models.ManyToManyField('${c.rel || "Outra"}')`;
+          } else if (c.tipo === "OneToOneField") {
+            linha += `models.OneToOneField('${c.rel || "Outra"}', on_delete=models.CASCADE)`;
+          } else {
+            linha += `models.${c.tipo}()`;
+          }
+
+          let extras = [];
+          if (c.null) extras.push("null=True");
+          if (c.blank) extras.push("blank=True");
+          if (c.unique) extras.push("unique=True");
+
+          if (extras.length) {
+            linha = linha.replace(")", `, ${extras.join(", ")})`);
+          }
+
+          code += linha + "\n";
+        });
+
+        code += "\n\n";
+      });
+    });
+
+    document.getElementById("preview").innerText = code;
+  }
+
+  function mudarTipo(m, e, i, tipo) {
+    estrutura.modulos[m].entidades[e].campos[i] = {
+      nome: estrutura.modulos[m].entidades[e].campos[i].nome,
+      tipo: tipo
+    };
+    render();
+  }
+
+  // SUBMISSÃO E ENVIO
+  function salvarSistema(e) {
+    if(e) e.preventDefault();
+
+    let btn = document.getElementById("btn-salvar-projeto") || e.currentTarget;
+    let icon = btn.querySelector('i');
+    let span = btn.querySelector('span');
+
+    estrutura.sistema = {
+      nome: document.getElementById("sistema_nome").value,
+      descricao: document.getElementById("descricao").value,
+      caminho: document.getElementById("caminho").value,
+      tipo_menu: document.getElementById("tipo_menu").value,
+      banco_dados: document.getElementById("banco_dados").value,
+      usar_custom_user: document.getElementById("usar_custom_user").checked,
+      gerar_api_rest: document.getElementById("gerar_api_rest").checked,
+      gerar_docker: document.getElementById("gerar_docker").checked,
+      usar_auditoria: document.getElementById("usar_auditoria").checked
+    };
+
+    if(span) span.innerText = "Salvando...";
+    if(icon) icon.className = "bi bi-hourglass-split";
+    btn.disabled = true;
+
+    fetch("/api/salvar-modelo/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: JSON.stringify(estrutura)
+    })
+    .then(response => {
+      if(!response.ok) return response.json().then(err => { throw err; });
+      return response.json();
+    })
+    .then(data => {
+      if(span) span.innerText = "Salvo com Sucesso!";
+      if(icon) icon.className = "bi bi-check-circle-fill";
+      console.log("Sistema Salvo ID:", data.sistema_id);
+    })
+    .catch(err => {
+      if(span) span.innerText = "Erro ao Salvar";
+      if(icon) icon.className = "bi bi-exclamation-triangle-fill";
+      console.error("Erro no fetch:", err);
+    })
+    .finally(() => {
+      setTimeout(() => {
+        if(span) span.innerText = "Salvar Projeto";
+        if(icon) icon.className = "bi bi-save";
+        btn.disabled = false;
+      }, 3000);
+    });
+  }
+
+  // WIZARD NAVEGAÇÃO
+  let currentStep = 1;
+
+  function changeStep(delta) {
+    const nextStep = currentStep + delta;
+    if (nextStep < 1 || nextStep > 3) return;
+
+    document.getElementById(`step-${currentStep}`).classList.add('d-none');
+    document.getElementById(`step-${nextStep}`).classList.remove('d-none');
+
+    updateIndicators(nextStep);
+    currentStep = nextStep;
+
+    document.getElementById('btn-prev').classList.toggle('invisible', currentStep === 1);
+    document.getElementById('btn-next').classList.toggle('d-none', currentStep === 3);
+
+    if (currentStep === 2) renderStep2();
+    if (currentStep === 3) render();
+  }
+
+  function updateIndicators(step) {
+    for (let i = 1; i <= 3; i++) {
+      const stepEl = document.getElementById(`step-${i}-indicator`);
+      const circle = stepEl.querySelector(".step-circle");
+
+      stepEl.classList.remove("active", "completed");
+
+      if (i < step) {
+        stepEl.classList.add("completed");
+        circle.innerHTML = '<i class="bi bi-check-lg"></i>';
+      } else if (i === step) {
+        stepEl.classList.add("active");
+        const icons = ["bi-folder", "bi-layers", "bi-diagram-3"];
+        circle.innerHTML = `<i class="bi ${icons[i-1]}"></i>`;
+      } else {
+        const icons = ["bi-folder", "bi-layers", "bi-diagram-3"];
+        circle.innerHTML = `<i class="bi ${icons[i-1]}"></i>`;
+      }
+    }
+  }
+
+  function renderStep2() {
+    const container = document.getElementById('container-modulos-step2');
+    let html = "";
+
+    if (estrutura.modulos.length === 0) {
+      container.innerHTML = `
+        <div class="text-center p-4 bg-body-tertiary rounded-3 border border-dashed">
+          <i class="bi bi-box-seam fs-2 text-secondary"></i>
+          <p class="mt-2 text-secondary small">Nenhum módulo/app criado. Comece adicionando um!</p>
+          <button class="btn btn-primary btn-sm rounded-3" onclick="addModulo()">+ Adicionar Módulo</button>
+        </div>`;
+      return;
+    }
+
+    estrutura.modulos.forEach((mod, m) => {
+      html += `
+      <div class="card card-modern p-2.5">
+        <div class="d-flex gap-3 align-items-center">
+          <div class="p-2 bg-success bg-opacity-10 text-success rounded-3">
+            <i class="bi bi-box-seam fs-5"></i>
+          </div>
+          <input class="form-control border-0 bg-body-tertiary fw-bold" 
+            value="${mod.nome}" 
+            placeholder="Nome do App (ex: produtos)"
+            oninput="estrutura.modulos[${m}].nome=this.value; updatePreview()">
+          <button class="btn btn-link text-danger p-0" onclick="estrutura.modulos.splice(${m},1); renderStep2()">
+            <i class="bi bi-trash fs-5"></i>
+          </button>
+        </div>
+      </div>`;
+    });
+    container.innerHTML = html;
+  }
 </script>
 {% endblock %}

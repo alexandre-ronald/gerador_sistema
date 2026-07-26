@@ -1,242 +1,336 @@
 {% load static %}
-
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-bs-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Sistemas - Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --accent-blue: #4c6ef5;
-            --dark-blue: #1a233a;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | DjangoForge Generator</title>
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #1a233a 0%, #2a3552 100%);
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
+  <!-- Bootstrap 5.3 CSS & Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Fontes Google Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-        .login-container {
-            height: 100vh;
-            display: flex;
-        }
+  <style>
+    :root {
+      --app-font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --django-green: #092e20;
+      --accent-emerald: #10b981;
+      --accent-blue: #0d6efd;
+    }
 
-        /* Lado esquerdo - Ilustração com robô */
-        .left-side {
-            flex: 1;
-            background: linear-gradient(135deg, #1e2a4a, #2c3e6e);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
+    body {
+      font-family: var(--app-font);
+      background-color: #f8fafc;
+      height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+    }
 
-        .left-side::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at center, rgba(76,110,245,0.15), transparent 70%);
-        }
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+    }
 
-        .robot-container {
-            text-align: center;
-            z-index: 2;
-        }
+    /* ================= LADO ESQUERDO (BRANDING & HERO) ================= */
+    .left-side {
+      flex: 1.1;
+      background: linear-gradient(135deg, #092e20 0%, #0c4b33 50%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 3rem;
+      overflow: hidden;
+    }
 
-        .robot-img {
-            width: 280px;
-            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.3));
-            animation: float 3s ease-in-out infinite;
-        }
+    /* Efeito Radial de Iluminação */
+    .left-side::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.15), transparent 60%);
+      pointer-events: none;
+    }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
+    .hero-content {
+      text-align: center;
+      z-index: 2;
+      max-width: 440px;
+    }
 
-        .left-text {
-            color: white;
-            margin-top: 30px;
-        }
+    .hero-icon-card {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 2rem;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(16, 185, 129, 0.2) 100%);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      animation: float 4s ease-in-out infinite;
+    }
 
-        .left-text h1 {
-            font-size: 28px;
-            font-weight: 700;
-        }
+    .hero-icon-card i {
+      font-size: 3rem;
+      background: linear-gradient(180deg, #ffffff 0%, #a7f3d0 100%);
+      -webkit-background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-        .left-text p {
-            font-size: 16px;
-            opacity: 0.85;
-            max-width: 280px;
-            margin: 0 auto;
-        }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
 
-        /* Lado direito - Formulário */
-        .right-side {
-            flex: 1;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-        }
+    .hero-text h1 {
+      color: #ffffff;
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+    }
 
-        .login-card {
-            width: 100%;
-            max-width: 420px;
-        }
+    .hero-text p {
+      color: #94a3b8;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
 
-        .brand {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+    /* ================= LADO DIREITO (FORMULÁRIO) ================= */
+    .right-side {
+      flex: 1;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem;
+    }
 
-        .brand-logo {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--dark-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+    }
 
-        .form-label {
-            font-weight: 500;
-            color: #374151;
-            font-size: 14.5px;
-        }
+    /* Logo DjangoForge */
+    .brand-logo-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      text-decoration: none;
+    }
 
-        .form-control {
-            border-radius: 12px;
-            padding: 14px 18px;
-            border: 2px solid #e5e7eb;
-            font-size: 15px;
-            transition: all 0.3s;
-        }
+    .forge-icon-sm {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #092e20 0%, #10b981 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
 
-        .form-control:focus {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 0 4px rgba(76, 110, 245, 0.12);
-            outline: none;
-        }
+    .brand-title {
+      font-weight: 800;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
 
-        .btn-login {
-            background: var(--accent-blue);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: 600;
-            width: 100%;
-            margin-top: 10px;
-            transition: all 0.3s;
-        }
+    .brand-title .django-prefix { color: var(--django-green); }
+    .brand-title .forge-suffix {
+      background: linear-gradient(135deg, #0d6efd 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-        .btn-login:hover {
-            background: #3b5be0;
-            transform: translateY(-2px);
-        }
+    /* Controles do Formulário */
+    .form-control {
+      border-radius: 0.6rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e2e8f0;
+      font-size: 0.925rem;
+      transition: all 0.2s ease;
+      background-color: #f8fafc;
+    }
 
-        .forgot {
-            color: var(--accent-blue);
-            font-size: 14px;
-            text-decoration: none;
-        }
+    .form-control:focus {
+      background-color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
 
-        .input-group-text {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-right: none;
-            color: #64748b;
-            border-radius: 16px 0 0 16px;
-        }
+    .input-group-text {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-right: none;
+      color: #64748b;
+      border-radius: 0.6rem 0 0 0.6rem;
+      padding-left: 1rem;
+    }
 
-        .forgot:hover {
-            text-decoration: underline;
-        }
-    </style>
+    .input-group .form-control {
+      border-left: none;
+      border-radius: 0 0.6rem 0.6rem 0;
+    }
+
+    .input-group:focus-within .input-group-text {
+      border-color: #3b82f6;
+      background-color: #ffffff;
+      color: #3b82f6;
+    }
+
+    .btn-login {
+      background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+      color: white;
+      border: none;
+      border-radius: 0.6rem;
+      padding: 0.8rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(13, 110, 253, 0.35);
+      color: white;
+    }
+
+    .forgot-link {
+      color: #0d6efd;
+      font-size: 0.85rem;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .forgot-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsividade */
+    @media (max-width: 991.98px) {
+      .left-side {
+        display: none;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <div class="login-container">
-        
-        <!-- Lado Esquerdo com o Robô -->
-        <div class="left-side">
-            <div class="robot-container">
-                <img src="{% static 'images/robot.png' %}" class="robot-img" 
-                     alt="Robô ">
-                <div class="left-text">
-                    <h1>Gerador de Sistemas</h1>
-                    <p>Inteligência artificial ajudando a gerenciar seu negócio com simplicidade.</p>
-                </div>
-            </div>
+  <div class="login-container">
+      
+    <!-- Lado Esquerdo - Hero e Branding -->
+    <div class="left-side">
+      <div class="hero-content">
+        <div class="hero-icon-card">
+          <i class="bi bi-cpu"></i>
         </div>
-
-        <!-- Lado Direito - Formulário -->
-        <div class="right-side">
-            <div class="login-card">
-                <div class="brand">
-                    <div class="brand-logo">
-                        <i class="bi bi-robot"></i>
-                        Gerador de Sistemas
-                    </div>
-                </div>
-
-                
-                <p class="text-center text-muted mb-4">Faça login para acessar o dashboard</p>
-
-                <form method="post" action="{% url 'login' %}">
-                    {% csrf_token %}
-                    <div class="mb-4">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-person"></i></span>
-                            <input type="text" name="username" class="form-control" placeholder="Nome de usuário" required>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                            <input type="password" name="password" class="form-control" placeholder="Senha" required>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="remember">
-                            <label class="form-check-label text-muted" for="remember">Lembrar de mim</label>
-                        </div>
-                        <a href="#" class="forgot">Esqueceu a senha?</a>
-                    </div>
-
-                    <button type="submit" class="btn btn-login">
-                        Entrar no Sistema
-                    </button>
-                </form>
-
-                <div class="text-center mt-4">
-                    <p class="text-muted mb-2" style="font-size: 14px;">
-                        Ainda não tem acesso?
-                    </p>
-                    <a href="#" class="fw-medium" style="color: var(--accent-blue); text-decoration: none;">
-                        Solicitar acesso ao administrador
-                    </a>
-                </div>
-            </div>
+        <div class="hero-text">
+          <h1>DjangoForge</h1>
+          <p>Motor inteligente de geração de sistemas. Crie arquiteturas Django completas e pré-configuradas em segundos.</p>
         </div>
+      </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Lado Direito - Formulário de Login -->
+    <div class="right-side">
+      <div class="login-card">
+        
+        <!-- Logo e Cabeçalho -->
+        <div class="text-center text-sm-start">
+          <div class="brand-logo-wrapper">
+            <div class="forge-icon-sm">
+              <i class="bi bi-cpu"></i>
+            </div>
+            <span class="brand-title">
+              <span class="django-prefix">Django</span><span class="forge-suffix">Forge</span>
+            </span>
+          </div>
+          <h4 class="fw-bold mb-1">Bem-vindo de volta!</h4>
+          <p class="text-secondary small mb-4">Insira suas credenciais para acessar o painel de controle.</p>
+        </div>
+
+        <!-- Mensagens de Erro do Django -->
+        {% if form.errors %}
+          <div class="alert alert-danger border-0 rounded-3 small py-2.5 px-3 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1.5"></i>
+            Usuário ou senha incorretos. Verifique suas credenciais.
+          </div>
+        {% endif %}
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} border-0 rounded-3 small py-2.5 px-3 mb-4" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <!-- Formulário de Login -->
+        <form method="post" action="{% url 'login' %}">
+          {% csrf_token %}
+          
+          <!-- Usuário -->
+          <div class="mb-3">
+            <label class="form-label fw-medium small text-secondary">Usuário</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input type="text" name="username" class="form-control" placeholder="Seu nome de usuário" required autofocus>
+            </div>
+          </div>
+
+          <!-- Senha -->
+          <div class="mb-3">
+            <label class="form-label fw-medium small text-secondary">Senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input type="password" name="password" class="form-control" placeholder="Sua senha de acesso" required>
+            </div>
+          </div>
+
+          <!-- Lembrar e Esqueci a Senha -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="remember" name="remember_me">
+              <label class="form-check-label text-secondary small" for="remember">
+                Lembrar de mim
+              </label>
+            </div>
+            <a href="#" class="forgot-link">Esqueceu a senha?</a>
+          </div>
+
+          <!-- Botão de Ação -->
+          <button type="submit" class="btn btn-login mb-3">
+            Entrar na Plataforma <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </form>
+
+        <!-- Suporte/Solicitação -->
+        <div class="text-center mt-4 border-top pt-3">
+          <p class="text-secondary small mb-1">Ainda não possui acesso?</p>
+          <a href="#" class="fw-semibold text-decoration-none small text-primary">
+            Solicitar acesso ao administrador
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

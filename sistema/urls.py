@@ -24,4 +24,13 @@ urlpatterns = [
     # ROTA 3: A página de sucesso final com as instruções
     path('gerar/<int:pk>/sucesso/', views.gerar_sucesso_view, name='gerar_sucesso'),
     
+    path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('analytics/', views.analytics_view, name='analytics'),
+    path('users/', views.users_view, name='users'),
+    path('search/', views.search_view, name='search'),
+    path('profile/', views.profile_view, name='profile'),
+    path('settings/', views.settings_view, name='settings'),
+    
+    
+    
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

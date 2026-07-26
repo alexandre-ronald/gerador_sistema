@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatórios & Analytics | AdminPanel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold m-0">Relatórios & Analytics</h2>
+    <p class="text-secondary m-0">Acompanhe as métricas e o desempenho do sistema.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary rounded-3">
+      <i class="bi bi-download me-1"></i> Exportar PDF
+    </button>
+    <button class="btn btn-primary rounded-3">
+      <i class="bi bi-filter me-1"></i> Filtrar Período
+    </button>
+  </div>
+</div>
+
+<!-- Cards Sintéticos -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Acessos Totais</span>
+          <h3 class="fw-bold my-1">48.290</h3>
+          <span class="text-success small fw-semibold"><i class="bi bi-arrow-up-short"></i>+14% vs mês anterior</span>
+        </div>
+        <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-3">
+          <i class="bi bi-bar-chart-line-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Tempo Médio de Sessão</span>
+          <h3 class="fw-bold my-1">12m 45s</h3>
+          <span class="text-success small fw-semibold"><i class="bi bi-arrow-up-short"></i>+3% melhora</span>
+        </div>
+        <div class="p-3 bg-info bg-opacity-10 text-info rounded-3">
+          <i class="bi bi-clock-history fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Taxa de Erro (HTTP 500)</span>
+          <h3 class="fw-bold my-1">0.02%</h3>
+          <span class="text-success small fw-semibold"><i class="bi bi-arrow-down-short"></i>-0.05% estável</span>
+        </div>
+        <div class="p-3 bg-success bg-opacity-10 text-success rounded-3">
+          <i class="bi bi-check-circle-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-medium">Requisições/min</span>
+          <h3 class="fw-bold my-1">340</h3>
+          <span class="text-warning small fw-semibold"><i class="bi bi-dash"></i>Normal</span>
+        </div>
+        <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-3">
+          <i class="bi bi-lightning-charge-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela de Módulos mais Acessados -->
+<div class="card card-modern p-4">
+  <h5 class="fw-bold mb-3">Módulos Mais Utilizados</h5>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Módulo</th>
+          <th>Acessos</th>
+          <th>Usuários Únicos</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fw-semibold">Gestão de Formulários</td>
+          <td>18.420</td>
+          <td>1.102</td>
+          <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Ativo</span></td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">Emissão de Relatórios</td>
+          <td>12.150</td>
+          <td>890</td>
+          <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Ativo</span></td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">Cadastro de Usuários</td>
+          <td>4.310</td>
+          <td>120</td>
+          <td><span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-1">Manutenção</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

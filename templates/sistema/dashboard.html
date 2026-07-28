@@ -115,26 +115,26 @@
           <!-- Nome do Sistema e Slug -->
           <td>
             <div class="d-flex align-items-center gap-2">
-              <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+              <div class="p-1 bg-primary bg-opacity-10 text-primary stat-icon">
                 <i class="bi bi-window-stack"></i>
               </div>
               <div>
                 <div class="fw-semibold text-body">{{ sistema.nome }}</div>
-                <small class="text-secondary text-truncate" style="font-size: 0.75rem;">{{ sistema.descricao }}</small>
+                <small class="text-secondary text-truncate" style="font-size: 0.75rem;">{{ sistema.slug }}</small>
               </div>
             </div>
           </td>
 
           <!-- Banco de Dados (BD_CHOICES) -->
           <td>
-            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-2 p-2">
               <i class="bi bi-database me-1"></i>{{ sistema.get_banco_dados_display }}
             </span>
           </td>
 
           <!-- Estilo do Menu (MENU_CHOICES) -->
           <td>
-            <span class="badge bg-light text-dark border rounded-2 small">
+            <span class="badge bg-light text-dark border rounded-2 small p-2">
               {% if sistema.tipo_menu == 'lateral' %}
                 <i class="bi bi-layout-sidebar-inset me-1 text-primary"></i>
               {% else %}

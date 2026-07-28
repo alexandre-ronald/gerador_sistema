@@ -377,6 +377,19 @@
       font-size: 0.9rem;
       box-shadow: 0 2px 8px rgba(164, 165, 165, 0.3);
     }
+    .icon-circle-green {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--django-emerald) ;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(164, 165, 165, 0.3);
+    }
 
     .dropdown-menu-custom {
       border: 1px solid var(--border-color-light);
@@ -565,7 +578,7 @@
         {% if user.is_authenticated %}
         <div class="dropdown">
           <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle gap-2 text-body" data-bs-toggle="dropdown">
-            <div class="avatar-circle">
+            <div class="icon-circle-green">
               {{ user.first_name|default:user.username|slice:":1"|upper }}
             </div>
             <div class="d-none d-sm-block text-start pe-1">

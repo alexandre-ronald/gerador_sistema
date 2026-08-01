@@ -12,18 +12,18 @@
   <!-- Card de Resumo do Usuário -->
   <div class="col-12 col-lg-4">
     <div class="card card-modern p-4 text-center">
-      <div class="avatar-circle mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+      <div class="icon-circle-green mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
         {{ user.first_name|default:user.username|slice:":1"|upper }}
       </div>
       <h5 class="fw-bold mb-1">{{ user.get_full_name|default:user.username }}</h5>
       <p class="text-secondary small mb-3">{{ user.email }}</p>
-      
-      {% if user.is_superuser %}
-        <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2 mb-3">Administrador</span>
-      {% else %}
-        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 mb-3">Operador</span>
-      {% endif %}
-
+      <div class="">
+        {% if user.is_superuser %}
+          <span class="badge bg-danger-subtle text-danger rounded-2 px-3 py-2 mb-3">Administrador</span>
+        {% else %}
+          <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 mb-3">Operador</span>
+        {% endif %}
+      </div>
       <div class="border-top pt-3 mt-2 text-start">
         <div class="d-flex justify-content-between mb-2">
           <span class="text-secondary small">Último acesso:</span>
@@ -44,16 +44,16 @@
       
       <form method="POST" action="{% url 'sistema:profile' %}">
         {% csrf_token %}
-        <div class="row g-3">
-          <div class="col-md-6">
+        <div class="row g-2">
+          <div class="col-md-3">
             <label class="form-label fw-medium">Nome</label>
             <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-3">
             <label class="form-label fw-medium">Sobrenome</label>
             <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
           </div>
-          <div class="col-md-12">
+          <div class="col-md-6">
             <label class="form-label fw-medium">E-mail</label>
             <input type="email" name="email" class="form-control" value="{{ user.email }}">
           </div>
@@ -62,20 +62,21 @@
         <hr class="my-4">
 
         <h5 class="fw-bold mb-3">Alterar Senha</h5>
-        <div class="row g-3">
-          <div class="col-md-6">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
             <label class="form-label fw-medium">Nova Senha</label>
             <input type="password" name="new_password" class="form-control" placeholder="Deixe em branco para não alterar">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-5">
             <label class="form-label fw-medium">Confirmar Nova Senha</label>
             <input type="password" name="confirm_password" class="form-control" placeholder="Repita a nova senha">
           </div>
+          <div class="col-md-2 text-end">
+            <button type="submit" class="btn btn-primary px-2 rounded-2">Salvar Alterações</button>
+          </div>
         </div>
 
-        <div class="mt-4 text-end">
-          <button type="submit" class="btn btn-primary px-4 rounded-3">Salvar Alterações</button>
-        </div>
+        
       </form>
     </div>
   </div>

@@ -135,27 +135,32 @@
 
               <!-- Tags / Features do Gerador -->
               <div class="d-flex flex-wrap gap-1 mb-3">
-                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill" style="font-size: 0.7rem;">
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-1" style="font-size: 0.7rem;">
                   <i class="bi bi-database me-1"></i>{{ sistema.get_banco_dados_display }}
                 </span>
                 
                 {% if sistema.usar_custom_user %}
-                  <span class="badge bg-success-subtle text-success rounded-pill" style="font-size: 0.7rem;">User</span>
+                  <span class="badge bg-success-subtle text-success rounded-1" style="font-size: 0.7rem;"><i class="bi bi-person "></i> User</span>
+                {% endif %}
+
+                {% if sistema.usar_auditoria %}
+                  <span class="badge bg-warning-subtle text-warning rounded-1" title="Sistema de Auditoria" style="font-size: 0.7rem;"><i class="bi bi-clipboard-check"></i> Auditoria</span>
                 {% endif %}
                 
                 {% if sistema.gerar_api_rest %}
-                  <span class="badge bg-primary-subtle text-primary rounded-pill" style="font-size: 0.7rem;">DRF</span>
+                  <span class="badge bg-primary-subtle text-primary rounded-1" style="font-size: 0.7rem;">DRF</span>
                 {% endif %}
                 
                 {% if sistema.gerar_docker %}
-                  <span class="badge bg-info-subtle text-info rounded-pill" style="font-size: 0.7rem;">Docker</span>
+                  <span class="badge bg-info-subtle text-secondary rounded-1" style="font-size: 0.7rem;"><i class="bi bi-box-seam"></i> Docker</span>
                 {% endif %}
+
               </div>
 
               <!-- Data de Atualização -->
               <div class="text-secondary small d-flex align-items-center mb-3" style="font-size: 0.78rem;">
-                <i class="bi bi-clock-history me-1.5 text-success"></i>
-                <span>Atualizado em <strong>{{ sistema.atualizado_em|date:"d/m/Y" }}</strong> às <strong>{{ sistema.atualizado_em|date:"H:i" }}</strong></span>
+                <i class="bi bi-clock-history me-1.5 text-success "></i>
+                <span class="ms-1"> Atualizado em <strong>{{ sistema.atualizado_em|date:"d/m/Y" }}</strong> às <strong>{{ sistema.atualizado_em|date:"H:i" }}</strong></span>
               </div>
             </div>
 

@@ -12,14 +12,10 @@
             <div class="card-body p-4 pt-0">
                 <form method="post" class="needs-validation">
                     {% templatetag openblock %} csrf_token {% templatetag closeblock %}
-                    
-                    <div class="row g-3">
-                        {% templatetag openvariable %} form.as_p {% templatetag closevariable %}
-                    </div>
-
+                    <div class="row g-3">{% templatetag openvariable %} form.as_p {% templatetag closevariable %}</div>
                     <div class="mt-4 border-top pt-4">
                         <button type="submit" class="btn btn-primary px-4 me-2">Salvar Registro</button>
-                        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}" class="btn btn-light px-4">Voltar</a>
+                        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="btn btn-light px-4">Voltar</a>
                     </div>
                 </form>
             </div>

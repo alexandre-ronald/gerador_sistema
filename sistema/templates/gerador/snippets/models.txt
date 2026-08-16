@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings  # Necessário para o AUTH_USER_MODEL
 
 # --- IMPORTS DE OUTROS APPS ---
 {% for app_externo, modelos in imports_por_app.items %}
@@ -7,46 +6,81 @@ from {{ app_externo }}.models import {{ modelos|join:", " }}
 {% endfor %}
 
 {% for entidade in entidades %}
-class {{ entidade.nome|title|cut:" " }}(models.Model):
-    {% for campo in entidade.campos.all %}
-    {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" or campo.tipo == "ManyToManyField" %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
-        '{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.entidade_relacionada.nome|title|cut:" " }}',
+class {{ entidade.classe_tecnica }}(models.Model):
+{% for campo in entidade.campos.all %}
+    {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
+    {{ campo.nome_tecnico }} = models.{{ campo.tipo }}(
+        "{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.classe_relacionada }}",
         on_delete={{ campo.on_delete|default:"models.CASCADE" }},
         null={% if campo.null %}True{% else %}False{% endif %},
-        blank={% if campo.blank %}True{% else %}False{% endif %},
-        {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        blank={% if campo.blank %}True{% else %}False{% endif %}{% if campo.related_name_str %},
+        related_name="{{ campo.related_name_str }}"{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
+    )
+    {% elif campo.tipo == "ManyToManyField" %}
+    {{ campo.nome_tecnico }} = models.ManyToManyField(
+        "{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.classe_relacionada }}",
+        blank={% if campo.blank %}True{% else %}False{% endif %}{% if campo.related_name_str %},
+        related_name="{{ campo.related_name_str }}"{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
     )
     {% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
-        upload_to='{{ campo.upload_to|default:"uploads/" }}',
+    {{ campo.nome_tecnico }} = models.{{ campo.tipo }}(
+        upload_to="{{ campo.upload_to|default:"uploads/" }}",
+        null={% if campo.null %}True{% else %}False{% endif %},
+        blank={% if campo.blank %}True{% else %}False{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
+    )
+    {% elif campo.tipo == "DecimalField" %}
+    {{ campo.nome_tecnico }} = models.DecimalField(
+        max_digits={{ campo.max_digits }},
+        decimal_places={{ campo.decimal_places }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        unique={% if campo.unique %}True{% else %}False{% endif %}{% if campo.default_repr %},
+        default={{ campo.default_repr }}{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
+    )
+    {% elif campo.tipo == "CharField" or campo.tipo == "EmailField" or campo.tipo == "URLField" %}
+    {{ campo.nome_tecnico }} = models.{{ campo.tipo }}(
+        max_length={{ campo.max_length|default:255 }},
+        null={% if campo.null %}True{% else %}False{% endif %},
+        blank={% if campo.blank %}True{% else %}False{% endif %},
+        unique={% if campo.unique %}True{% else %}False{% endif %}{% if campo.default_repr %},
+        default={{ campo.default_repr }}{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
     )
     {% else %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
-        {% if campo.tipo == "CharField" or campo.tipo == "SlugField" or campo.tipo == "EmailField" %}max_length={{ campo.max_length|default:255 }},{% endif %}
-        {% if campo.default_value %}default='{{ campo.default_value }}',{% endif %}
+    {{ campo.nome_tecnico }} = models.{{ campo.tipo }}(
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        unique={% if campo.unique %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        unique={% if campo.unique %}True{% else %}False{% endif %}{% if campo.default_repr %},
+        default={{ campo.default_repr }}{% endif %}{% if campo.verbose_name %},
+        verbose_name="{{ campo.verbose_name }}"{% endif %}
     )
     {% endif %}
-    {% endfor %}
-    
-    {% if sistema.usar_auditoria %}
-    # --- CAMPOS DE AUDITORIA ---
+{% endfor %}
+
+{% if sistema.usar_auditoria %}
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
-    criado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Criado por")
-    {% endif %}
+    criado_por = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_criados",
+        verbose_name="Criado por",
+    )
+{% endif %}
 
     class Meta:
         verbose_name = "{{ entidade.nome|title }}"
-        verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome|title }}s"
+        verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome|title }}"
 
     def __str__(self):
-        return {% if entidade.campos.all %}str(self.{{ entidade.campos.all.0.nome|lower }}){% else %}str(self.id){% endif %}
+{% if entidade.campo_principal %}
+        return str(self.{{ entidade.campo_principal.nome_tecnico }})
+{% else %}
+        return str(self.pk)
+{% endif %}
 {% endfor %}

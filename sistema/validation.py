@@ -32,9 +32,20 @@ def technical_name(value: str, fallback: str = "item") -> str:
 
 
 def class_name(value: str, fallback: str = "Model") -> str:
-    parts = re.findall(r"[A-Za-z0-9]+", str(value or ""))
+    """Converte um nome humano em um nome de classe Python seguro."""
+    # slugify com allow_unicode=False remove acentos de forma consistente:
+    # "Ordem de Serviço" -> "ordem-de-servico".
+    normalized = slugify(str(value or ""), allow_unicode=False)
+    parts = [part for part in normalized.split("-") if part]
     result = "".join(part[:1].upper() + part[1:] for part in parts)
-    return result or fallback
+    result = re.sub(r"[^A-Za-z0-9_]", "", result)
+    if not result:
+        return fallback
+    if result[0].isdigit():
+        result = f"Model{result}"
+    if keyword.iskeyword(result):
+        result = f"{result}Model"
+    return result
 
 
 def validate_specification(sistema: Sistema) -> None:

@@ -8,16 +8,14 @@ User = get_user_model()
 class Sistema(models.Model):
     BD_CHOICES = [
         ("sqlite3", "SQLite"),
-        ("postgresql", "PostgreSQL"),  # Corrigido
-        ("mysql", "MySQL"),
-        ("sqlserver", "SQL Server"),
-        ("oracle", "Oracle"),
+        ("postgresql", "PostgreSQL"),
     ]
 
     MENU_CHOICES = [
         ("lateral", "Menu Lateral (Sidebar)"),
         ("superior", "Menu Superior (Navbar)"),
     ]
+
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
@@ -37,9 +35,8 @@ class Sistema(models.Model):
         verbose_name="Estilo do Menu",
     )
 
-    # NOVOS: Configurações Globais do Gerador
     usar_custom_user = models.BooleanField(
-        default=True, verbose_name="Gerar Custom User Model?"
+        default=False, verbose_name="Gerar Custom User Model?"
     )
     gerar_api_rest = models.BooleanField(
         default=False, verbose_name="Configurar Django Rest Framework?"
@@ -91,7 +88,6 @@ class Entidade(models.Model):
     )
     descricao = models.TextField(blank=True)
 
-    # NOVOS: Flags para o Gerador
     gerar_admin = models.BooleanField(
         default=True, verbose_name="Registrar no admin.py?"
     )
@@ -124,11 +120,11 @@ class Campo(models.Model):
         ("TimeField", "TimeField"),
         ("EmailField", "EmailField"),
         ("URLField", "URLField"),
-        ("FileField", "FileField"),  # NOVO
-        ("ImageField", "ImageField"),  # NOVO
+        ("FileField", "FileField"),
+        ("ImageField", "ImageField"),
         ("ForeignKey", "ForeignKey"),
         ("ManyToManyField", "ManyToManyField"),
-        ("OneToOneField", "OneToOneField"),  # NOVO
+        ("OneToOneField", "OneToOneField"),
     ]
 
     ON_DELETE_CHOICES = [
@@ -146,15 +142,15 @@ class Campo(models.Model):
         max_length=20, choices=TIPO_CAMPO_CHOICES, verbose_name="Tipo do Campo"
     )
 
-    # Opções Comuns
     null = models.BooleanField(default=False)
     blank = models.BooleanField(default=False)
     unique = models.BooleanField(default=False)
     default_value = models.CharField(
-        max_length=255, blank=True, help_text="Valor padrão (ex: 'Ativo', True, 0)"
-    )  # NOVO
+        max_length=255,
+        blank=True,
+        help_text="Valor padrão literal (ex: Ativo, True, 0)",
+    )
 
-    # Atributos Específicos
     max_length = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Max Length"
     )
@@ -166,9 +162,8 @@ class Campo(models.Model):
     )
     upload_to = models.CharField(
         max_length=255, blank=True, verbose_name="Pasta de Upload (File/Image)"
-    )  # NOVO
+    )
 
-    # Relacionamentos
     entidade_relacionada = models.ForeignKey(
         Entidade,
         on_delete=models.SET_NULL,
@@ -178,13 +173,15 @@ class Campo(models.Model):
         verbose_name="Entidade Relacionada",
     )
     on_delete = models.CharField(
-        max_length=50, choices=ON_DELETE_CHOICES, default="models.CASCADE", blank=True
-    )  # NOVO
+        max_length=50,
+        choices=ON_DELETE_CHOICES,
+        default="models.CASCADE",
+        blank=True,
+    )
     related_name_str = models.CharField(
         max_length=100, blank=True, verbose_name="Related Name"
-    )  # NOVO
+    )
 
-    # Metadados
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
 

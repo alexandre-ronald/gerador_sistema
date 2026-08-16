@@ -85,10 +85,14 @@ def _validate_payload(payload):
             seen_entities.add(entity_key)
 
 
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 @login_required
 @csrf_protect
 def criar_sistema_seguro(request):
+    """Exibe o formulário com GET e cria o sistema com POST."""
+    if request.method == "GET":
+        return render(request, "sistema/editor.html", {"form": SistemaForm()})
+
     form = SistemaForm(request.POST)
     if form.is_valid():
         sistema = form.save(commit=False)
@@ -96,7 +100,7 @@ def criar_sistema_seguro(request):
         sistema.save()
         messages.success(request, f"Sistema '{sistema.nome}' criado com sucesso!")
         return redirect("sistema:lista")
-    return render(request, "sistema/editor.html", {"form": form})
+    return render(request, "sistema/editor.html", {"form": form}, status=400)
 
 
 @require_http_methods(["GET"])

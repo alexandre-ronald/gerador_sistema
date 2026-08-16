@@ -28,7 +28,8 @@ class Gen0001ValidationTests(TestCase):
     def test_technical_name_is_python_safe(self):
         self.assertEqual(technical_name("Gestão de Pessoas"), "gestao_de_pessoas")
         self.assertEqual(technical_name("123 clientes"), "_123_clientes")
-        self.assertEqual(class_name("Ordem de Serviço"), "OrdemDeServio")
+        self.assertEqual(class_name("Ordem de Serviço"), "OrdemDeServico")
+        self.assertEqual(class_name("Ação do Usuário"), "AcaoDoUsuario")
 
     def test_many_to_many_requires_related_entity(self):
         sistema = self.create_system()
@@ -75,3 +76,20 @@ class Gen0001GenerationTests(TestCase):
                 output = Path(temp_dir) / str(self.user.id) / "meu_sistema"
                 self.assertTrue((output / "meu_sistema" / "settings.py").exists())
                 self.assertTrue((output / "gestao_de_pessoas" / "models.py").exists())
+
+
+class Gen0001ViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="views-gen0001", email="views-gen0001@example.com", password="secret123"
+        )
+        self.client.login(username="views-gen0001", password="secret123")
+
+    def test_new_system_page_accepts_get(self):
+        response = self.client.get("/novo/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_new_system_page_creates_with_post(self):
+        response = self.client.post("/novo/", {"nome": "Sistema Web", "descricao": "Teste"})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Sistema.objects.filter(usuario=self.user, nome="Sistema Web").exists())

@@ -1,49 +1,50 @@
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import {% for entidade in entidades %}{{ entidade.nome|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
-from .forms import {% for entidade in entidades %}{{ entidade.nome|title }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+
+from .forms import {% for entidade in entidades %}{{ entidade.classe_tecnica }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+from .models import {% for entidade in entidades %}{{ entidade.classe_tecnica }}{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
-# --- Views para {{ entidade.nome|title }} ---
-
-class {{ entidade.nome|title }}ListView(LoginRequiredMixin, ListView):
-    model = {{ entidade.nome|title }}
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_list.html'
-    context_object_name = 'objetos'
+class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, ListView):
+    model = {{ entidade.classe_tecnica }}
+    template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_list.html"
+    context_object_name = "objetos"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Dados para os Cards de Sumário
-        context['total_registros'] = self.get_queryset().count()
-        context['titulo_pagina'] = "{{ entidade.nome|title }}s"
+        context["total_registros"] = self.get_queryset().count()
+        context["titulo_pagina"] = "{{ entidade.nome|title }}"
         return context
 
-class {{ entidade.nome|title }}CreateView(LoginRequiredMixin, CreateView):
-    model = {{ entidade.nome|title }}
-    form_class = {{ entidade.nome|title }}Form
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+
+class {{ entidade.classe_tecnica }}CreateView(LoginRequiredMixin, CreateView):
+    model = {{ entidade.classe_tecnica }}
+    form_class = {{ entidade.classe_tecnica }}Form
+    template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_form.html"
+    success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} criado com sucesso!")
         return super().form_valid(form)
 
-class {{ entidade.nome|title }}UpdateView(LoginRequiredMixin, UpdateView):
-    model = {{ entidade.nome|title }}
-    form_class = {{ entidade.nome|title }}Form
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+
+class {{ entidade.classe_tecnica }}UpdateView(LoginRequiredMixin, UpdateView):
+    model = {{ entidade.classe_tecnica }}
+    form_class = {{ entidade.classe_tecnica }}Form
+    template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_form.html"
+    success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} atualizado!")
         return super().form_valid(form)
 
-class {{ entidade.nome|title }}DeleteView(LoginRequiredMixin, DeleteView):
-    model = {{ entidade.nome|title }}
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_confirm_delete.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+
+class {{ entidade.classe_tecnica }}DeleteView(LoginRequiredMixin, DeleteView):
+    model = {{ entidade.classe_tecnica }}
+    template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_confirm_delete.html"
+    success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
 
     def delete(self, request, *args, **kwargs):
         messages.warning(self.request, "{{ entidade.nome|title }} removido.")

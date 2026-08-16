@@ -3,31 +3,19 @@
 {% templatetag openblock %} block content {% templatetag closeblock %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold mb-0">Gerenciamento de {{ entidade.nome|title }}</h3>
-    <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome|lower }}_create' {% templatetag closeblock %}" class="btn btn-primary px-4 shadow-sm">
+    <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_create' {% templatetag closeblock %}" class="btn btn-primary px-4 shadow-sm">
         <i class="bi bi-plus-lg me-1"></i> Novo Registro
     </a>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card card-summary shadow-sm p-1 border-primary ">
+        <div class="card card-summary shadow-sm p-1 border-primary">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <p class="fw-medium text-muted mb-0">Total de Registros</p>
-                        <h2 class="mt-2 ff-secondary cfs-22 fw-semibold text-primary">{% templatetag openvariable %} total_registros {% templatetag closevariable %}</h2>
-
-                    </div>
-                    <div>
-                        <div class="avatar-sm flex-shrink-0">
-                            <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-2">
-                                <i class="bi-database"></i>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div><!-- end card body -->
-        </div> <!-- end card-->
+                <p class="fw-medium text-muted mb-0">Total de Registros</p>
+                <h2 class="mt-2 ff-secondary cfs-22 fw-semibold text-primary">{% templatetag openvariable %} total_registros {% templatetag closevariable %}</h2>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -47,18 +35,16 @@
                     {% templatetag openblock %} for item in objetos {% templatetag closeblock %}
                     <tr>
                         {% for campo in entidade.campos.all %}
-                        <td class="px-4">{% templatetag openvariable %} item.{{ campo.nome|lower }} {% templatetag closevariable %}</td>
+                        <td class="px-4">{% templatetag openvariable %} item.{{ campo.nome_tecnico }} {% templatetag closevariable %}</td>
                         {% endfor %}
                         <td class="text-end px-4">
-                            <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome|lower }}_update' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-primary me-1"><i class="bi bi-pencil"></i></a>
-                            <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome|lower }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-danger"><i class="bi bi-trash"></i></a>
+                            <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_update' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-primary me-1"><i class="bi bi-pencil"></i></a>
+                            <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-danger"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                     {% templatetag openblock %} empty {% templatetag closeblock %}
                     <tr>
-                        <td colspan="{{ entidade.campos.all|length|add:1 }}" class="text-center py-5 text-muted">
-                            Nenhum registro encontrado. Comece cadastrando um novo!
-                        </td>
+                        <td colspan="{{ entidade.campos.all|length|add:1 }}" class="text-center py-5 text-muted">Nenhum registro encontrado.</td>
                     </tr>
                     {% templatetag openblock %} endfor {% templatetag closeblock %}
                 </tbody>

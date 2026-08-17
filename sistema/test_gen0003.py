@@ -1,10 +1,13 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.template.loader import render_to_string
+from django.test import TestCase, SimpleTestCase
 
 from .compiler import ArtifactWriter, SpecificationCompiler
+from .generation_export import _installation_bat
 from .models import Campo, Entidade, Modulo, Sistema
 from .specification import build_specification
 from .specification_plan import CompilationPlan
@@ -86,3 +89,51 @@ class Gen0003CompilerTests(TestCase):
             })()
             with self.assertRaises(ValueError):
                 writer.write((artifact,))
+
+
+class Gen0003TemplateAndWindowsTests(SimpleTestCase):
+    def test_settings_uses_technical_module_name(self):
+        context = {
+            "sistema": SimpleNamespace(
+                modulos=SimpleNamespace(
+                    all=lambda: [SimpleNamespace(nome="Gestão de Pessoas", nome_tecnico="gestao_de_pessoas")]
+                ),
+                banco_dados="sqlite3",
+            ),
+            "nome_projeto": "sistema_de_gestao_hospitalar",
+        }
+        rendered = render_to_string("gerador/snippets/settings.txt", context)
+        self.assertIn('"gestao_de_pessoas",', rendered)
+        self.assertNotIn('"gestao-de-pessoas",', rendered)
+
+    def test_root_urls_keep_public_slug_but_import_technical_name(self):
+        context = {
+            "sistema": SimpleNamespace(
+                modulos=SimpleNamespace(
+                    all=lambda: [SimpleNamespace(nome="Gestão de Pessoas", nome_tecnico="gestao_de_pessoas")]
+                )
+            )
+        }
+        rendered = render_to_string("gerador/snippets/urls_root.txt", context)
+        self.assertIn('"gestao-de-pessoas/"', rendered)
+        self.assertIn('include("gestao_de_pessoas.urls")', rendered)
+
+    def test_installation_bat_has_no_residual_text_and_uses_utf8_codepage(self):
+        content = _installation_bat("Sistema de Gestão Hospitalar")
+        self.assertIn("chcp 65001 >nul", content)
+        self.assertIn(r"call .venv\Scripts\activate.bat", content)
+        self.assertNotIn("Salvador:", content)
+        self.assertIn("Sistema de Gestão Hospitalar", content)
+
+    def test_installation_bat_is_written_with_utf8_bom(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "instalacao.bat"
+            path.write_text(
+                _installation_bat("Gestão de Pessoas"),
+                encoding="utf-8-sig",
+                newline="\r\n",
+            )
+            raw = path.read_bytes()
+
+        self.assertTrue(raw.startswith(b"\xef\xbb\xbf"))
+        self.assertIn("Gestão de Pessoas".encode("utf-8"), raw)

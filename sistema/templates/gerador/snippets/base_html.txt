@@ -44,7 +44,7 @@
                 </li>
                 <hr class="mx-3">
                 <div class="small text-uppercase px-4 mb-2 text-white-50" style="font-size: 0.65rem; letter-spacing: 1px;">Módulos</div>
-                {% for modulo in sistema.modulos.all %}
+                {% for modulo in modulos %}
                     {% if modulo.entidades.all %}
                         <li class="nav-item mt-2">
                             <div class="small text-uppercase px-4 mb-1 text-info" style="font-size: 0.6rem; letter-spacing: 1px;">{{ modulo.nome }}</div>
@@ -74,7 +74,7 @@
                         </button>
                         <div class="collapse navbar-collapse" id="navbarNav">
                             <ul class="navbar-nav me-auto">
-                                {% for modulo in sistema.modulos.all %}
+                                {% for modulo in modulos %}
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">{{ modulo.nome }}</a>
                                     <ul class="dropdown-menu shadow">

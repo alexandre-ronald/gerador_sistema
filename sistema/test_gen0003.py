@@ -3,11 +3,13 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.template.loader import render_to_string
 from django.test import TestCase, SimpleTestCase
 
 from .compiler import ArtifactWriter, SpecificationCompiler
 from .generation_export import _installation_bat
+from .generation_validation import validate_generated_project
 from .models import Campo, Entidade, Modulo, Sistema
 from .specification import build_specification
 from .specification_plan import CompilationPlan
@@ -89,6 +91,30 @@ class Gen0003CompilerTests(TestCase):
             })()
             with self.assertRaises(ValueError):
                 writer.write((artifact,))
+
+    def test_generated_project_passes_structural_validation(self):
+        modulo = Modulo.objects.create(sistema=self.sistema, nome="Gestão de Pessoas")
+        Entidade.objects.create(modulo=modulo, nome="Funcionário")
+
+        spec = build_specification(self.sistema)
+        with TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "project"
+            SpecificationCompiler(spec).write(output)
+            validated = validate_generated_project(spec, output)
+
+        self.assertEqual(set(validated), set(CompilationPlan(spec).paths()))
+
+    def test_generated_project_validation_rejects_missing_artifact(self):
+        spec = build_specification(self.sistema)
+        with TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "project"
+            SpecificationCompiler(spec).write(output)
+            (output / "manage.py").unlink()
+
+            with self.assertRaises(ValidationError) as context:
+                validate_generated_project(spec, output)
+
+        self.assertIn("Artefato ausente: manage.py", str(context.exception))
 
 
 class Gen0003TemplateAndWindowsTests(SimpleTestCase):

@@ -41,6 +41,9 @@ class SpecificationCompiler:
         contexts = self._build_contexts()
         compiled: list[CompiledFile] = []
         for artifact in self.plan.artifacts():
+            if artifact.kind == "static":
+                compiled.append(CompiledFile(artifact.path, "", artifact.kind))
+                continue
             context = contexts.get(artifact.path)
             if context is None:
                 raise RuntimeError(

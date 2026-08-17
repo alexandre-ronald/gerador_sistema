@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
 
-from . import stabilization, views
+from . import generation_export, stabilization, views
 
 app_name = "sistema"
 
@@ -33,7 +33,7 @@ urlpatterns = [
     ),
     path(
         "gerar/<int:pk>/processar/",
-        stabilization.secured(views.processar_geracao_ajax),
+        stabilization.secured(generation_export.processar_geracao_ajax),
         name="processar_geracao_ajax",
     ),
     path(

@@ -10,7 +10,7 @@ class {{ entidade.classe_tecnica }}(models.Model):
 {% for campo in entidade.campos.all %}
     {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
     {{ campo.nome_tecnico }} = models.{{ campo.tipo }}(
-        "{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.classe_relacionada }}",
+        "{{ campo.related_module|default:app_name }}.{{ campo.classe_relacionada }}",
         on_delete={{ campo.on_delete|default:"models.CASCADE" }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %}{% if campo.related_name_str %},
@@ -19,7 +19,7 @@ class {{ entidade.classe_tecnica }}(models.Model):
     )
     {% elif campo.tipo == "ManyToManyField" %}
     {{ campo.nome_tecnico }} = models.ManyToManyField(
-        "{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.classe_relacionada }}",
+        "{{ campo.related_module|default:app_name }}.{{ campo.classe_relacionada }}",
         blank={% if campo.blank %}True{% else %}False{% endif %}{% if campo.related_name_str %},
         related_name="{{ campo.related_name_str }}"{% endif %}{% if campo.verbose_name %},
         verbose_name="{{ campo.verbose_name }}"{% endif %}

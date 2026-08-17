@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from django.conf import settings
-from django.template.loader import render_to_string
 
+from .compiler import SpecificationCompiler
 from .models import Sistema
-from .validation import class_name, technical_name, validate_specification
+from .specification import build_specification
+from .specification_plan import CompilationPlan
+from .validation import validate_specification
 
 
 class GeradorService:
-    """Generate a Django project from a validated Sistema specification."""
+    """Application service for validating, planning and compiling systems."""
 
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.select_related("usuario").get(pk=sistema_id)
-        self.nome_projeto = technical_name(self.sistema.nome, "projeto")
         self.diretorio_base = self._output_directory()
         self.logs: list[str] = []
 
@@ -28,214 +28,72 @@ class GeradorService:
             )
         ).resolve()
         user_root = root / str(self.sistema.usuario_id)
-        return str((user_root / self.nome_projeto).resolve())
+        nome_projeto = build_specification(self.sistema).technical_name
+        return str((user_root / nome_projeto).resolve())
 
-    def log(self, mensagem):
+    def log(self, mensagem: str):
         self.logs.append(mensagem)
 
     def validar(self):
         self.log("🔎 Validando especificação...")
         validate_specification(self.sistema)
-        self.log("✅ Especificação válida.")
+        self.log("✅ Especificação ORM válida.")
+
+    def especificacao(self):
+        """Build and validate the canonical SystemSpec."""
+        return build_specification(self.sistema)
+
+    def plano_compilacao(self):
+        """Return the deterministic artifact plan without touching the filesystem."""
+        return CompilationPlan(self.especificacao())
 
     def gerar_projeto_completo(self):
+        """Compile the canonical specification and write its planned artifacts."""
         self.validar()
         try:
-            os.makedirs(self.diretorio_base, exist_ok=True)
+            spec = self.especificacao()
+            self.log(f"🧾 Especificação GEN-{spec.version}: {spec.fingerprint[:12]}...")
 
-            self._gerar_core()
+            plan = CompilationPlan(spec)
+            self.log(f"📋 Plano de compilação: {len(plan.artifacts())} artefatos.")
 
-            for modulo in self.sistema.modulos.prefetch_related(
-                "entidades__campos__entidade_relacionada__modulo"
-            ):
-                self._gerar_modulo(modulo)
+            compiler = SpecificationCompiler(spec)
+            compiled = compiler.compile()
 
-            self._gerar_templates_globais()
+            output = Path(self.diretorio_base).resolve()
+            output.mkdir(parents=True, exist_ok=True)
+            expected_paths = {item.path for item in plan.artifacts()}
+            written_paths: list[str] = []
 
-            if self.sistema.gerar_docker:
-                self._gerar_docker()
+            for artifact in compiled:
+                destination = (output / artifact.path).resolve()
+                if output not in destination.parents:
+                    raise ValueError(
+                        f"Artefato fora do diretório de geração permitido: {artifact.path}"
+                    )
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(
+                    artifact.content,
+                    encoding="utf-8",
+                    newline="\n",
+                )
+                written_paths.append(artifact.path)
+                self.log(f"Arquivo criado: {artifact.path}")
 
-            self.log(f"📁 Projeto gerado em: {self.diretorio_base}")
-            self.log("✅ Geração concluída com sucesso!")
+            if set(written_paths) != expected_paths:
+                raise RuntimeError(
+                    "O compilador não produziu exatamente os artefatos planejados."
+                )
+
+            # O fluxo legado de compactação usa Sistema.caminho_geracao para
+            # localizar a árvore recém-compilada. Persistimos o caminho aqui,
+            # no mesmo ponto em que a geração física é concluída.
+            self.sistema.caminho_geracao = str(output)
+            self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])
+
+            self.log(f"📁 Projeto gerado em: {output}")
+            self.log("✅ Compilação concluída com sucesso!")
             return self.logs
         except Exception as exc:
             self.log(f"❌ ERRO FATAL: {exc}")
             raise
-
-    def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
-        caminho_full = Path(self.diretorio_base) / caminho_relativo
-        caminho_full.parent.mkdir(parents=True, exist_ok=True)
-
-        conteudo = render_to_string(template_name, contexto)
-
-        with caminho_full.open("w", encoding="utf-8", newline="\n") as arquivo:
-            arquivo.write(conteudo)
-
-        self.log(f"Arquivo criado: {caminho_relativo}")
-
-    def _gerar_docker(self):
-        self.log("🐳 Criando arquivos do ambiente Docker...")
-        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        self._escrever_arquivo(
-            "Dockerfile", "gerador/snippets/dockerfile.txt", ctx
-        )
-        self._escrever_arquivo(
-            "docker-compose.yml", "gerador/snippets/docker_compose.txt", ctx
-        )
-        self._escrever_arquivo(
-            ".dockerignore", "gerador/snippets/dockerignore.txt", ctx
-        )
-
-    def _gerar_modulo(self, modulo):
-        app_name = technical_name(modulo.nome, "app")
-        entidades = list(
-            modulo.entidades.prefetch_related(
-                "campos__entidade_relacionada__modulo"
-            )
-        )
-
-        imports_por_app = {}
-
-        for entidade in entidades:
-            setattr(entidade, "classe_tecnica", class_name(entidade.nome))
-            setattr(entidade, "nome_tecnico", technical_name(entidade.nome, "model"))
-            campos = list(entidade.campos.all())
-            setattr(entidade, "campo_principal", campos[0] if campos else None)
-
-            for campo in campos:
-                tipo_str = str(campo.tipo).strip()
-                es_relacional = tipo_str in {
-                    "ForeignKey",
-                    "OneToOneField",
-                    "ManyToManyField",
-                }
-                setattr(campo, "eh_relacional", es_relacional)
-                setattr(campo, "nome_tecnico", technical_name(campo.nome, "campo"))
-                setattr(campo, "default_repr", self._default_repr(campo.default_value))
-
-                if es_relacional and campo.entidade_relacionada:
-                    nome_classe = class_name(campo.entidade_relacionada.nome)
-                    setattr(campo, "classe_relacionada", nome_classe)
-
-                    app_pai = technical_name(
-                        campo.entidade_relacionada.modulo.nome, "app"
-                    )
-                    if app_pai != app_name:
-                        imports_por_app.setdefault(app_pai, set()).add(nome_classe)
-                else:
-                    setattr(campo, "classe_relacionada", "")
-
-        ctx = {
-            "sistema": self.sistema,
-            "app_name": app_name,
-            "entidades": entidades,
-            "imports_por_app": {
-                key: sorted(values) for key, values in imports_por_app.items()
-            },
-            "nome_projeto": self.nome_projeto,
-        }
-
-        self._escrever_arquivo(
-            f"{app_name}/__init__.py", "gerador/snippets/init.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/models.py", "gerador/snippets/models.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/migrations/__init__.py", "gerador/snippets/init.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/forms.py", "gerador/snippets/forms.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/views.py", "gerador/snippets/views.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/urls.py", "gerador/snippets/urls_app.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/admin.py", "gerador/snippets/admin.txt", ctx
-        )
-        self._escrever_arquivo(
-            f"{app_name}/apps.py", "gerador/snippets/apps_config.txt", ctx
-        )
-        self._escrever_arquivo(
-            "templates/registration/login.html",
-            "gerador/snippets/login_html.txt",
-            ctx,
-        )
-
-        for entidade in entidades:
-            ent_ctx = {
-                **ctx,
-                "entidade": entidade,
-                "entidade_nome_lower": entidade.nome_tecnico,
-            }
-            base_t = f"{app_name}/templates/{app_name}"
-            entity_path = entidade.nome_tecnico
-
-            self._escrever_arquivo(
-                f"{base_t}/{entity_path}_list.html",
-                "gerador/snippets/html_list.txt",
-                ent_ctx,
-            )
-            self._escrever_arquivo(
-                f"{base_t}/{entity_path}_form.html",
-                "gerador/snippets/html_form.txt",
-                ent_ctx,
-            )
-            self._escrever_arquivo(
-                f"{base_t}/{entity_path}_confirm_delete.html",
-                "gerador/snippets/html_delete.txt",
-                ent_ctx,
-            )
-
-    @staticmethod
-    def _default_repr(value):
-        value = str(value or "").strip()
-        if not value:
-            return ""
-        if value.lower() == "true":
-            return "True"
-        if value.lower() == "false":
-            return "False"
-        if value.lower() in {"none", "null"}:
-            return "None"
-        try:
-            float(value)
-            return value
-        except ValueError:
-            return repr(value)
-
-    def _gerar_core(self):
-        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        self._escrever_arquivo("manage.py", "gerador/snippets/manage.txt", ctx)
-        self._escrever_arquivo(
-            f"{self.nome_projeto}/__init__.py",
-            "gerador/snippets/init.txt",
-            ctx,
-        )
-        self._escrever_arquivo(
-            f"{self.nome_projeto}/settings.py",
-            "gerador/snippets/settings.txt",
-            ctx,
-        )
-        self._escrever_arquivo(
-            f"{self.nome_projeto}/urls.py",
-            "gerador/snippets/urls_root.txt",
-            ctx,
-        )
-        self._escrever_arquivo(
-            f"{self.nome_projeto}/wsgi.py",
-            "gerador/snippets/wsgi.txt",
-            ctx,
-        )
-
-    def _gerar_templates_globais(self):
-        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        self._escrever_arquivo(
-            "templates/base.html", "gerador/snippets/base_html.txt", ctx
-        )
-        self._escrever_arquivo(
-            "templates/index.html", "gerador/snippets/index_html.txt", ctx
-        )

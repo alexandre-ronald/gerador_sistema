@@ -24,7 +24,7 @@
 
     <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
     <div class="row g-4 mb-5">
-        {% for modulo in sistema.modulos.all %}
+        {% for modulo in modulos %}
             <div class="col-md-6 col-lg-3">
                 <div class="card dashboard-card p-4">
                     <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;">
@@ -39,7 +39,7 @@
 
     <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
     <div class="row g-3">
-        {% for modulo in sistema.modulos.all %}
+        {% for modulo in modulos %}
             {% for entidade in modulo.entidades.all %}
                 <div class="col-md-4 col-lg-3">
                     <a href="{% templatetag openblock %} url '{{ modulo.nome_tecnico }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="entity-card border shadow-sm">

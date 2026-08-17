@@ -3,8 +3,10 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from .artifact_writer import ArtifactWriter
 from .compiler import SpecificationCompiler
 from .models import Campo, Entidade, Modulo, Sistema
 from .specification import build_specification
@@ -12,10 +14,12 @@ from .specification import build_specification
 
 class Gen0003CompilerTests(TestCase):
     def setUp(self):
+        user = get_user_model().objects.create_user(username="gen0003")
         self.sistema = Sistema.objects.create(
+            usuario=user,
             nome="Sistema de Teste",
             descricao="Teste do compilador",
-            banco_dados="SQLite",
+            banco_dados="sqlite3",
             gerar_docker=True,
         )
         modulo = Modulo.objects.create(sistema=self.sistema, nome="Gestão de Pessoas")
@@ -50,8 +54,6 @@ class Gen0003CompilerTests(TestCase):
             self.assertIn("descricao = models.CharField", models)
 
     def test_artifact_writer_rejects_path_traversal(self):
-        from .artifact_writer import ArtifactWriter
-
         with tempfile.TemporaryDirectory() as tmp:
             writer = ArtifactWriter(tmp)
             with self.assertRaises(ValueError):

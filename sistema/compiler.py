@@ -42,31 +42,19 @@ class SpecificationCompiler:
         validate_specification_object(self.specification)
         plan = CompilationPlan(self.specification)
         generated: list[str] = []
-
         for artifact in plan.artifacts():
-            content = self._render(artifact)
-            self.writer.write(artifact.path, content)
+            self.writer.write(artifact.path, self._render(artifact))
             generated.append(artifact.path)
-
-        return CompilationResult(
-            specification_fingerprint=self.specification.fingerprint,
-            artifacts=tuple(generated),
-        )
+        return CompilationResult(self.specification.fingerprint, tuple(generated))
 
     def _render(self, artifact: GenerationArtifact) -> str:
         spec = self.specification
+        context = {"sistema": self._system_context(), "nome_projeto": spec.technical_name}
         if artifact.kind == "core":
-            if artifact.path == "manage.py":
-                template = self.TEMPLATE_MAP["core"][artifact.path]
-                return render_to_string(template, {"sistema": self._system_context(), "nome_projeto": spec.technical_name})
-            suffix = artifact.path.rsplit("/", 1)[-1]
-            template = self.TEMPLATE_MAP["core"][suffix]
-            return render_to_string(template, {"sistema": self._system_context(), "nome_projeto": spec.technical_name})
-
+            template = self.TEMPLATE_MAP["core"][artifact.path if artifact.path == "manage.py" else Path(artifact.path).name]
+            return render_to_string(template, context)
         if artifact.kind == "template":
-            template = self.TEMPLATE_MAP["template"][artifact.path]
-            return render_to_string(template, {"sistema": self._system_context(), "nome_projeto": spec.technical_name})
-
+            return render_to_string(self.TEMPLATE_MAP["template"][artifact.path], context)
         if artifact.kind == "module":
             module = self._module(artifact.module)
             template = {
@@ -77,40 +65,34 @@ class SpecificationCompiler:
                 "urls.py": "gerador/snippets/urls_app.txt",
                 "admin.py": "gerador/snippets/admin.txt",
                 "apps.py": "gerador/snippets/apps_config.txt",
-            }.get(Path(artifact.path).name)
-            if artifact.path.endswith("migrations/__init__.py"):
-                template = "gerador/snippets/init.txt"
+            }.get(Path(artifact.path).name, "gerador/snippets/init.txt" if artifact.path.endswith("migrations/__init__.py") else None)
             if not template:
                 raise ValueError(f"Artefato de módulo sem template: {artifact.path}")
             return render_to_string(template, self._module_context(module))
-
         if artifact.kind == "crud":
             module = self._module(artifact.module)
             entity = next(e for e in module.entities if e.class_name == artifact.entity)
-            templates = {
+            filename = Path(artifact.path).name
+            template = next((value for suffix, value in {
                 "_list.html": "gerador/snippets/html_list.txt",
                 "_form.html": "gerador/snippets/html_form.txt",
                 "_confirm_delete.html": "gerador/snippets/html_delete.txt",
-            }
-            filename = Path(artifact.path).name
-            template = next((v for k, v in templates.items() if filename.endswith(k)), None)
+            }.items() if filename.endswith(suffix)), None)
             if not template:
                 raise ValueError(f"Artefato CRUD sem template: {artifact.path}")
             return render_to_string(template, self._entity_context(module, entity))
-
         if artifact.kind == "docker":
-            templates = {
+            template = {
                 "Dockerfile": "gerador/snippets/dockerfile.txt",
                 "docker-compose.yml": "gerador/snippets/docker_compose.txt",
                 ".dockerignore": "gerador/snippets/dockerignore.txt",
-            }
-            template = templates[artifact.path]
-            return render_to_string(template, {"sistema": self._system_context(), "nome_projeto": spec.technical_name})
-
+            }[artifact.path]
+            return render_to_string(template, context)
         raise ValueError(f"Tipo de artefato desconhecido: {artifact.kind}")
 
     def _system_context(self):
         s = self.specification
+        modules = [SimpleNamespace(nome=m.technical_name) for m in s.modules]
         return SimpleNamespace(
             nome=s.name,
             slug=s.slug,
@@ -121,6 +103,7 @@ class SpecificationCompiler:
             gerar_api_rest=s.rest_api,
             gerar_docker=s.docker,
             usar_auditoria=s.audit,
+            modulos=SimpleNamespace(all=lambda: modules),
         )
 
     def _module(self, technical_name: str | None):
@@ -129,6 +112,13 @@ class SpecificationCompiler:
         return next(m for m in self.specification.modules if m.technical_name == technical_name)
 
     def _field(self, field: FieldSpec):
+        related = None
+        if field.related_entity:
+            related = SimpleNamespace(
+                nome=field.related_entity,
+                classe_tecnica=field.related_entity,
+                modulo=SimpleNamespace(nome=field.related_module or ""),
+            )
         return SimpleNamespace(
             nome=field.name,
             nome_tecnico=field.technical_name,
@@ -145,11 +135,7 @@ class SpecificationCompiler:
             related_name_str=field.related_name,
             verbose_name=field.verbose_name,
             help_text=field.help_text,
-            entidade_relacionada=SimpleNamespace(
-                nome=field.related_entity,
-                classe_tecnica=field.related_entity,
-                modulo=SimpleNamespace(nome=field.related_module or ""),
-            ) if field.related_entity else None,
+            entidade_relacionada=related,
             classe_relacionada=field.related_entity or "",
         )
 
@@ -184,9 +170,7 @@ class SpecificationCompiler:
         }
 
     def _entity_context(self, module, entity):
-        ctx = self._module_context(module)
-        current = self._entity(entity)
-        return {**ctx, "entidade": current, "entidade_nome_lower": entity.technical_name}
+        return {**self._module_context(module), "entidade": self._entity(entity), "entidade_nome_lower": entity.technical_name}
 
     @staticmethod
     def _default_repr(value: str) -> str:

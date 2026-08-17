@@ -185,6 +185,12 @@ class Campo(models.Model):
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
 
+    def save(self, *args, **kwargs):
+        """Aplica defaults seguros antes de persistir a especificação."""
+        if self.tipo in {"CharField", "EmailField", "URLField"} and not self.max_length:
+            self.max_length = 255
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.entidade.nome}.{self.nome} ({self.tipo})"
 

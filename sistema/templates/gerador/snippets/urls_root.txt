@@ -14,7 +14,7 @@ urlpatterns = [
 {% for modulo in sistema.modulos.all %}
     path(
         "{{ modulo.nome|slugify|lower }}/",
-        include("{{ modulo.nome|slugify|lower }}.urls"),
+        include("{{ modulo.nome_tecnico }}.urls"),
     ),
 {% endfor %}
 ]

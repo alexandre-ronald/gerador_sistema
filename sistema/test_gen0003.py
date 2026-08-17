@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -44,6 +46,18 @@ class Gen0003CompilerTests(TestCase):
             self.assertTrue(result.artifacts)
             for relative_path in result.artifacts:
                 self.assertTrue((Path(tmp) / relative_path).exists(), relative_path)
+
+    def test_generated_project_passes_django_check(self):
+        spec = build_specification(self.sistema)
+        with tempfile.TemporaryDirectory() as tmp:
+            SpecificationCompiler(spec, tmp).compile()
+            result = subprocess.run(
+                [sys.executable, "manage.py", "check"],
+                cwd=tmp,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_generated_models_use_python_safe_names(self):
         spec = build_specification(self.sistema)

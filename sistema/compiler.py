@@ -5,7 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable
 
-from django.conf import settings
 from django.template.loader import render_to_string
 
 from .specification import EntitySpec, FieldSpec, ModuleSpec, SystemSpec
@@ -13,12 +12,7 @@ from .specification_plan import CompilationPlan, GenerationArtifact
 
 
 class _Collection(list):
-    """Small compatibility adapter for legacy Django templates.
-
-    GEN-0003 templates are rendered from SystemSpec rather than ORM objects.
-    Existing templates still call ``.all`` on a few collections, so this
-    adapter provides that read-only shape without exposing the database.
-    """
+    """Read-only-ish collection adapter for legacy generator templates."""
 
     def all(self):
         return self
@@ -44,45 +38,31 @@ class SpecificationCompiler:
         self._render_template = template_renderer or render_to_string
 
     def compile(self) -> tuple[CompiledFile, ...]:
-        """Render every artifact in the deterministic compilation plan."""
         contexts = self._build_contexts()
         compiled: list[CompiledFile] = []
-
         for artifact in self.plan.artifacts():
             context = contexts.get(artifact.path)
             if context is None:
                 raise RuntimeError(
                     f"Nenhum contexto de compilação para o artefato: {artifact.path}"
                 )
-            template_name = self._template_for(artifact)
-            content = self._render_template(template_name, context)
-            compiled.append(
-                CompiledFile(
-                    path=artifact.path,
-                    content=content,
-                    kind=artifact.kind,
-                )
-            )
-
+            content = self._render_template(self._template_for(artifact), context)
+            compiled.append(CompiledFile(artifact.path, content, artifact.kind))
         return tuple(compiled)
 
     def write(self, output_directory: str | Path) -> tuple[CompiledFile, ...]:
-        """Compile and atomically-ish write the complete artifact set."""
         output = Path(output_directory).resolve()
         output.mkdir(parents=True, exist_ok=True)
         compiled = self.compile()
-
         expected = {item.path for item in self.plan.artifacts()}
         for item in compiled:
             destination = (output / item.path).resolve()
-            if output not in destination.parents and destination != output:
+            if output not in destination.parents:
                 raise ValueError(f"Artefato fora do diretório de saída: {item.path}")
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(item.content, encoding="utf-8", newline="\n")
-
         if {item.path for item in compiled} != expected:
             raise RuntimeError("O compilador não produziu exatamente o plano de compilação.")
-
         return compiled
 
     def _template_for(self, artifact: GenerationArtifact) -> str:
@@ -108,13 +88,10 @@ class SpecificationCompiler:
             "docker-compose.yml": "gerador/snippets/docker_compose.txt",
             ".dockerignore": "gerador/snippets/dockerignore.txt",
         }
-
         path = artifact.path
         name = Path(path).name
         if artifact.kind == "module":
-            if name == "urls.py":
-                return mapping["urls.py:module"]
-            return mapping[name]
+            return mapping["urls.py:module"] if name == "urls.py" else mapping[name]
         if artifact.kind == "crud":
             if name.endswith("_list.html"):
                 return mapping["_list.html"]
@@ -135,24 +112,21 @@ class SpecificationCompiler:
         spec = self.specification
         system = self._system_adapter(spec)
         contexts: dict[str, dict] = {}
-
         core = {"sistema": system, "nome_projeto": spec.technical_name}
         for artifact in self.plan.artifacts():
-            path = artifact.path
             if artifact.kind in {"core", "template", "docker"}:
-                contexts[path] = core
+                contexts[artifact.path] = core
 
         for module in spec.modules:
             module_adapter = self._module_adapter(module)
-            entities = module_adapter.entidades
             module_ctx = {
                 "sistema": system,
                 "app_name": module.technical_name,
-                "entidades": entities,
+                "entidades": module_adapter.entidades,
                 "nome_projeto": spec.technical_name,
                 "modulo": module_adapter,
+                "imports_por_app": self._imports_for_module(module),
             }
-
             for artifact in self.plan.artifacts():
                 if artifact.module != module.technical_name:
                     continue
@@ -160,26 +134,31 @@ class SpecificationCompiler:
                     contexts[artifact.path] = module_ctx
                 elif artifact.kind == "crud":
                     entity = next(
-                        (
-                            item
-                            for item in entities
-                            if item.classe_tecnica == artifact.entity
-                        ),
+                        (item for item in module_adapter.entidades if item.classe_tecnica == artifact.entity),
                         None,
                     )
                     if entity is None:
-                        raise RuntimeError(
-                            f"Entidade não encontrada no plano: {artifact.entity}"
-                        )
+                        raise RuntimeError(f"Entidade não encontrada no plano: {artifact.entity}")
                     contexts[artifact.path] = {**module_ctx, "entidade": entity}
-
         return contexts
+
+    def _imports_for_module(self, module: ModuleSpec) -> dict[str, list[str]]:
+        imports: dict[str, set[str]] = {}
+        for entity in module.entities:
+            for field in entity.fields:
+                if not field.related_entity or not field.related_module:
+                    continue
+                if field.related_module == module.technical_name:
+                    continue
+                imports.setdefault(field.related_module, set()).add(field.related_entity)
+        return {app: sorted(classes) for app, classes in sorted(imports.items())}
 
     @staticmethod
     def _system_adapter(spec: SystemSpec):
-        modules = _Collection()
-        for module in spec.modules:
-            modules.append(SimpleNamespace(nome=module.name, nome_tecnico=module.technical_name))
+        modules = _Collection(
+            SimpleNamespace(nome=m.name, nome_tecnico=m.technical_name)
+            for m in spec.modules
+        )
         return SimpleNamespace(
             nome=spec.name,
             nome_tecnico=spec.technical_name,
@@ -195,21 +174,15 @@ class SpecificationCompiler:
         )
 
     def _module_adapter(self, module: ModuleSpec):
-        entities = _Collection()
-        for entity in module.entities:
-            entities.append(self._entity_adapter(entity, module))
         return SimpleNamespace(
             nome=module.name,
             nome_tecnico=module.technical_name,
             descricao=module.description,
-            entidades=entities,
+            entidades=_Collection(self._entity_adapter(entity) for entity in module.entities),
         )
 
-    def _entity_adapter(self, entity: EntitySpec, module: ModuleSpec):
-        fields = _Collection()
-        for field in entity.fields:
-            fields.append(self._field_adapter(field, module))
-        principal = fields[0] if fields else None
+    def _entity_adapter(self, entity: EntitySpec):
+        fields = _Collection(self._field_adapter(field) for field in entity.fields)
         return SimpleNamespace(
             nome=entity.name,
             nome_plural=entity.plural_name,
@@ -220,10 +193,10 @@ class SpecificationCompiler:
             classe_tecnica=entity.class_name,
             nome_tecnico=entity.technical_name,
             campos=fields,
-            campo_principal=principal,
+            campo_principal=fields[0] if fields else None,
         )
 
-    def _field_adapter(self, field: FieldSpec, module: ModuleSpec):
+    def _field_adapter(self, field: FieldSpec):
         related_entity = None
         if field.related_entity:
             for candidate_module in self.specification.modules:
@@ -258,6 +231,7 @@ class SpecificationCompiler:
             upload_to=field.upload_to,
             entidade_relacionada=related_entity,
             classe_relacionada=field.related_entity or "",
+            related_module=field.related_module or "",
             on_delete=field.on_delete,
             related_name_str=field.related_name,
             verbose_name=field.verbose_name,
@@ -306,9 +280,6 @@ def compile_specification(specification: SystemSpec) -> tuple[CompiledFile, ...]
     return SpecificationCompiler(specification).compile()
 
 
-def write_compiled_specification(
-    specification: SystemSpec,
-    output_directory: str | Path,
-) -> tuple[str, ...]:
+def write_compiled_specification(specification: SystemSpec, output_directory: str | Path) -> tuple[str, ...]:
     artifacts = SpecificationCompiler(specification).compile()
     return ArtifactWriter(output_directory).write(artifacts)

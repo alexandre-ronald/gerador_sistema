@@ -78,3 +78,18 @@ class Gen0002SpecificationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             build_specification(self.sistema)
+
+    def test_text_fields_receive_safe_max_length_default(self):
+        modulo = Modulo.objects.create(sistema=self.sistema, nome="Cadastro")
+        entidade = Entidade.objects.create(modulo=modulo, nome="Funcionario")
+
+        for tipo in ("CharField", "EmailField", "URLField"):
+            campo = Campo.objects.create(
+                entidade=entidade,
+                nome=f"campo_{tipo}",
+                tipo=tipo,
+            )
+            self.assertEqual(campo.max_length, 255)
+
+    def test_custom_user_is_disabled_by_default(self):
+        self.assertFalse(self.sistema.usar_custom_user)

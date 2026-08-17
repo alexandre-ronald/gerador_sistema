@@ -46,10 +46,7 @@ class Gen0003CompilerTests(TestCase):
         plan = CompilationPlan(spec)
         compiled = SpecificationCompiler(spec).compile()
 
-        self.assertEqual(
-            {item.path for item in compiled},
-            set(plan.paths()),
-        )
+        self.assertEqual({item.path for item in compiled}, set(plan.paths()))
         self.assertTrue(any(item.path == "cadastro/models.py" for item in compiled))
 
     def test_compiler_does_not_use_orm_objects_as_context(self):
@@ -85,10 +82,7 @@ class Gen0003CompilerTests(TestCase):
     def test_writer_is_confined_to_output_directory(self):
         with TemporaryDirectory() as tmp:
             writer = ArtifactWriter(Path(tmp) / "project")
-            artifact = type("Artifact", (), {
-                "path": "../escape.py",
-                "content": "# unsafe",
-            })()
+            artifact = type("Artifact", (), {"path": "../escape.py", "content": "# unsafe"})()
             with self.assertRaises(ValueError):
                 writer.write((artifact,))
 
@@ -115,6 +109,28 @@ class Gen0003CompilerTests(TestCase):
                 validate_generated_project(spec, output)
 
         self.assertIn("Artefato ausente: manage.py", str(context.exception))
+
+    def test_base_and_index_materialize_modules_and_entities(self):
+        modulo = Modulo.objects.create(sistema=self.sistema, nome="Gestão de Pessoas")
+        Entidade.objects.create(
+            modulo=modulo,
+            nome="Funcionário",
+            gerar_crud_views=True,
+        )
+
+        spec = build_specification(self.sistema)
+        compiled = SpecificationCompiler(spec).compile()
+        base = next(item.content for item in compiled if item.path == "templates/base.html")
+        index = next(item.content for item in compiled if item.path == "templates/index.html")
+
+        self.assertIn("Gestão de Pessoas", base)
+        self.assertIn("Funcionário", base)
+        self.assertIn("gestao_de_pessoas:funcionario_list", base)
+        self.assertIn("Gestão de Pessoas", index)
+        self.assertIn("Funcionário", index)
+        self.assertIn("gestao_de_pessoas:funcionario_list", index)
+        self.assertNotIn("sistema.modulos.all", base)
+        self.assertNotIn("sistema.modulos.all", index)
 
 
 class Gen0003TemplateAndWindowsTests(SimpleTestCase):

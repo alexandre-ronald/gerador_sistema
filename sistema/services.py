@@ -7,6 +7,8 @@ from django.conf import settings
 from django.template.loader import render_to_string
 
 from .models import Sistema
+from .specification import build_specification
+from .specification_plan import CompilationPlan
 from .validation import class_name, technical_name, validate_specification
 
 
@@ -37,6 +39,14 @@ class GeradorService:
         self.log("🔎 Validando especificação...")
         validate_specification(self.sistema)
         self.log("✅ Especificação válida.")
+
+    def especificacao(self):
+        """Return the canonical GEN-0002 specification for this system."""
+        return build_specification(self.sistema)
+
+    def plano_compilacao(self):
+        """Return a deterministic generation plan without writing files."""
+        return CompilationPlan(self.especificacao())
 
     def gerar_projeto_completo(self):
         self.validar()

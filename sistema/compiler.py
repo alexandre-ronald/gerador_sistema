@@ -12,7 +12,7 @@ from .specification_plan import CompilationPlan, GenerationArtifact
 
 
 class _Collection(list):
-    """Read-only-ish collection adapter for legacy generator templates."""
+    """Small adapter compatible with legacy Django template ``.all`` usage."""
 
     def all(self):
         return self
@@ -41,6 +41,9 @@ class SpecificationCompiler:
         contexts = self._build_contexts()
         compiled: list[CompiledFile] = []
         for artifact in self.plan.artifacts():
+            if artifact.kind == "static":
+                compiled.append(CompiledFile(artifact.path, "", artifact.kind))
+                continue
             context = contexts.get(artifact.path)
             if context is None:
                 raise RuntimeError(
@@ -111,8 +114,13 @@ class SpecificationCompiler:
     def _build_contexts(self) -> dict[str, dict]:
         spec = self.specification
         system = self._system_adapter(spec)
+        modules = _Collection(self._module_adapter(module) for module in spec.modules)
         contexts: dict[str, dict] = {}
-        core = {"sistema": system, "nome_projeto": spec.technical_name}
+        core = {
+            "sistema": system,
+            "modulos": modules,
+            "nome_projeto": spec.technical_name,
+        }
         for artifact in self.plan.artifacts():
             if artifact.kind in {"core", "template", "docker"}:
                 contexts[artifact.path] = core
@@ -121,6 +129,7 @@ class SpecificationCompiler:
             module_adapter = self._module_adapter(module)
             module_ctx = {
                 "sistema": system,
+                "modulos": modules,
                 "app_name": module.technical_name,
                 "entidades": module_adapter.entidades,
                 "nome_projeto": spec.technical_name,

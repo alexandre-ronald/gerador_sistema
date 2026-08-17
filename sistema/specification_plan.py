@@ -30,6 +30,10 @@ class CompilationPlan:
             GenerationArtifact("templates/base.html", "template"),
             GenerationArtifact("templates/index.html", "template"),
             GenerationArtifact("templates/registration/login.html", "template"),
+            # settings.py declares STATICFILES_DIRS = [BASE_DIR / "static"].
+            # Keep the directory in the generated project so Django's system
+            # check does not emit staticfiles.W004 immediately after install.
+            GenerationArtifact("static/.gitkeep", "static"),
         ]
 
         for module in spec.modules:

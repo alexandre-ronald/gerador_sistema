@@ -5,6 +5,7 @@ from pathlib import Path
 from django.conf import settings
 
 from .compiler import SpecificationCompiler
+from .generation_validation import validate_generated_project
 from .models import Sistema
 from .specification import build_specification
 from .specification_plan import CompilationPlan
@@ -48,7 +49,7 @@ class GeradorService:
         return CompilationPlan(self.especificacao())
 
     def gerar_projeto_completo(self):
-        """Compile the canonical specification and write its planned artifacts."""
+        """Compile, validate and persist a complete generated project."""
         self.validar()
         try:
             spec = self.especificacao()
@@ -85,9 +86,12 @@ class GeradorService:
                     "O compilador não produziu exatamente os artefatos planejados."
                 )
 
-            # O fluxo legado de compactação usa Sistema.caminho_geracao para
-            # localizar a árvore recém-compilada. Persistimos o caminho aqui,
-            # no mesmo ponto em que a geração física é concluída.
+            self.log("🔬 Validando projeto compilado antes da exportação...")
+            validate_generated_project(spec, output)
+            self.log("✅ Projeto compilado passou na validação estrutural.")
+
+            # O fluxo de compactação usa Sistema.caminho_geracao para localizar
+            # a árvore recém-compilada. Só persistimos o caminho após a validação.
             self.sistema.caminho_geracao = str(output)
             self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])
 

@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 
@@ -85,6 +86,70 @@ def _validate_payload(payload):
             seen_entities.add(entity_key)
 
 
+def _save_payload(data, sistema):
+    sistema_data = data["sistema"]
+    sistema.nome = str(sistema_data["nome"]).strip()
+    sistema.descricao = sistema_data.get("descricao", "")
+    sistema.caminho_geracao = ""
+    sistema.banco_dados = sistema_data.get("banco_dados", "sqlite3")
+    sistema.tipo_menu = sistema_data.get("tipo_menu", "lateral")
+    sistema.usar_custom_user = _as_bool(sistema_data.get("usar_custom_user", False))
+    sistema.gerar_api_rest = _as_bool(sistema_data.get("gerar_api_rest", False))
+    sistema.gerar_docker = _as_bool(sistema_data.get("gerar_docker", False))
+    sistema.usar_auditoria = _as_bool(sistema_data.get("usar_auditoria", False))
+
+    # slug é derivado antes do full_clean(), pois é obrigatório no modelo.
+    sistema.slug = slugify(sistema.nome)
+    if not sistema.slug:
+        raise ValidationError("Não foi possível gerar um identificador válido para o sistema.")
+
+    sistema.full_clean()
+    sistema.save()
+
+    sistema.modulos.all().delete()
+    entities_by_name = {}
+    for mod_data in data.get("modulos", []):
+        modulo = Modulo.objects.create(sistema=sistema, nome=str(mod_data["nome"]).strip(), descricao=mod_data.get("descricao", ""))
+        for ent_data in mod_data.get("entidades", []):
+            entidade = Entidade.objects.create(
+                modulo=modulo,
+                nome=str(ent_data["nome"]).strip(),
+                nome_plural=ent_data.get("nome_plural", ""),
+                descricao=ent_data.get("descricao", ""),
+                gerar_admin=_as_bool(ent_data.get("gerar_admin", True)),
+                gerar_crud_views=_as_bool(ent_data.get("gerar_crud_views", False)),
+                gerar_endpoints_api=_as_bool(ent_data.get("gerar_endpoints_api", False)),
+            )
+            entities_by_name[entidade.nome] = entidade
+
+    for mod_data in data.get("modulos", []):
+        for ent_data in mod_data.get("entidades", []):
+            entidade = entities_by_name[ent_data["nome"]]
+            for campo_data in ent_data.get("campos", []):
+                campo = Campo(
+                    entidade=entidade,
+                    nome=str(campo_data.get("nome") or "").strip(),
+                    tipo=campo_data.get("tipo", "CharField"),
+                    null=_as_bool(campo_data.get("null", False)),
+                    blank=_as_bool(campo_data.get("blank", False)),
+                    unique=_as_bool(campo_data.get("unique", False)),
+                    default_value=str(campo_data.get("default_value", campo_data.get("default", "")) or ""),
+                    max_length=_as_int(campo_data.get("max_length")),
+                    max_digits=_as_int(campo_data.get("max_digits")),
+                    decimal_places=_as_int(campo_data.get("decimal_places")),
+                    upload_to=str(campo_data.get("upload_to") or ""),
+                    on_delete=campo_data.get("on_delete", "models.CASCADE"),
+                    related_name_str=str(campo_data.get("related_name") or ""),
+                    verbose_name=str(campo_data.get("verbose_name") or ""),
+                    help_text=str(campo_data.get("help_text") or ""),
+                )
+                rel_nome = campo_data.get("rel")
+                if rel_nome:
+                    campo.entidade_relacionada = entities_by_name.get(rel_nome)
+                campo.full_clean()
+                campo.save()
+
+
 @require_http_methods(["GET", "POST"])
 @login_required
 @csrf_protect
@@ -149,98 +214,6 @@ def editar_sistema_seguro(request, sistema_id):
     return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(estrutura), "sistema_id": sistema.id})
 
 
-def _save_payload(data, sistema):
-    sistema_data = data["sistema"]
-    sistema.nome = str(sistema_data["nome"]).strip()
-    sistema.descricao = sistema_data.get("descricao", "")
-    sistema.caminho_geracao = ""
-    sistema.banco_dados = sistema_data.get("banco_dados", "sqlite3")
-    sistema.tipo_menu = sistema_data.get("tipo_menu", "lateral")
-    sistema.usar_custom_user = _as_bool(sistema_data.get("usar_custom_user", False))
-    sistema.gerar_api_rest = _as_bool(sistema_data.get("gerar_api_rest", False))
-    sistema.gerar_docker = _as_bool(sistema_data.get("gerar_docker", False))
-    sistema.usar_auditoria = _as_bool(sistema_data.get("usar_auditoria", False))
-    sistema.full_clean()
-    sistema.save()
-
-    sistema.modulos.all().delete()
-    entities_by_name = {}
-    for mod_data in data.get("modulos", []):
-        modulo = Modulo.objects.create(sistema=sistema, nome=str(mod_data["nome"]).strip(), descricao=mod_data.get("descricao", ""))
-        for ent_data in mod_data.get("entidades", []):
-            entidade = Entidade.objects.create(
-                modulo=modulo,
-                nome=str(ent_data["nome"]).strip(),
-                nome_plural=ent_data.get("nome_plural", ""),
-                descricao=ent_data.get("descricao", ""),
-                gerar_admin=_as_bool(ent_data.get("gerar_admin", True)),
-                gerar_crud_views=_as_bool(ent_data.get("gerar_crud_views", False)),
-                gerar_endpoints_api=_as_bool(ent_data.get("gerar_endpoints_api", False)),
-            )
-            entities_by_name[entidade.nome] = entidade
-
-    for mod_data in data.get("modulos", []):
-        for ent_data in mod_data.get("entidades", []):
-            entidade = entities_by_name[ent_data["nome"]]
-            for campo_data in ent_data.get("campos", []):
-                campo = Campo(
-                    entidade=entidade,
-                    nome=str(campo_data.get("nome") or "").strip(),
-                    tipo=campo_data.get("tipo", "CharField"),
-                    null=_as_bool(campo_data.get("null", False)),
-                    blank=_as_bool(campo_data.get("blank", False)),
-                    unique=_as_bool(campo_data.get("unique", False)),
-                    default_value=str(campo_data.get("default_value", campo_data.get("default", "")) or ""),
-                    max_length=_as_int(campo_data.get("max_length")),
-                    max_digits=_as_int(campo_data.get("max_digits")),
-                    decimal_places=_as_int(campo_data.get("decimal_places")),
-                    upload_to=str(campo_data.get("upload_to") or ""),
-                    on_delete=campo_data.get("on_delete", "models.CASCADE"),
-                    related_name_str=str(campo_data.get("related_name") or ""),
-                    verbose_name=str(campo_data.get("verbose_name") or ""),
-                    help_text=str(campo_data.get("help_text") or ""),
-                )
-                rel_nome = campo_data.get("rel")
-                if rel_nome:
-                    campo.entidade_relacionada = entities_by_name.get(rel_nome)
-                campo.full_clean()
-                campo.save()
-
-
-@require_http_methods(["PUT"])
-@login_required
-@ownership_required
-@csrf_protect
-def atualizar_sistema_seguro(request, sistema_id):
-    sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    try:
-        data = json.loads(request.body or "{}")
-        _validate_payload(data)
-        with transaction.atomic():
-            _save_payload(data, sistema)
-        return JsonResponse({"status": "ok", "sistema_id": sistema.id})
-    except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
-        return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
-
-
-@require_http_methods(["POST"])
-@login_required
-@csrf_protect
-def salvar_modelo_seguro(request):
-    try:
-        data = json.loads(request.body or "{}")
-        _validate_payload(data)
-        nome = str(data["sistema"]["nome"]).strip()
-        sistema = Sistema.objects.filter(usuario=request.user, nome=nome).first()
-        if sistema is None:
-            sistema = Sistema(usuario=request.user, nome=nome)
-        with transaction.atomic():
-            _save_payload(data, sistema)
-        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id})
-    except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
-        return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
-
-
 def secured(view_func):
     return login_required(csrf_protect(ownership_required(view_func)))
 
@@ -251,3 +224,35 @@ def secured_get(view_func):
 
 def secured_post(view_func):
     return login_required(csrf_protect(ownership_required(require_http_methods(["POST"])(view_func))))
+
+
+def _validate_and_save(request, sistema=None):
+    try:
+        data = json.loads(request.body or "{}")
+        _validate_payload(data)
+        if sistema is None:
+            nome = str(data["sistema"]["nome"]).strip()
+            sistema = Sistema.objects.filter(usuario=request.user, nome=nome).first()
+            if sistema is None:
+                sistema = Sistema(usuario=request.user, nome=nome)
+        with transaction.atomic():
+            _save_payload(data, sistema)
+        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id})
+    except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+        return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
+
+
+@require_http_methods(["PUT"])
+@login_required
+@ownership_required
+@csrf_protect
+def atualizar_sistema_seguro(request, sistema_id):
+    sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
+    return _validate_and_save(request, sistema)
+
+
+@require_http_methods(["POST"])
+@login_required
+@csrf_protect
+def salvar_modelo_seguro(request):
+    return _validate_and_save(request)

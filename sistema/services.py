@@ -85,6 +85,12 @@ class GeradorService:
                     "O compilador não produziu exatamente os artefatos planejados."
                 )
 
+            # O fluxo legado de compactação usa Sistema.caminho_geracao para
+            # localizar a árvore recém-compilada. Persistimos o caminho aqui,
+            # no mesmo ponto em que a geração física é concluída.
+            self.sistema.caminho_geracao = str(output)
+            self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])
+
             self.log(f"📁 Projeto gerado em: {output}")
             self.log("✅ Compilação concluída com sucesso!")
             return self.logs

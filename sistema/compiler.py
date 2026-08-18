@@ -96,9 +96,7 @@ class SpecificationCompiler:
             if name.endswith("_form.html"):
                 return mapping["_form.html"]
             return mapping["_confirm_delete.html"]
-        if artifact.kind == "docker":
-            return mapping[name]
-        if artifact.kind == "package":
+        if artifact.kind in {"docker", "package"}:
             return mapping[name]
         if path.startswith("templates/registration/"):
             return mapping["login.html"]
@@ -117,17 +115,12 @@ class SpecificationCompiler:
         for artifact in self.plan.artifacts():
             if artifact.kind in {"core", "template", "docker", "package"}:
                 contexts[artifact.path] = core
-
         for module in spec.modules:
             module_adapter = self._module_adapter(module)
             module_ctx = {
-                "sistema": system,
-                "modulos": modules,
-                "app_name": module.technical_name,
-                "entidades": module_adapter.entidades,
-                "nome_projeto": spec.technical_name,
-                "modulo": module_adapter,
-                "imports_por_app": self._imports_for_module(module),
+                "sistema": system, "modulos": modules, "app_name": module.technical_name,
+                "entidades": module_adapter.entidades, "nome_projeto": spec.technical_name,
+                "modulo": module_adapter, "imports_por_app": self._imports_for_module(module),
             }
             for artifact in self.plan.artifacts():
                 if artifact.module != module.technical_name:
@@ -145,9 +138,7 @@ class SpecificationCompiler:
         imports: dict[str, set[str]] = {}
         for entity in module.entities:
             for field in entity.fields:
-                if not field.related_entity or not field.related_module:
-                    continue
-                if field.related_module == module.technical_name:
+                if not field.related_entity or not field.related_module or field.related_module == module.technical_name:
                     continue
                 imports.setdefault(field.related_module, set()).add(field.related_entity)
         return {app: sorted(classes) for app, classes in sorted(imports.items())}
@@ -155,27 +146,20 @@ class SpecificationCompiler:
     @staticmethod
     def _system_adapter(spec: SystemSpec):
         modules = _Collection(SimpleNamespace(nome=m.name, nome_tecnico=m.technical_name) for m in spec.modules)
-        return SimpleNamespace(
-            nome=spec.name, nome_tecnico=spec.technical_name, descricao=spec.description,
-            slug=spec.slug, banco_dados=spec.database, tipo_menu=spec.menu,
-            usar_custom_user=spec.custom_user, gerar_api_rest=spec.rest_api,
-            gerar_docker=spec.docker, usar_auditoria=spec.audit, modulos=modules,
-        )
+        return SimpleNamespace(nome=spec.name, nome_tecnico=spec.technical_name, descricao=spec.description,
+            slug=spec.slug, banco_dados=spec.database, tipo_menu=spec.menu, usar_custom_user=spec.custom_user,
+            gerar_api_rest=spec.rest_api, gerar_docker=spec.docker, usar_auditoria=spec.audit, modulos=modules)
 
     def _module_adapter(self, module: ModuleSpec):
-        return SimpleNamespace(
-            nome=module.name, nome_tecnico=module.technical_name, descricao=module.description,
-            entidades=_Collection(self._entity_adapter(entity) for entity in module.entities),
-        )
+        return SimpleNamespace(nome=module.name, nome_tecnico=module.technical_name, descricao=module.description,
+            entidades=_Collection(self._entity_adapter(entity) for entity in module.entities))
 
     def _entity_adapter(self, entity: EntitySpec):
         fields = _Collection(self._field_adapter(field) for field in entity.fields)
-        return SimpleNamespace(
-            nome=entity.name, nome_plural=entity.plural_name, descricao=entity.description,
-            gerar_admin=entity.generate_admin, gerar_crud_views=entity.generate_crud,
-            gerar_endpoints_api=entity.generate_api, classe_tecnica=entity.class_name,
-            nome_tecnico=entity.technical_name, campos=fields, campo_principal=fields[0] if fields else None,
-        )
+        return SimpleNamespace(nome=entity.name, nome_plural=entity.plural_name, descricao=entity.description,
+            gerar_admin=entity.generate_admin, gerar_crud_views=entity.generate_crud, gerar_endpoints_api=entity.generate_api,
+            classe_tecnica=entity.class_name, nome_tecnico=entity.technical_name, campos=fields,
+            campo_principal=fields[0] if fields else None)
 
     def _field_adapter(self, field: FieldSpec):
         related_entity = None
@@ -183,24 +167,18 @@ class SpecificationCompiler:
             for candidate_module in self.specification.modules:
                 for candidate in candidate_module.entities:
                     if candidate.class_name == field.related_entity:
-                        related_entity = SimpleNamespace(
-                            nome=candidate.name, nome_plural=candidate.plural_name,
+                        related_entity = SimpleNamespace(nome=candidate.name, nome_plural=candidate.plural_name,
                             classe_tecnica=candidate.class_name, nome_tecnico=candidate.technical_name,
-                            modulo=SimpleNamespace(nome=candidate_module.name, nome_tecnico=candidate_module.technical_name),
-                        )
+                            modulo=SimpleNamespace(nome=candidate_module.name, nome_tecnico=candidate_module.technical_name))
                         break
                 if related_entity:
                     break
-        return SimpleNamespace(
-            nome=field.name, nome_tecnico=field.technical_name, tipo=field.type,
-            null=field.null, blank=field.blank, unique=field.unique, default_value=field.default,
-            default_repr=self._default_repr(field.default), max_length=field.max_length,
-            max_digits=field.max_digits, decimal_places=field.decimal_places, upload_to=field.upload_to,
-            entidade_relacionada=related_entity, classe_relacionada=field.related_entity or "",
-            related_module=field.related_module or "", on_delete=field.on_delete,
-            related_name_str=field.related_name, verbose_name=field.verbose_name, help_text=field.help_text,
-            eh_relacional=field.type in {"ForeignKey", "OneToOneField", "ManyToManyField"},
-        )
+        return SimpleNamespace(nome=field.name, nome_tecnico=field.technical_name, tipo=field.type, null=field.null,
+            blank=field.blank, unique=field.unique, default_value=field.default, default_repr=self._default_repr(field.default),
+            max_length=field.max_length, max_digits=field.max_digits, decimal_places=field.decimal_places, upload_to=field.upload_to,
+            entidade_relacionada=related_entity, classe_relacionada=field.related_entity or "", related_module=field.related_module or "",
+            on_delete=field.on_delete, related_name_str=field.related_name, verbose_name=field.verbose_name, help_text=field.help_text,
+            eh_relacional=field.type in {"ForeignKey", "OneToOneField", "ManyToManyField"})
 
     @staticmethod
     def _default_repr(value: str) -> str:
@@ -215,3 +193,30 @@ class SpecificationCompiler:
             return value
         except ValueError:
             return repr(value)
+
+
+class ArtifactWriter:
+    """Explicit filesystem boundary for compiled artifacts."""
+    def __init__(self, output_directory: str | Path):
+        self.output_directory = Path(output_directory).resolve()
+
+    def write(self, artifacts: tuple[CompiledFile, ...]) -> tuple[str, ...]:
+        self.output_directory.mkdir(parents=True, exist_ok=True)
+        written: list[str] = []
+        for artifact in artifacts:
+            destination = (self.output_directory / artifact.path).resolve()
+            if self.output_directory not in destination.parents:
+                raise ValueError(f"Artefato fora do diretório permitido: {artifact.path}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(artifact.content, encoding="utf-8", newline="\n")
+            written.append(artifact.path)
+        return tuple(written)
+
+
+def compile_specification(specification: SystemSpec) -> tuple[CompiledFile, ...]:
+    return SpecificationCompiler(specification).compile()
+
+
+def write_compiled_specification(specification: SystemSpec, output_directory: str | Path) -> tuple[str, ...]:
+    artifacts = SpecificationCompiler(specification).compile()
+    return ArtifactWriter(output_directory).write(artifacts)

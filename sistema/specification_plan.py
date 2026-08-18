@@ -51,31 +51,35 @@ class CompilationPlan:
                 ]
             )
 
+            # GEN-0004: views.py and urls.py currently expose the CRUD for
+            # every entity. Therefore their templates must be materialized for
+            # every entity as well. Previously this block depended on
+            # entity.generate_crud, which allowed a generated view to point to
+            # a template that was never created (TemplateDoesNotExist).
             for entity in module.entities:
-                if entity.generate_crud:
-                    base = f"{app}/templates/{app}"
-                    result.extend(
-                        [
-                            GenerationArtifact(
-                                f"{base}/{entity.technical_name}_list.html",
-                                "crud",
-                                app,
-                                entity.class_name,
-                            ),
-                            GenerationArtifact(
-                                f"{base}/{entity.technical_name}_form.html",
-                                "crud",
-                                app,
-                                entity.class_name,
-                            ),
-                            GenerationArtifact(
-                                f"{base}/{entity.technical_name}_confirm_delete.html",
-                                "crud",
-                                app,
-                                entity.class_name,
-                            ),
-                        ]
-                    )
+                base = f"{app}/templates/{app}"
+                result.extend(
+                    [
+                        GenerationArtifact(
+                            f"{base}/{entity.technical_name}_list.html",
+                            "crud",
+                            app,
+                            entity.class_name,
+                        ),
+                        GenerationArtifact(
+                            f"{base}/{entity.technical_name}_form.html",
+                            "crud",
+                            app,
+                            entity.class_name,
+                        ),
+                        GenerationArtifact(
+                            f"{base}/{entity.technical_name}_confirm_delete.html",
+                            "crud",
+                            app,
+                            entity.class_name,
+                        ),
+                    ]
+                )
 
         if spec.docker:
             result.extend(

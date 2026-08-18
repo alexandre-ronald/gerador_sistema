@@ -11,7 +11,24 @@ class {{ entidade.classe_tecnica }}Form(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            field.widget.attrs.update({"class": "form-control"})
+            widget = field.widget
+
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.update({"class": "form-check-input"})
+            elif isinstance(widget, forms.Select):
+                widget.attrs.update({"class": "form-select"})
+            elif isinstance(widget, forms.FileInput):
+                widget.attrs.update({"class": "form-control"})
+            else:
+                widget.attrs.update({"class": "form-control"})
+
             if isinstance(field, forms.models.ModelChoiceField):
                 field.empty_label = "--- Selecione uma opção ---"
+
+            if isinstance(widget, forms.DateInput):
+                widget.input_type = "date"
+            elif isinstance(widget, forms.DateTimeInput):
+                widget.input_type = "datetime-local"
+            elif isinstance(widget, forms.TimeInput):
+                widget.input_type = "time"
 {% endfor %}

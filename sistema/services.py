@@ -5,6 +5,7 @@ from pathlib import Path
 from django.conf import settings
 
 from .compiler import SpecificationCompiler
+from .forms_validation import validate_generated_forms
 from .generation_validation import validate_generated_project
 from .models import Sistema
 from .runtime_validation import validate_generated_runtime
@@ -94,6 +95,10 @@ class GeradorService:
             self.log("🧪 Validando contrato de runtime: templates, views e URLs...")
             runtime_artifacts = validate_generated_runtime(spec, output)
             self.log(f"✅ Contrato de runtime validado: {len(runtime_artifacts)} templates.")
+
+            self.log("🧩 Validando contrato dos ModelForms...")
+            form_artifacts = validate_generated_forms(spec, output)
+            self.log(f"✅ ModelForms validados: {len(form_artifacts)} formulários.")
 
             # O fluxo de compactação usa Sistema.caminho_geracao para localizar
             # a árvore recém-compilada. Só persistimos o caminho após as validações.

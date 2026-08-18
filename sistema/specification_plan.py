@@ -30,9 +30,9 @@ class CompilationPlan:
             GenerationArtifact("templates/base.html", "template"),
             GenerationArtifact("templates/index.html", "template"),
             GenerationArtifact("templates/registration/login.html", "template"),
-            # settings.py declares STATICFILES_DIRS = [BASE_DIR / "static"].
-            # Keep the directory in the generated project so Django's system
-            # check does not emit staticfiles.W004 immediately after install.
+            GenerationArtifact("requirements.txt", "package"),
+            GenerationArtifact("README.md", "package"),
+            GenerationArtifact(".gitignore", "package"),
             GenerationArtifact("static/.gitkeep", "static"),
         ]
 
@@ -51,33 +51,13 @@ class CompilationPlan:
                 ]
             )
 
-            # GEN-0004: views.py and urls.py currently expose the CRUD for
-            # every entity. Therefore their templates must be materialized for
-            # every entity as well. Previously this block depended on
-            # entity.generate_crud, which allowed a generated view to point to
-            # a template that was never created (TemplateDoesNotExist).
             for entity in module.entities:
                 base = f"{app}/templates/{app}"
                 result.extend(
                     [
-                        GenerationArtifact(
-                            f"{base}/{entity.technical_name}_list.html",
-                            "crud",
-                            app,
-                            entity.class_name,
-                        ),
-                        GenerationArtifact(
-                            f"{base}/{entity.technical_name}_form.html",
-                            "crud",
-                            app,
-                            entity.class_name,
-                        ),
-                        GenerationArtifact(
-                            f"{base}/{entity.technical_name}_confirm_delete.html",
-                            "crud",
-                            app,
-                            entity.class_name,
-                        ),
+                        GenerationArtifact(f"{base}/{entity.technical_name}_list.html", "crud", app, entity.class_name),
+                        GenerationArtifact(f"{base}/{entity.technical_name}_form.html", "crud", app, entity.class_name),
+                        GenerationArtifact(f"{base}/{entity.technical_name}_confirm_delete.html", "crud", app, entity.class_name),
                     ]
                 )
 

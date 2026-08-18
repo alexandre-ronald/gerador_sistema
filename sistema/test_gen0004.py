@@ -21,7 +21,7 @@ class Gen0004RuntimeTests(TestCase):
             nome="Sistema Runtime GEN-0004",
         )
 
-    def _spec_with_crud(self):
+    def _spec_with_crud(self, *, enabled=True):
         modulo = Modulo.objects.create(
             sistema=self.sistema,
             nome="Gestão de Pessoas",
@@ -29,7 +29,7 @@ class Gen0004RuntimeTests(TestCase):
         Entidade.objects.create(
             modulo=modulo,
             nome="Funcionário",
-            gerar_crud_views=True,
+            gerar_crud_views=enabled,
         )
         return build_specification(self.sistema)
 
@@ -43,6 +43,19 @@ class Gen0004RuntimeTests(TestCase):
         self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_list.html", templates)
         self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_form.html", templates)
         self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_confirm_delete.html", templates)
+
+    def test_crud_templates_are_materialized_even_when_legacy_flag_is_false(self):
+        """Views/URLs currently expose CRUD for every entity, so templates are mandatory."""
+        spec = self._spec_with_crud(enabled=False)
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            compiled = SpecificationCompiler(spec).write(root)
+
+            paths = {item.path for item in compiled}
+            self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_list.html", paths)
+            self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_form.html", paths)
+            self.assertIn("gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_confirm_delete.html", paths)
+            self.assertTrue((root / "gestao_de_pessoas/templates/gestao_de_pessoas/funcionario_list.html").exists())
 
     def test_runtime_validation_detects_missing_crud_template(self):
         spec = self._spec_with_crud()

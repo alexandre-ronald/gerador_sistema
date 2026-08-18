@@ -7,6 +7,7 @@ from django.conf import settings
 from .compiler import SpecificationCompiler
 from .generation_validation import validate_generated_project
 from .models import Sistema
+from .runtime_validation import validate_generated_runtime
 from .specification import build_specification
 from .specification_plan import CompilationPlan
 from .validation import validate_specification
@@ -49,7 +50,7 @@ class GeradorService:
         return CompilationPlan(self.especificacao())
 
     def gerar_projeto_completo(self):
-        """Compile, validate and persist a complete generated project."""
+        """Compile, validate and persist a complete project."""
         self.validar()
         try:
             spec = self.especificacao()
@@ -86,12 +87,16 @@ class GeradorService:
                     "O compilador não produziu exatamente os artefatos planejados."
                 )
 
-            self.log("🔬 Validando projeto compilado antes da exportação...")
+            self.log("🔬 Validando estrutura do projeto compilado...")
             validate_generated_project(spec, output)
-            self.log("✅ Projeto compilado passou na validação estrutural.")
+            self.log("✅ Estrutura do projeto compilado está válida.")
+
+            self.log("🧪 Validando contrato de runtime: templates, views e URLs...")
+            runtime_artifacts = validate_generated_runtime(spec, output)
+            self.log(f"✅ Contrato de runtime validado: {len(runtime_artifacts)} templates.")
 
             # O fluxo de compactação usa Sistema.caminho_geracao para localizar
-            # a árvore recém-compilada. Só persistimos o caminho após a validação.
+            # a árvore recém-compilada. Só persistimos o caminho após as validações.
             self.sistema.caminho_geracao = str(output)
             self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])
 

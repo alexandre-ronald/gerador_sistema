@@ -8,6 +8,7 @@ from .compiler import SpecificationCompiler
 from .forms_validation import validate_generated_forms
 from .generation_validation import validate_generated_project
 from .models import Sistema
+from .quality_validation import validate_generated_quality
 from .runtime_validation import validate_generated_runtime
 from .specification import build_specification
 from .specification_plan import CompilationPlan
@@ -99,6 +100,10 @@ class GeradorService:
             self.log("🧩 Validando contrato dos ModelForms...")
             form_artifacts = validate_generated_forms(spec, output)
             self.log(f"✅ ModelForms validados: {len(form_artifacts)} formulários.")
+
+            self.log("🛡️ Executando validação final de qualidade...")
+            quality_artifacts = validate_generated_quality(spec, output)
+            self.log(f"✅ Qualidade do projeto validada: {len(quality_artifacts)} artefatos.")
 
             # O fluxo de compactação usa Sistema.caminho_geracao para localizar
             # a árvore recém-compilada. Só persistimos o caminho após as validações.

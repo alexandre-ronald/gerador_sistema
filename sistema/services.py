@@ -11,6 +11,7 @@ from .models import Sistema
 from .package_validation import validate_generated_package
 from .quality_validation import validate_generated_quality
 from .runtime_validation import validate_generated_runtime
+from .security_validation import validate_generated_security
 from .specification import build_specification
 from .specification_plan import CompilationPlan
 from .validation import validate_specification
@@ -83,6 +84,9 @@ class GeradorService:
             self.log("📦 Validando pacote de distribuição...")
             package_artifacts = validate_generated_package(spec, output)
             self.log(f"✅ Pacote validado: {len(package_artifacts)} arquivos essenciais.")
+            self.log("🔐 Validando segurança dos artefatos...")
+            security_artifacts = validate_generated_security(output)
+            self.log(f"✅ Segurança validada: {len(security_artifacts)} arquivos analisados.")
 
             self.sistema.caminho_geracao = str(output)
             self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])

@@ -1,0 +1,31 @@
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+
+from .models import AuditLog
+from .request_context import get_current_user
+
+
+def _record(action, instance):
+    user = get_current_user()
+    AuditLog.objects.create(
+        user=user if getattr(user, "is_authenticated", False) else None,
+        action=action,
+        app_label=instance._meta.app_label,
+        model_name=instance._meta.model_name,
+        object_id=str(instance.pk or ""),
+        object_repr=str(instance),
+    )
+
+
+@receiver(post_save)
+def audit_save(sender, instance, created, raw=False, **kwargs):
+    if raw or sender is AuditLog or not sender._meta.managed:
+        return
+    _record("CREATE" if created else "UPDATE", instance)
+
+
+@receiver(post_delete)
+def audit_delete(sender, instance, **kwargs):
+    if sender is AuditLog or not sender._meta.managed:
+        return
+    _record("DELETE", instance)

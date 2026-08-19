@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -11,11 +12,29 @@ class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, ListView):
     model = {{ entidade.classe_tecnica }}
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_list.html"
     context_object_name = "objetos"
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            search = Q()
+            for field in self.model._meta.fields:
+                if field.get_internal_type() in {"CharField", "TextField", "EmailField", "URLField"}:
+                    search |= Q(**{f"{field.name}__icontains": query})
+            if search:
+                queryset = queryset.filter(search)
+        for field in self.model._meta.fields:
+            value = self.request.GET.get(field.name, "").strip()
+            if value:
+                queryset = queryset.filter(**{f"{field.name}__icontains": value})
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["total_registros"] = self.get_queryset().count()
         context["titulo_pagina"] = "{{ entidade.nome|title }}"
+        context["filtros"] = {key: value for key, value in self.request.GET.items() if key != "page" and value}
         return context
 
 

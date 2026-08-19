@@ -110,6 +110,23 @@ class Campo(models.Model):
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
 
+    def __init__(self, *args, **kwargs):
+        # Compatibilidade com versões do editor/compiler que ainda enviam
+        # related_name_str. O contrato oficial do GEN-011 é related_name.
+        legacy_related_name = kwargs.pop("related_name_str", None)
+        if legacy_related_name is not None and "related_name" not in kwargs:
+            kwargs["related_name"] = legacy_related_name
+        super().__init__(*args, **kwargs)
+
+    @property
+    def related_name_str(self):
+        """Alias de compatibilidade; o campo persistido oficial é related_name."""
+        return self.related_name
+
+    @related_name_str.setter
+    def related_name_str(self, value):
+        self.related_name = value
+
     def save(self, *args, **kwargs):
         if self.tipo in {"CharField", "EmailField", "URLField"} and not self.max_length:
             self.max_length = 255

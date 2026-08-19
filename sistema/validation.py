@@ -33,8 +33,6 @@ def technical_name(value: str, fallback: str = "item") -> str:
 
 def class_name(value: str, fallback: str = "Model") -> str:
     """Converte um nome humano em um nome de classe Python seguro."""
-    # slugify com allow_unicode=False remove acentos de forma consistente:
-    # "Ordem de Serviço" -> "ordem-de-servico".
     normalized = slugify(str(value or ""), allow_unicode=False)
     parts = [part for part in normalized.split("-") if part]
     result = "".join(part[:1].upper() + part[1:] for part in parts)
@@ -57,9 +55,11 @@ def validate_specification(sistema: Sistema) -> None:
     if not sistema.nome or not technical_name(sistema.nome):
         errors.append("O sistema precisa ter um nome válido.")
 
-    modulos = list(sistema.modulos.prefetch_related("entidades__campos__entidade_relacionada"))
+    modulos = list(sistema.modulos.prefetch_related("entidades__campos__entidade_relacionada__modulo"))
     module_names: set[str] = set()
     entity_names: set[tuple[int, str]] = set()
+    all_entities = {entidade.pk: entidade for modulo in modulos for entidade in modulo.entidades.all()}
+    sistema_entity_ids = set(all_entities)
 
     for modulo in modulos:
         app_name = technical_name(modulo.nome)
@@ -98,10 +98,31 @@ def validate_specification(sistema: Sistema) -> None:
                 if campo.tipo in RELATION_TYPES:
                     if campo.entidade_relacionada_id is None:
                         errors.append(f"Campo relacional '{entidade.nome}.{campo.nome}' precisa de uma entidade relacionada.")
-                    if campo.on_delete not in ON_DELETE_VALUES:
-                        errors.append(f"on_delete inválido em '{entidade.nome}.{campo.nome}'.")
+                    elif campo.entidade_relacionada_id not in sistema_entity_ids:
+                        errors.append(
+                            f"Relacionamento '{entidade.nome}.{campo.nome}' aponta para uma entidade de outro sistema."
+                        )
+                    if campo.tipo == "ManyToManyField":
+                        if campo.null:
+                            errors.append(f"ManyToManyField '{entidade.nome}.{campo.nome}' não aceita null=True.")
+                    else:
+                        if campo.on_delete not in ON_DELETE_VALUES:
+                            errors.append(f"on_delete inválido em '{entidade.nome}.{campo.nome}'.")
+                        if campo.on_delete == "models.SET_NULL" and not campo.null:
+                            errors.append(
+                                f"Relacionamento '{entidade.nome}.{campo.nome}' usa SET_NULL e precisa de null=True."
+                            )
                 elif campo.entidade_relacionada_id is not None:
                     errors.append(f"Campo '{entidade.nome}.{campo.nome}' possui entidade relacionada, mas não é relacional.")
+
+                if campo.related_name_str and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", campo.related_name_str):
+                    errors.append(
+                        f"related_name inválido em '{entidade.nome}.{campo.nome}': '{campo.related_name_str}'."
+                    )
+                if campo.related_name_str and keyword.iskeyword(campo.related_name_str):
+                    errors.append(
+                        f"related_name inválido em '{entidade.nome}.{campo.nome}': '{campo.related_name_str}' é palavra reservada."
+                    )
 
                 if campo.tipo in {"FileField", "ImageField"} and not campo.upload_to:
                     errors.append(f"{campo.tipo} '{entidade.nome}.{campo.nome}' precisa de upload_to.")

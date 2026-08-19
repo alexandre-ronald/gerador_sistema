@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import ast
-import re
 
 from django.core.exceptions import ValidationError
 
@@ -51,15 +50,32 @@ class GeneratedProjectIntegrationValidator:
         return errors
 
     def _template_exists(self, template: str) -> bool:
-        normalized = template.replace("\\", "/")
-        candidates = [self.root / "templates" / normalized, self.root / normalized]
-        parts = normalized.split("/")
-        if len(parts) >= 2:
-            candidates.append(self.root / parts[0] / "templates" / "/".join(parts[1:]))
+        normalized = template.replace("\\", "/").lstrip("/")
+        candidates = [
+            self.root / "templates" / normalized,
+            self.root / normalized,
+        ]
+
+        # Django app convention: <app>/templates/<template-name>.
+        # For a namespaced template such as app/home.html the usual layout is
+        # <app>/templates/app/home.html, so preserve the complete template path.
+        for templates_dir in self.root.glob("*/templates"):
+            candidates.append(templates_dir / normalized)
+
         return any(path.is_file() for path in candidates)
 
     def _validate_url_patterns(self, tree: ast.AST, relative: str) -> list[str]:
         errors: list[str] = []
+        declared_or_imported = {
+            node.name for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                declared_or_imported.update(alias.asname or alias.name for alias in node.names)
+            elif isinstance(node, ast.Import):
+                declared_or_imported.update(alias.asname or alias.name.split(".")[0] for alias in node.names)
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "path":
                 if len(node.args) < 2:
@@ -68,12 +84,8 @@ class GeneratedProjectIntegrationValidator:
                 if isinstance(view, ast.Attribute) and isinstance(view.value, ast.Name):
                     if view.attr == "as_view":
                         continue
-                if isinstance(view, ast.Name):
-                    # Function/class names are resolved by Python at import time; AST confirms
-                    # the referenced symbol is locally declared or imported.
-                    names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
-                    if view.id not in names:
-                        errors.append(f"View referenciada mas não encontrada: {view.id} (em {relative})")
+                if isinstance(view, ast.Name) and view.id not in declared_or_imported:
+                    errors.append(f"View referenciada mas não encontrada: {view.id} (em {relative})")
         return errors
 
 

@@ -8,7 +8,7 @@ from typing import Callable
 from django.template.loader import render_to_string
 
 from .specification import SystemSpec
-from .specification_plan import CompilationPlan, GenerationArtifact
+from .specification_plan import CompilationPlan
 
 class _Collection(list):
     def all(self): return self
@@ -39,8 +39,11 @@ class SpecificationCompiler:
         if {i.path for i in compiled}!=expected: raise RuntimeError("O compilador não produziu exatamente o plano de compilação.")
         return tuple(compiled)
     def _template_for(self,artifact):
-        mapping={"manage.py":"gerador/snippets/manage.txt","settings.py":"gerador/snippets/settings.txt","urls.py":"gerador/snippets/urls_root.txt","wsgi.py":"gerador/snippets/wsgi.txt","__init__.py":"gerador/snippets/init.txt","base.html":"gerador/snippets/base_html.txt","index.html":"gerador/snippets/index_html.txt","login.html":"gerador/snippets/login_html.txt","requirements.txt":"gerador/snippets/requirements.txt","README.md":"gerador/snippets/readme.md",".gitignore":"gerador/snippets/gitignore.txt","models.py":"gerador/snippets/models.txt","forms.py":"gerador/snippets/forms.txt","views.py":"gerador/snippets/views.txt","urls.py:module":"gerador/snippets/urls_app_gen0012.txt","admin.py":"gerador/snippets/admin.txt","apps.py":"gerador/snippets/apps_config.txt","_list.html":"gerador/snippets/html_list.txt","_detail.html":"gerador/snippets/html_detail.txt","_form.html":"gerador/snippets/html_form.txt","_confirm_delete.html":"gerador/snippets/html_delete.txt","Dockerfile":"gerador/snippets/dockerfile.txt","docker-compose.yml":"gerador/snippets/docker_compose.txt",".dockerignore":"gerador/snippets/dockerignore.txt"}
+        mapping={"manage.py":"gerador/snippets/manage.txt","settings.py":"gerador/snippets/settings.txt","urls.py":"gerador/snippets/urls_root.txt","wsgi.py":"gerador/snippets/wsgi.txt","__init__.py":"gerador/snippets/init.txt","base.html":"gerador/snippets/base_html.txt","index.html":"gerador/snippets/index_html.txt","login.html":"gerador/snippets/login_html.txt","requirements.txt":"gerador/snippets/requirements.txt","README.md":"gerador/snippets/readme.md",".gitignore":"gerador/snippets/gitignore.txt","models.py":"gerador/snippets/models.txt","forms.py":"gerador/snippets/forms.txt","views.py":"gerador/snippets/views.txt","urls.py:module":"gerador/snippets/urls_app_gen0012.txt","admin.py":"gerador/snippets/admin.txt","apps.py":"gerador/snippets/apps_config.txt","_list.html":"gerador/snippets/html_list_gen0013.txt","_detail.html":"gerador/snippets/html_detail.txt","_form.html":"gerador/snippets/html_form.txt","_confirm_delete.html":"gerador/snippets/html_delete.txt","Dockerfile":"gerador/snippets/dockerfile.txt","docker-compose.yml":"gerador/snippets/docker_compose.txt",".dockerignore":"gerador/snippets/dockerignore.txt","auditoria_apps.txt":"gerador/snippets/auditoria_apps.txt","auditoria_models.txt":"gerador/snippets/auditoria_models.txt","auditoria_admin.txt":"gerador/snippets/auditoria_admin.txt","auditoria_middleware.txt":"gerador/snippets/auditoria_middleware.txt","auditoria_request_context.txt":"gerador/snippets/auditoria_request_context.txt","auditoria_signals.txt":"gerador/snippets/auditoria_signals.txt"}
         path,name=artifact.path,Path(artifact.path).name
+        if artifact.kind=="audit":
+            if path.endswith("migrations/__init__.py"): return mapping["__init__.py"]
+            return mapping.get(name, "gerador/snippets/init.txt")
         if artifact.kind=="module": return mapping["urls.py:module"] if name=="urls.py" else mapping[name]
         if artifact.kind=="crud":
             if name.endswith("_list.html"): return mapping["_list.html"]
@@ -55,7 +58,7 @@ class SpecificationCompiler:
     def _build_contexts(self):
         spec=self.specification; system=self._system_adapter(spec); modules=_Collection(self._module_adapter(m) for m in spec.modules); contexts={}; core={"sistema":system,"modulos":modules,"nome_projeto":spec.technical_name}
         for artifact in self.plan.artifacts():
-            if artifact.kind in {"core","template","docker","package"}: contexts[artifact.path]=core
+            if artifact.kind in {"core","template","docker","package","audit"}: contexts[artifact.path]=core
         for module in spec.modules:
             adapter=self._module_adapter(module); module_ctx={"sistema":system,"modulos":modules,"app_name":module.technical_name,"entidades":adapter.entidades,"nome_projeto":spec.technical_name,"modulo":adapter,"imports_por_app":{}}
             for artifact in self.plan.artifacts():

@@ -7,7 +7,7 @@ from typing import Callable
 
 from django.template.loader import render_to_string
 
-from .specification import FieldSpec, ModuleSpec, SystemSpec
+from .specification import SystemSpec
 from .specification_plan import CompilationPlan, GenerationArtifact
 
 class _Collection(list):
@@ -39,7 +39,7 @@ class SpecificationCompiler:
         if {i.path for i in compiled}!=expected: raise RuntimeError("O compilador não produziu exatamente o plano de compilação.")
         return tuple(compiled)
     def _template_for(self,artifact):
-        mapping={"manage.py":"gerador/snippets/manage.txt","settings.py":"gerador/snippets/settings.txt","urls.py":"gerador/snippets/urls_root.txt","wsgi.py":"gerador/snippets/wsgi.txt","__init__.py":"gerador/snippets/init.txt","base.html":"gerador/snippets/base_html.txt","index.html":"gerador/snippets/index_html.txt","login.html":"gerador/snippets/login_html.txt","requirements.txt":"gerador/snippets/requirements.txt","README.md":"gerador/snippets/readme.md",".gitignore":"gerador/snippets/gitignore.txt","models.py":"gerador/snippets/models.txt","forms.py":"gerador/snippets/forms.txt","views.py":"gerador/snippets/views.txt","urls.py:module":"gerador/snippets/urls_app.txt","admin.py":"gerador/snippets/admin.txt","apps.py":"gerador/snippets/apps_config.txt","_list.html":"gerador/snippets/html_list.txt","_detail.html":"gerador/snippets/html_detail.txt","_form.html":"gerador/snippets/html_form.txt","_confirm_delete.html":"gerador/snippets/html_delete.txt","Dockerfile":"gerador/snippets/dockerfile.txt","docker-compose.yml":"gerador/snippets/docker_compose.txt",".dockerignore":"gerador/snippets/dockerignore.txt"}
+        mapping={"manage.py":"gerador/snippets/manage.txt","settings.py":"gerador/snippets/settings.txt","urls.py":"gerador/snippets/urls_root.txt","wsgi.py":"gerador/snippets/wsgi.txt","__init__.py":"gerador/snippets/init.txt","base.html":"gerador/snippets/base_html.txt","index.html":"gerador/snippets/index_html.txt","login.html":"gerador/snippets/login_html.txt","requirements.txt":"gerador/snippets/requirements.txt","README.md":"gerador/snippets/readme.md",".gitignore":"gerador/snippets/gitignore.txt","models.py":"gerador/snippets/models.txt","forms.py":"gerador/snippets/forms.txt","views.py":"gerador/snippets/views.txt","urls.py:module":"gerador/snippets/urls_app_gen0012.txt","admin.py":"gerador/snippets/admin.txt","apps.py":"gerador/snippets/apps_config.txt","_list.html":"gerador/snippets/html_list.txt","_detail.html":"gerador/snippets/html_detail.txt","_form.html":"gerador/snippets/html_form.txt","_confirm_delete.html":"gerador/snippets/html_delete.txt","Dockerfile":"gerador/snippets/dockerfile.txt","docker-compose.yml":"gerador/snippets/docker_compose.txt",".dockerignore":"gerador/snippets/dockerignore.txt"}
         path,name=artifact.path,Path(artifact.path).name
         if artifact.kind=="module": return mapping["urls.py:module"] if name=="urls.py" else mapping[name]
         if artifact.kind=="crud":

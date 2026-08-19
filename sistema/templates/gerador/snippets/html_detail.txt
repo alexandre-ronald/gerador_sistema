@@ -1,0 +1,30 @@
+{% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
+{% templatetag openblock %} block content {% templatetag closeblock %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">{{ entidade.nome|title }}</h3>
+        <div class="text-muted small">Detalhes do registro</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_update' objeto.pk {% templatetag closeblock %}" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i> Editar
+        </a>
+        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_delete' objeto.pk {% templatetag closeblock %}" class="btn btn-outline-danger">
+            <i class="bi bi-trash me-1"></i> Excluir
+        </a>
+        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="btn btn-light">Voltar</a>
+    </div>
+</div>
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <div class="row g-4">
+{% for campo in entidade.campos.all %}
+            <div class="col-12 col-md-6">
+                <div class="small text-muted mb-1">{{ campo.nome|title }}</div>
+                <div class="fw-medium">{% templatetag openvariable %} objeto.{{ campo.nome_tecnico }}|default:"—" {% templatetag closevariable %}</div>
+            </div>
+{% endfor %}
+        </div>
+    </div>
+</div>
+{% templatetag closeblock %}

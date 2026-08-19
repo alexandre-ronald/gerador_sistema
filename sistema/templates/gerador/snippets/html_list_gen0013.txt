@@ -5,39 +5,10 @@
     <h3 class="fw-bold mb-0">Gerenciamento de {{ entidade.nome|title }}</h3>
     <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_create' {% templatetag closeblock %}" class="btn btn-primary px-4 shadow-sm"><i class="bi bi-plus-lg me-1"></i> Novo Registro</a>
 </div>
-
-<div class="card border-0 shadow-sm rounded-4 mb-3">
-    <div class="card-body">
-        <form method="get" class="row g-2">
-            <div class="col-md-8"><input type="search" name="q" value="{{ request.GET.q|default:'' }}" class="form-control" placeholder="Pesquisar..." aria-label="Pesquisar"></div>
-            <div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-search me-1"></i> Filtrar</button></div>
-            <div class="col-md-2"><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="btn btn-outline-secondary w-100">Limpar</a></div>
-        </form>
-    </div>
-</div>
-
+<div class="card border-0 shadow-sm rounded-4 mb-3"><div class="card-body"><form method="get" class="row g-2"><div class="col-md-8"><input type="search" name="q" value="{{ request.GET.q|default:'' }}" class="form-control" placeholder="Pesquisar..." aria-label="Pesquisar"></div><div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-search me-1"></i> Filtrar</button></div><div class="col-md-2"><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="btn btn-outline-secondary w-100">Limpar</a></div></form></div></div>
 <div class="row g-3 mb-4"><div class="col-md-3"><div class="card card-summary shadow-sm p-1 border-primary"><div class="card-body"><p class="fw-medium text-muted mb-0">Total de Registros</p><h2 class="mt-2 fw-semibold text-primary">{{ total_registros }}</h2></div></div></div></div>
-
-<div class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 border">
-                <thead class="bg-light"><tr>{% for campo in entidade.campos.all %}<th class="px-4 py-3">{{ campo.nome|title }}</th>{% endfor %}<th class="text-end px-4">Ações</th></tr></thead>
-                <tbody>
-                    {% templatetag openblock %} for item in objetos {% templatetag closeblock %}
-                    <tr>{% for campo in entidade.campos.all %}<td class="px-4">{{ item|default_if_none:'' }}</td>{% endfor %}<td class="text-end px-4"><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_detail' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-info me-1"><i class="bi bi-eye"></i></a><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_update' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-primary me-1"><i class="bi bi-pencil"></i></a><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-danger"><i class="bi bi-trash"></i></a></td></tr>
-                    {% templatetag openblock %} empty {% templatetag closeblock %}<tr><td colspan="{{ entidade.campos.all|length|add:1 }}" class="text-center py-5 text-muted">Nenhum registro encontrado.</td></tr>{% templatetag openblock %} endfor {% templatetag closeblock %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% templatetag openblock %} if is_paginated {% templatetag closeblock %}
-<nav class="mt-3" aria-label="Paginação"><ul class="pagination justify-content-center">
-    {% templatetag openblock %} if page_obj.has_previous {% templatetag closeblock %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% templatetag openvariable %}{% for key,value in filtros.items %}&{{ key }}={{ value|urlencode }}{% endfor %}{% templatetag closevariable %}">Anterior</a></li>{% templatetag openblock %} endif {% templatetag closeblock %}
-    <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
-    {% templatetag openblock %} if page_obj.has_next {% templatetag closeblock %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% templatetag openvariable %}{% for key,value in filtros.items %}&{{ key }}={{ value|urlencode }}{% endfor %}{% templatetag closevariable %}">Próxima</a></li>{% templatetag openblock %} endif {% templatetag closeblock %}
-</ul></nav>
-{% templatetag openblock %} endif {% templatetag closeblock %}
+<div class="card border-0 shadow-sm rounded-4"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0 border"><thead class="bg-light"><tr>{% for campo in entidade.campos.all %}<th class="px-4 py-3">{{ campo.nome|title }}</th>{% endfor %}<th class="text-end px-4">Ações</th></tr></thead><tbody>
+{% templatetag openblock %} for item in objetos {% templatetag closeblock %}<tr>{% for campo in entidade.campos.all %}<td class="px-4">{{ item|get_attr:campo.nome_tecnico|default_if_none:'' }}</td>{% endfor %}<td class="text-end px-4"><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_detail' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-info me-1"><i class="bi bi-eye"></i></a><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_update' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-primary me-1"><i class="bi bi-pencil"></i></a><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-danger"><i class="bi bi-trash"></i></a></td></tr>{% templatetag openblock %} empty {% templatetag closeblock %}<tr><td colspan="{{ entidade.campos.all|length|add:1 }}" class="text-center py-5 text-muted">Nenhum registro encontrado.</td></tr>{% templatetag openblock %} endfor {% templatetag closeblock %}
+</tbody></table></div></div></div>
+{% templatetag openblock %} if is_paginated {% templatetag closeblock %}<nav class="mt-3" aria-label="Paginação"><ul class="pagination justify-content-center">{% templatetag openblock %} if page_obj.has_previous {% templatetag closeblock %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% templatetag openvariable %}{% for key,value in filtros.items %}&{{ key }}={{ value|urlencode }}{% endfor %}{% templatetag closevariable %}">Anterior</a></li>{% templatetag openblock %} endif {% templatetag closeblock %}<li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>{% templatetag openblock %} if page_obj.has_next {% templatetag openblock %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% templatetag openvariable %}{% for key,value in filtros.items %}&{{ key }}={{ value|urlencode }}{% endfor %}{% templatetag closevariable %}">Próxima</a></li>{% templatetag openblock %} endif {% templatetag closeblock %}</ul></nav>{% templatetag openblock %} endif {% templatetag closeblock %}
 {% templatetag openblock %} endblock {% templatetag closeblock %}

@@ -1,0 +1,15 @@
+from django.urls import path
+
+from . import views
+
+app_name = "{{ app_name }}"
+
+urlpatterns = [
+{% for entidade in entidades %}
+    path("{{ entidade.nome_tecnico }}/", views.{{ entidade.classe_tecnica }}ListView.as_view(), name="{{ entidade.nome_tecnico }}_list"),
+    path("{{ entidade.nome_tecnico }}/novo/", views.{{ entidade.classe_tecnica }}CreateView.as_view(), name="{{ entidade.nome_tecnico }}_create"),
+    path("{{ entidade.nome_tecnico }}/<int:pk>/", views.{{ entidade.classe_tecnica }}DetailView.as_view(), name="{{ entidade.nome_tecnico }}_detail"),
+    path("{{ entidade.nome_tecnico }}/<int:pk>/editar/", views.{{ entidade.classe_tecnica }}UpdateView.as_view(), name="{{ entidade.nome_tecnico }}_update"),
+    path("{{ entidade.nome_tecnico }}/<int:pk>/deletar/", views.{{ entidade.classe_tecnica }}DeleteView.as_view(), name="{{ entidade.nome_tecnico }}_delete"),
+{% endfor %}
+]

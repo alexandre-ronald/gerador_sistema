@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from .forms import {% for entidade in entidades %}{{ entidade.classe_tecnica }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 from .models import {% for entidade in entidades %}{{ entidade.classe_tecnica }}{% if not forloop.last %}, {% endif %}{% endfor %}
@@ -16,6 +16,17 @@ class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["total_registros"] = self.get_queryset().count()
         context["titulo_pagina"] = "{{ entidade.nome|title }}"
+        return context
+
+
+class {{ entidade.classe_tecnica }}DetailView(LoginRequiredMixin, DetailView):
+    model = {{ entidade.classe_tecnica }}
+    template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_detail.html"
+    context_object_name = "objeto"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo_pagina"] = "Detalhes de {{ entidade.nome|title }}"
         return context
 
 

@@ -62,7 +62,7 @@ class Gen0003CompilerTests(TestCase):
         compiled = SpecificationCompiler(spec).compile()
         models = next(item.content for item in compiled if item.path == "vendas/models.py")
 
-        self.assertIn("from cadastro_geral.models import Cliente", models)
+        self.assertNotIn("from cadastro_geral.models import Cliente", models)
         self.assertIn('"cadastro_geral.Cliente"', models)
 
     def test_writer_is_confined_to_output_directory(self):

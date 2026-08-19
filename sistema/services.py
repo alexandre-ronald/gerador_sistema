@@ -7,6 +7,7 @@ from django.conf import settings
 from .compiler import SpecificationCompiler
 from .forms_validation import validate_generated_forms
 from .generation_validation import validate_generated_project
+from .integration_validation import validate_generated_integration
 from .models import Sistema
 from .package_validation import validate_generated_package
 from .quality_validation import validate_generated_quality
@@ -87,6 +88,9 @@ class GeradorService:
             self.log("🔐 Validando segurança dos artefatos...")
             security_artifacts = validate_generated_security(output)
             self.log(f"✅ Segurança validada: {len(security_artifacts)} arquivos analisados.")
+            self.log("🔗 Validando integração entre URLs, Views, Forms e Templates...")
+            integration_artifacts = validate_generated_integration(output)
+            self.log(f"✅ Integração validada: {len(integration_artifacts)} arquivos Python analisados.")
 
             self.sistema.caminho_geracao = str(output)
             self.sistema.save(update_fields=["caminho_geracao", "atualizado_em"])

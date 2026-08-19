@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from .models import Campo, Sistema
 from .validation import class_name, technical_name, validate_specification
 
-SPECIFICATION_VERSION = "2.1"
+SPECIFICATION_VERSION = "2.3"
 
 @dataclass(frozen=True)
 class FieldSpec:
@@ -66,8 +66,7 @@ class SystemSpec:
     audit: bool
     modules: tuple[ModuleSpec, ...] = field(default_factory=tuple)
     def to_dict(self) -> dict[str, Any]: return asdict(self)
-    def canonical_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    def canonical_json(self) -> str: return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     @property
     def fingerprint(self) -> str: return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
 

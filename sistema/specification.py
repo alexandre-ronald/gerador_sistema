@@ -11,7 +11,7 @@ from .models import Campo, Entidade, Modulo, Sistema
 from .validation import class_name, technical_name, validate_specification
 
 
-SPECIFICATION_VERSION = "2.0"
+SPECIFICATION_VERSION = "2.1"
 
 
 @dataclass(frozen=True)
@@ -88,11 +88,7 @@ class SystemSpec:
 
 
 class SpecificationBuilder:
-    """Converts the database-backed editor model into a canonical specification.
-
-    GEN-0002 makes the specification an explicit domain object. The generator can
-    consume this object instead of depending directly on Django ORM instances.
-    """
+    """Converts the database-backed editor model into a canonical specification."""
 
     def __init__(self, sistema: Sistema):
         self.sistema = sistema
@@ -197,7 +193,6 @@ def validate_specification_object(specification: SystemSpec) -> None:
             errors.append(f"Módulos duplicados: {module.technical_name}")
         module_names.add(module.technical_name)
 
-        field_owner: dict[str, str] = {}
         for entity in module.entities:
             seen_fields: set[str] = set()
             for field_spec in entity.fields:
@@ -206,7 +201,6 @@ def validate_specification_object(specification: SystemSpec) -> None:
                         f"Campos duplicados em {entity.class_name}: {field_spec.technical_name}"
                     )
                 seen_fields.add(field_spec.technical_name)
-                field_owner[field_spec.technical_name] = entity.class_name
 
     if errors:
         raise ValidationError(errors)

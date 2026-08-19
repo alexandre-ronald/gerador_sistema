@@ -1,4 +1,4 @@
-from .request_context import set_current_user, clear_current_user
+from .request_context import set_current_user, reset_current_user
 
 
 class CurrentUserMiddleware:
@@ -6,8 +6,8 @@ class CurrentUserMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        set_current_user(getattr(request, "user", None))
+        token = set_current_user(getattr(request, "user", None))
         try:
             return self.get_response(request)
         finally:
-            clear_current_user()
+            reset_current_user(token)

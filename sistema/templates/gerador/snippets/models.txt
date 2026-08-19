@@ -1,10 +1,5 @@
 from django.db import models
 
-# --- IMPORTS DE OUTROS APPS ---
-{% for app_externo, modelos in imports_por_app.items %}
-from {{ app_externo }}.models import {{ modelos|join:", " }}
-{% endfor %}
-
 {% for entidade in entidades %}
 class {{ entidade.classe_tecnica }}(models.Model):
 {% for campo in entidade.campos.all %}

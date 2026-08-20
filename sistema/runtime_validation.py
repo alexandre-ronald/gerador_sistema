@@ -120,6 +120,14 @@ class GeneratedProjectRuntimeValidator:
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+
+        # Never let the validator inherit the generator's Django settings.
+        # manage.py uses setdefault(), so an inherited DJANGO_SETTINGS_MODULE
+        # would otherwise override the settings of the generated project.
+        env.pop("DJANGO_SETTINGS_MODULE", None)
+
+        # The generated project must be the first import location, while the
+        # generator's environment remains available for installed packages.
         existing_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(self.root) + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
 

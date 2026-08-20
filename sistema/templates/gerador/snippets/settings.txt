@@ -13,6 +13,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+{% if sistema.usar_auditoria %}
+    "auditoria",
+{% endif %}
 {% for modulo in sistema.modulos.all %}
     "{{ modulo.nome_tecnico }}",
 {% endfor %}
@@ -24,6 +27,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+{% if sistema.usar_auditoria %}
+    "auditoria.middleware.AuditoriaMiddleware",
+{% endif %}
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -62,8 +68,6 @@ DATABASES = {
     }
 }
 
-# Autenticação e autorização do projeto gerado.
-# O Django cria automaticamente as permissões add/change/delete/view para cada model.
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]

@@ -58,17 +58,19 @@ class GeneratedProjectRuntimeValidator:
 
     def _validate_python_files(self):
         files = sorted(self.root.rglob("*.py"))
+        valid = 0
         for path in files:
             if any(part in {".venv", "__pycache__"} for part in path.parts):
                 continue
             try:
                 ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                valid += 1
                 self.checked += 1
             except (SyntaxError, UnicodeDecodeError) as exc:
                 rel = path.relative_to(self.root)
                 self.errors.append(f"Python inválido em {rel}: {exc}")
 
-        self._message(f"✅ Sintaxe Python validada ({len(files)} arquivo(s))")
+        self._message(f"✅ Sintaxe Python validada ({valid} arquivo(s))")
 
     def _validate_templates(self):
         html_files = sorted(self.root.rglob("*.html"))
@@ -105,9 +107,7 @@ class GeneratedProjectRuntimeValidator:
 
         missing = [name for name, token in contracts.items() if token not in content]
         if missing:
-            self.errors.append(
-                "Contrato do template base incompleto: " + ", ".join(missing)
-            )
+            self.errors.append("Contrato do template base incompleto: " + ", ".join(missing))
             return
 
         self.checked += len(contracts)
@@ -119,7 +119,10 @@ class GeneratedProjectRuntimeValidator:
             return
 
         env = os.environ.copy()
-        env.setdefault("PYTHONIOENCODING", "utf-8")
+        env["PYTHONIOENCODING"] = "utf-8"
+        existing_pythonpath = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = str(self.root) + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
+
         try:
             result = subprocess.run(
                 [sys.executable, str(manage), "check"],

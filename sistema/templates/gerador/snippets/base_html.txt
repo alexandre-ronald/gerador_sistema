@@ -50,13 +50,11 @@
                             <div class="small text-uppercase px-4 mb-1 text-info" style="font-size: 0.6rem; letter-spacing: 1px;">{{ modulo.nome }}</div>
                         </li>
                         {% for entidade in modulo.entidades.all %}
-                            {% if perms.{{ modulo.nome_tecnico }}.view_{{ entidade.nome_tecnico }} %}
-                            <li class="nav-item">
-                                <a href="{% templatetag openblock %} url '{{ modulo.nome_tecnico }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.url_name == '{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">
-                                    <i class="bi bi-table me-2"></i>{{ entidade.nome|title }}
-                                </a>
-                            </li>
-                            {% endif %}
+                        <li class="nav-item">
+                            <a href="{% templatetag openblock %} url '{{ modulo.nome_tecnico }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.url_name == '{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">
+                                <i class="bi bi-table me-2"></i>{{ entidade.nome|title }}
+                            </a>
+                        </li>
                         {% endfor %}
                     {% endif %}
                 {% endfor %}
@@ -81,9 +79,7 @@
                                     <a class="nav-link dropdown-toggle {% templatetag openblock %} if request.resolver_match.app_name == modulo.nome_tecnico {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" href="#" data-bs-toggle="dropdown">{{ modulo.nome }}</a>
                                     <ul class="dropdown-menu shadow">
                                         {% for entidade in modulo.entidades.all %}
-                                            {% if perms.{{ modulo.nome_tecnico }}.view_{{ entidade.nome_tecnico }} %}
-                                            <li><a class="dropdown-item {% templatetag openblock %} if request.resolver_match.url_name == '{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" href="{% templatetag openblock %} url '{{ modulo.nome_tecnico }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}">{{ entidade.nome|title }}</a></li>
-                                            {% endif %}
+                                        <li><a class="dropdown-item {% templatetag openblock %} if request.resolver_match.url_name == '{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" href="{% templatetag openblock %} url '{{ modulo.nome_tecnico }}:{{ entidade.nome_tecnico }}_list' {% templatetag closeblock %}">{{ entidade.nome|title }}</a></li>
                                         {% endfor %}
                                     </ul>
                                 </li>

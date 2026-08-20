@@ -1,49 +1,75 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.db.models import Q
 from .models import {% for entidade in entidades %}{{ entidade.nome|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
 from .forms import {% for entidade in entidades %}{{ entidade.nome|title }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
 # --- Views para {{ entidade.nome|title }} ---
 
-class {{ entidade.nome|title }}ListView(LoginRequiredMixin, ListView):
+class {{ entidade.nome|title }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.nome|title }}
     template_name = '{{ app_name }}/{{ entidade.nome|lower }}_list.html'
     context_object_name = 'objetos'
+    paginate_by = 10
+    permission_required = '{{ app_name }}.view_{{ entidade.nome|lower }}'
+    raise_exception = True
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get('q', '').strip()
+        if query:
+            search_filter = Q()
+            {% for campo in entidade.campos.all %}
+            {% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
+            search_filter |= Q({{ campo.nome|lower }}__icontains=query)
+            {% endif %}
+            {% endfor %}
+            queryset = queryset.filter(search_filter)
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Dados para os Cards de Sumário
         context['total_registros'] = self.get_queryset().count()
         context['titulo_pagina'] = "{{ entidade.nome|title }}s"
+        context['search_query'] = self.request.GET.get('q', '').strip()
         return context
 
-class {{ entidade.nome|title }}CreateView(LoginRequiredMixin, CreateView):
+
+class {{ entidade.nome|title }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = {{ entidade.nome|title }}
     form_class = {{ entidade.nome|title }}Form
     template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+    permission_required = '{{ app_name }}.add_{{ entidade.nome|lower }}'
+    raise_exception = True
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} criado com sucesso!")
         return super().form_valid(form)
 
-class {{ entidade.nome|title }}UpdateView(LoginRequiredMixin, UpdateView):
+
+class {{ entidade.nome|title }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = {{ entidade.nome|title }}
     form_class = {{ entidade.nome|title }}Form
     template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+    permission_required = '{{ app_name }}.change_{{ entidade.nome|lower }}'
+    raise_exception = True
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} atualizado!")
         return super().form_valid(form)
 
-class {{ entidade.nome|title }}DeleteView(LoginRequiredMixin, DeleteView):
+
+class {{ entidade.nome|title }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = {{ entidade.nome|title }}
     template_name = '{{ app_name }}/{{ entidade.nome|lower }}_confirm_delete.html'
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
+    permission_required = '{{ app_name }}.delete_{{ entidade.nome|lower }}'
+    raise_exception = True
 
     def delete(self, request, *args, **kwargs):
         messages.warning(self.request, "{{ entidade.nome|title }} removido.")

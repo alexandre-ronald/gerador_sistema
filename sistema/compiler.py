@@ -36,20 +36,12 @@ class SpecificationCompiler:
             if artifact.kind == "static":
                 compiled.append(CompiledFile(artifact.path, "", artifact.kind))
                 continue
-
             context = contexts.get(artifact.path)
             if context is None:
                 raise RuntimeError(f"Nenhum contexto de compilação para o artefato: {artifact.path}")
-
             content = self._render_template(self._template_for(artifact), context)
-
-            # __init__.py pode ser legitimamente vazio. Para qualquer outro
-            # artefato, conteúdo vazio indica erro no snippet/compilação.
             if not content.strip() and Path(artifact.path).name != "__init__.py":
-                raise RuntimeError(
-                    f"Template compilado vazio: {artifact.path} ({self._template_for(artifact)})"
-                )
-
+                raise RuntimeError(f"Template compilado vazio: {artifact.path} ({self._template_for(artifact)})")
             compiled.append(CompiledFile(artifact.path, content, artifact.kind))
         return tuple(compiled)
 
@@ -94,6 +86,12 @@ class SpecificationCompiler:
             "Dockerfile": "gerador/snippets/dockerfile.txt",
             "docker-compose.yml": "gerador/snippets/docker_compose.txt",
             ".dockerignore": "gerador/snippets/dockerignore.txt",
+            "auditoria/__init__.py": "gerador/snippets/auditoria_init.txt",
+            "auditoria/apps.py": "gerador/snippets/auditoria_apps.txt",
+            "auditoria/models.py": "gerador/snippets/auditoria_models.txt",
+            "auditoria/services.py": "gerador/snippets/auditoria_services.txt",
+            "auditoria/middleware.py": "gerador/snippets/auditoria_middleware.txt",
+            "auditoria/migrations/__init__.py": "gerador/snippets/auditoria_init.txt",
         }
         path, name = artifact.path, Path(artifact.path).name
         if artifact.kind == "module":
@@ -108,6 +106,8 @@ class SpecificationCompiler:
             return mapping["_confirm_delete.html"]
         if artifact.kind in {"docker", "package"}:
             return mapping[name]
+        if artifact.kind == "audit":
+            return mapping[path]
         if path.startswith("templates/registration/"):
             return mapping["login.html"]
         if path.startswith("templates/"):
@@ -121,13 +121,9 @@ class SpecificationCompiler:
         system = self._system_adapter(spec)
         modules = _Collection(self._module_adapter(m) for m in spec.modules)
         contexts = {}
-        core = {
-            "sistema": system,
-            "modulos": modules,
-            "nome_projeto": spec.technical_name,
-        }
+        core = {"sistema": system, "modulos": modules, "nome_projeto": spec.technical_name}
         for artifact in self.plan.artifacts():
-            if artifact.kind in {"core", "template", "docker", "package"}:
+            if artifact.kind in {"core", "template", "docker", "package", "audit"}:
                 contexts[artifact.path] = core
         for module in spec.modules:
             adapter = self._module_adapter(module)
@@ -146,10 +142,7 @@ class SpecificationCompiler:
                 if artifact.kind == "module":
                     contexts[artifact.path] = module_ctx
                 elif artifact.kind == "crud":
-                    entity = next(
-                        (i for i in adapter.entidades if i.classe_tecnica == artifact.entity),
-                        None,
-                    )
+                    entity = next((i for i in adapter.entidades if i.classe_tecnica == artifact.entity), None)
                     if entity is None:
                         raise RuntimeError(f"Entidade não encontrada no plano: {artifact.entity}")
                     contexts[artifact.path] = {**module_ctx, "entidade": entity}
@@ -168,10 +161,7 @@ class SpecificationCompiler:
             gerar_api_rest=spec.rest_api,
             gerar_docker=spec.docker,
             usar_auditoria=spec.audit,
-            modulos=_Collection(
-                SimpleNamespace(nome=m.name, nome_tecnico=m.technical_name)
-                for m in spec.modules
-            ),
+            modulos=_Collection(SimpleNamespace(nome=m.name, nome_tecnico=m.technical_name) for m in spec.modules),
         )
 
     def _module_adapter(self, module):

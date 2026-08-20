@@ -1,0 +1,31 @@
+from .models import RegistroAuditoria
+
+
+def registrar_auditoria(*, request, acao, status_code=None, app="", modelo="", objeto_id="", detalhes=None):
+    """Persiste um evento de auditoria sem interromper a operação principal."""
+    usuario = request.user if getattr(request, "user", None) and request.user.is_authenticated else None
+    RegistroAuditoria.objects.create(
+        usuario=usuario,
+        acao=acao,
+        metodo=request.method[:10],
+        caminho=request.path[:500],
+        status_code=status_code,
+        app=app,
+        modelo=modelo,
+        objeto_id=str(objeto_id or "")[:100],
+        ip=(request.META.get("REMOTE_ADDR") or "") or None,
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        detalhes=detalhes or {},
+    )
+
+
+def registrar_evento_request(request, response):
+    """Registra a requisição HTTP após sua conclusão."""
+    if request.path.startswith("/static/") or request.path.startswith("/media/"):
+        return
+    registrar_auditoria(
+        request=request,
+        acao="request",
+        status_code=getattr(response, "status_code", None),
+        detalhes={"content_type": response.get("Content-Type", "")},
+    )

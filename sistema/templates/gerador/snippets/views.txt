@@ -20,7 +20,7 @@ class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, PermissionRequir
         query = self.request.GET.get("q", "").strip()
         if query:
             filtros = Q()
-            {% for campo in entidade.campos.all %}{% if campo.tipo in 'CharField TextField EmailField URLField' %}filtros |= Q({{ campo.nome_tecnico }}__icontains=query)
+            {% for campo in entidade.campos.all %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}filtros |= Q({{ campo.nome_tecnico }}__icontains=query)
             {% endif %}{% endfor %}
             queryset = queryset.filter(filtros)
         return queryset
@@ -38,6 +38,10 @@ class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, PermissionRequir
         context["titulo_pagina"] = "{{ entidade.nome|title }}"
         context["termo_busca"] = self.request.GET.get("q", "")
         context["page_size"] = self.get_paginate_by(self.get_queryset())
+        context["pode_criar"] = self.request.user.has_perm("{{ app_name }}.add_{{ entidade.nome_tecnico }}")
+        context["pode_visualizar"] = self.request.user.has_perm("{{ app_name }}.view_{{ entidade.nome_tecnico }}")
+        context["pode_editar"] = self.request.user.has_perm("{{ app_name }}.change_{{ entidade.nome_tecnico }}")
+        context["pode_excluir"] = self.request.user.has_perm("{{ app_name }}.delete_{{ entidade.nome_tecnico }}")
         return context
 
 

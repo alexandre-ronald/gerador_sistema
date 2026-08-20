@@ -2,11 +2,12 @@ import os
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 from .models import Sistema, Modulo, Entidade
+from .runtime_validation import validate_generated_runtime
+
 
 class GeradorService:
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.get(pk=sistema_id)
-        # Nome do projeto limpo (ex: "Meu Sistema" -> "meu_sistema")
         self.nome_projeto = slugify(self.sistema.nome).replace('-', '_')
         self.diretorio_base = self.sistema.caminho_geracao
         self.logs = []
@@ -26,7 +27,15 @@ class GeradorService:
 
             self._gerar_templates_globais()
 
-            print(self.sistema.gerar_docker)
+            self.log("🔎 Iniciando validação do projeto gerado...")
+            resultado_validacao = validate_generated_runtime(self.diretorio_base)
+            for mensagem in resultado_validacao.get("messages", []):
+                self.log(mensagem)
+            for aviso in resultado_validacao.get("warnings", []):
+                self.log(f"⚠️ {aviso}")
+            self.log(
+                f"✅ Validação concluída: {resultado_validacao.get('checked', 0)} itens verificados"
+            )
 
             if self.sistema.gerar_docker:
                 self._gerar_docker()
@@ -35,7 +44,7 @@ class GeradorService:
             return self.logs
         except Exception as e:
             self.log(f"❌ ERRO FATAL: {str(e)}")
-            raise e
+            raise
 
     def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
         caminho_full = os.path.join(self.diretorio_base, caminho_relativo)
@@ -101,11 +110,12 @@ class GeradorService:
         self._escrever_arquivo('templates/registration/login.html', 'gerador/snippets/login_html.txt', ctx)
 
         for entidade in entidades:
-            ent_ctx = {**ctx, 'entidade': entidade, 'entidade_nome_lower': entidade.nome.lower()}
+            ent_slug = slugify(entidade.nome).replace('-', '_')
+            ent_ctx = {**ctx, 'entidade': entidade, 'entidade_nome_lower': ent_slug}
             base_t = f"{app_name}/templates/{app_name}"
-            self._escrever_arquivo(f"{base_t}/{entidade.nome.lower()}_list.html", 'gerador/snippets/html_list.txt', ent_ctx)
-            self._escrever_arquivo(f"{base_t}/{entidade.nome.lower()}_form.html", 'gerador/snippets/html_form.txt', ent_ctx)
-            self._escrever_arquivo(f"{base_t}/{entidade.nome.lower()}_confirm_delete.html", 'gerador/snippets/html_delete.txt', ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{ent_slug}_list.html", 'gerador/snippets/html_list.txt', ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{ent_slug}_form.html", 'gerador/snippets/html_form.txt', ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{ent_slug}_confirm_delete.html", 'gerador/snippets/html_delete.txt', ent_ctx)
 
     def _gerar_core(self):
         ctx = {'sistema': self.sistema, 'nome_projeto': self.nome_projeto}
@@ -124,8 +134,5 @@ class GeradorService:
             'sistema': self.sistema,
             'modulos': modulos,
         }
-        # base_html.txt is the single canonical generator template. Keeping one
-        # source avoids divergent generated contracts between base_html.txt and
-        # base_html_v2.txt.
         self._escrever_arquivo('templates/base.html', 'gerador/snippets/base_html.txt', ctx)
         self._escrever_arquivo('templates/index.html', 'gerador/snippets/index_html.txt', ctx)

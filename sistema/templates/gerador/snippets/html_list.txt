@@ -6,7 +6,7 @@
         <h3 class="fw-bold mb-1">Gerenciamento de {{ entidade.nome|title }}</h3>
         <span class="text-secondary small">{{ entidade.descricao }}</span>
     </div>
-    {% templatetag openblock %} if perms.{{ app_name }}.add_{{ entidade.nome_tecnico }} {% templatetag closeblock %}
+    {% templatetag openblock %} if pode_criar {% templatetag closeblock %}
     <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_create' {% templatetag closeblock %}" class="btn btn-primary px-4 shadow-sm">
         <i class="bi bi-plus-lg me-1"></i> Novo Registro
     </a>
@@ -26,7 +26,7 @@
                 <select name="page_size" class="form-select" aria-label="Registros por página">
                     <option value="10" {% templatetag openblock %} if page_size == 10 {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>10 por página</option>
                     <option value="20" {% templatetag openblock %} if page_size == 20 {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>20 por página</option>
-                    <option value="50" {% templatetag openblock %} if page_size == 50 {% templatetag closeblock %}selected{% templatetag openblock %}>50 por página</option>
+                    <option value="50" {% templatetag openblock %} if page_size == 50 {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>50 por página</option>
                     <option value="100" {% templatetag openblock %} if page_size == 100 {% templatetag closeblock %}selected{% templatetag openblock %}>100 por página</option>
                 </select>
             </div>
@@ -70,13 +70,13 @@
                         <td class="px-4">{% templatetag openvariable %} item.{{ campo.nome_tecnico }} {% templatetag closevariable %}</td>
                         {% endfor %}
                         <td class="text-end px-4 text-nowrap">
-                            {% templatetag openblock %} if perms.{{ app_name }}.view_{{ entidade.nome_tecnico }} {% templatetag closeblock %}
+                            {% templatetag openblock %} if pode_visualizar {% templatetag closeblock %}
                             <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_detail' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-info me-1" title="Detalhes"><i class="bi bi-eye"></i></a>
                             {% templatetag openblock %} endif {% templatetag closeblock %}
-                            {% templatetag openblock %} if perms.{{ app_name }}.change_{{ entidade.nome_tecnico }} {% templatetag closeblock %}
+                            {% templatetag openblock %} if pode_editar {% templatetag closeblock %}
                             <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_update' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-primary me-1" title="Editar"><i class="bi bi-pencil"></i></a>
                             {% templatetag openblock %} endif {% templatetag closeblock %}
-                            {% templatetag openblock %} if perms.{{ app_name }}.delete_{{ entidade.nome_tecnico }} {% templatetag closeblock %}
+                            {% templatetag openblock %} if pode_excluir {% templatetag closeblock %}
                             <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.nome_tecnico }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-light btn-sm text-danger" title="Excluir"><i class="bi bi-trash"></i></a>
                             {% templatetag openblock %} endif {% templatetag closeblock %}
                         </td>

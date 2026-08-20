@@ -41,6 +41,7 @@ class CompilationPlan:
                 GenerationArtifact("auditoria/models.py", "audit"),
                 GenerationArtifact("auditoria/services.py", "audit"),
                 GenerationArtifact("auditoria/middleware.py", "audit"),
+                GenerationArtifact("auditoria/admin.py", "audit"),
                 GenerationArtifact("auditoria/migrations/__init__.py", "audit"),
             ])
 

@@ -1,5 +1,6 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -7,22 +8,44 @@ from .forms import {% for entidade in entidades %}{{ entidade.classe_tecnica }}F
 from .models import {% for entidade in entidades %}{{ entidade.classe_tecnica }}{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
-class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, ListView):
+class {{ entidade.classe_tecnica }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.classe_tecnica }}
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_list.html"
     context_object_name = "objetos"
+    permission_required = "{{ app_name }}.view_{{ entidade.nome_tecnico }}"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            filtros = Q()
+            {% for campo in entidade.campos.all %}{% if campo.tipo in 'CharField TextField EmailField URLField' %}filtros |= Q({{ campo.nome_tecnico }}__icontains=query)
+            {% endif %}{% endfor %}
+            queryset = queryset.filter(filtros)
+        return queryset
+
+    def get_paginate_by(self, queryset):
+        try:
+            page_size = int(self.request.GET.get("page_size", self.paginate_by))
+        except (TypeError, ValueError):
+            page_size = self.paginate_by
+        return max(5, min(page_size, 100))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["total_registros"] = self.get_queryset().count()
         context["titulo_pagina"] = "{{ entidade.nome|title }}"
+        context["termo_busca"] = self.request.GET.get("q", "")
+        context["page_size"] = self.get_paginate_by(self.get_queryset())
         return context
 
 
-class {{ entidade.classe_tecnica }}DetailView(LoginRequiredMixin, DetailView):
+class {{ entidade.classe_tecnica }}DetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = {{ entidade.classe_tecnica }}
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_detail.html"
     context_object_name = "objeto"
+    permission_required = "{{ app_name }}.view_{{ entidade.nome_tecnico }}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -30,32 +53,35 @@ class {{ entidade.classe_tecnica }}DetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class {{ entidade.classe_tecnica }}CreateView(LoginRequiredMixin, CreateView):
+class {{ entidade.classe_tecnica }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = {{ entidade.classe_tecnica }}
     form_class = {{ entidade.classe_tecnica }}Form
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_form.html"
     success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
+    permission_required = "{{ app_name }}.add_{{ entidade.nome_tecnico }}"
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} criado com sucesso!")
         return super().form_valid(form)
 
 
-class {{ entidade.classe_tecnica }}UpdateView(LoginRequiredMixin, UpdateView):
+class {{ entidade.classe_tecnica }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = {{ entidade.classe_tecnica }}
     form_class = {{ entidade.classe_tecnica }}Form
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_form.html"
     success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
+    permission_required = "{{ app_name }}.change_{{ entidade.nome_tecnico }}"
 
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome|title }} atualizado!")
         return super().form_valid(form)
 
 
-class {{ entidade.classe_tecnica }}DeleteView(LoginRequiredMixin, DeleteView):
+class {{ entidade.classe_tecnica }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = {{ entidade.classe_tecnica }}
     template_name = "{{ app_name }}/{{ entidade.nome_tecnico }}_confirm_delete.html"
     success_url = reverse_lazy("{{ app_name }}:{{ entidade.nome_tecnico }}_list")
+    permission_required = "{{ app_name }}.delete_{{ entidade.nome_tecnico }}"
 
     def delete(self, request, *args, **kwargs):
         messages.warning(self.request, "{{ entidade.nome|title }} removido.")

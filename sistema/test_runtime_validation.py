@@ -10,8 +10,10 @@ from sistema.runtime_validation import validate_generated_runtime
 BASE_TEMPLATE = """<!doctype html>
 <html>
 <body>
+    {% if request.resolver_match.app_name %}
     {% if perms.cadastro.view_pessoa %}
     <a href=\"{% url 'cadastro:pessoa_list' %}\">Pessoa</a>
+    {% endif %}
     {% endif %}
     <a href=\"{% url 'login' %}\">Entrar</a>
     <form action=\"{% url 'logout' %}\" method=\"post\">{% csrf_token %}</form>

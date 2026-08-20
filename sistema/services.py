@@ -26,11 +26,11 @@ class GeradorService:
 
             self._gerar_templates_globais()
 
-            print (self.sistema.gerar_docker)
+            print(self.sistema.gerar_docker)
 
             if self.sistema.gerar_docker:
                 self._gerar_docker()
-            
+
             self.log("✅ Geração concluída com sucesso!")
             return self.logs
         except Exception as e:
@@ -40,9 +40,9 @@ class GeradorService:
     def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
         caminho_full = os.path.join(self.diretorio_base, caminho_relativo)
         os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
-        
+
         conteudo = render_to_string(template_name, contexto)
-        
+
         with open(caminho_full, 'w', encoding='utf-8') as f:
             f.write(conteudo)
         self.log(f"Arquivo criado: {caminho_relativo}")
@@ -53,8 +53,7 @@ class GeradorService:
             'sistema': self.sistema,
             'nome_projeto': self.nome_projeto
         }
-        
-        # Renderiza e escreve os manifestos Docker na raiz do projeto gerado
+
         self._escrever_arquivo('Dockerfile', 'gerador/snippets/dockerfile.txt', ctx)
         self._escrever_arquivo('docker-compose.yml', 'gerador/snippets/docker_compose.txt', ctx)
         self._escrever_arquivo('.dockerignore', 'gerador/snippets/dockerignore.txt', ctx)
@@ -62,22 +61,19 @@ class GeradorService:
     def _gerar_modulo(self, modulo):
         app_name = slugify(modulo.nome).replace('-', '_')
         entidades = modulo.entidades.all()
-        
+
         imports_por_app = {}
 
         for entidade in entidades:
             for campo in entidade.campos.all():
-                # 1. Identifica se é relacional
                 tipo_str = str(campo.tipo).strip()
                 es_relacional = tipo_str in ['ForeignKey', 'OneToOneField', 'ManyToManyField']
                 setattr(campo, 'eh_relacional', es_relacional)
 
                 if es_relacional and campo.entidade_relacionada:
-                    # 2. Prepara o nome da classe (ex: Organograma)
                     nome_classe = str(campo.entidade_relacionada.nome).replace(" ", "").title()
                     setattr(campo, 'classe_relacionada', nome_classe)
-                    
-                    # 3. Lógica de imports para o topo do arquivo
+
                     app_pai = slugify(campo.entidade_relacionada.modulo.nome).replace('-', '_')
                     if app_pai != app_name:
                         if app_pai not in imports_por_app:
@@ -94,7 +90,6 @@ class GeradorService:
             'nome_projeto': self.nome_projeto
         }
 
-        # Escrita dos arquivos padrão do app
         self._escrever_arquivo(f"{app_name}/__init__.py", 'gerador/snippets/init.txt', ctx)
         self._escrever_arquivo(f"{app_name}/models.py", 'gerador/snippets/models.txt', ctx)
         self._escrever_arquivo(f"{app_name}/migrations/__init__.py", 'gerador/snippets/init.txt', ctx)
@@ -105,7 +100,6 @@ class GeradorService:
         self._escrever_arquivo(f"{app_name}/apps.py", 'gerador/snippets/apps_config.txt', ctx)
         self._escrever_arquivo('templates/registration/login.html', 'gerador/snippets/login_html.txt', ctx)
 
-        # Templates do CRUD
         for entidade in entidades:
             ent_ctx = {**ctx, 'entidade': entidade, 'entidade_nome_lower': entidade.nome.lower()}
             base_t = f"{app_name}/templates/{app_name}"
@@ -122,6 +116,13 @@ class GeradorService:
         self._escrever_arquivo(f"{self.nome_projeto}/wsgi.py", 'gerador/snippets/wsgi.txt', ctx)
 
     def _gerar_templates_globais(self):
-        ctx = {'sistema': self.sistema}
-        self._escrever_arquivo('templates/base.html', 'gerador/snippets/base_html.txt', ctx)
+        modulos = list(self.sistema.modulos.prefetch_related('entidades'))
+        for modulo in modulos:
+            modulo.app_name = slugify(modulo.nome).replace('-', '_')
+
+        ctx = {
+            'sistema': self.sistema,
+            'modulos': modulos,
+        }
+        self._escrever_arquivo('templates/base.html', 'gerador/snippets/base_html_v2.txt', ctx)
         self._escrever_arquivo('templates/index.html', 'gerador/snippets/index_html.txt', ctx)

@@ -1,0 +1,20 @@
+from django.contrib import admin
+
+from .models import RegistroAuditoria
+
+
+@admin.register(RegistroAuditoria)
+class RegistroAuditoriaAdmin(admin.ModelAdmin):
+    list_display = ("criado_em", "usuario", "acao", "metodo", "caminho", "status_code")
+    list_filter = ("acao", "metodo", "status_code", "criado_em")
+    search_fields = ("caminho", "modelo", "objeto_id", "usuario__username", "ip")
+    readonly_fields = tuple(field.name for field in RegistroAuditoria._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

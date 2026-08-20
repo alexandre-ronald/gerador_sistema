@@ -124,5 +124,8 @@ class GeradorService:
             'sistema': self.sistema,
             'modulos': modulos,
         }
-        self._escrever_arquivo('templates/base.html', 'gerador/snippets/base_html_v2.txt', ctx)
+        # base_html.txt is the single canonical generator template. Keeping one
+        # source avoids divergent generated contracts between base_html.txt and
+        # base_html_v2.txt.
+        self._escrever_arquivo('templates/base.html', 'gerador/snippets/base_html.txt', ctx)
         self._escrever_arquivo('templates/index.html', 'gerador/snippets/index_html.txt', ctx)

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from django.test import TestCase
 
 from .compiler import SpecificationCompiler
@@ -71,7 +73,7 @@ class Gen0014NavigationTests(TestCase):
     def test_both_menu_modes_remain_supported_by_specification(self):
         lateral = build_spec()
         self.assertEqual(lateral.menu, "lateral")
-        superior = SystemSpec(**{**lateral.to_dict(), "menu": "superior"})
+        superior = replace(lateral, menu="superior")
         compiled = SpecificationCompiler(superior).compile()
         base = next(i.content for i in compiled if i.path == "templates/base.html")
         self.assertIn("navbar-brand", base)

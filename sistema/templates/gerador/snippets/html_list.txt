@@ -24,9 +24,10 @@
             </div>
             <div class="col-sm-auto">
                 <select name="page_size" class="form-select" aria-label="Registros por página">
-                    {% templatetag openblock %} for size in '10,20,50,100'.split ',' {% templatetag closeblock %}
-                    <option value="{% templatetag openvariable %} size {% templatetag closevariable %}" {% templatetag openblock %} if page_size|stringformat:'s' == size {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>{% templatetag openvariable %} size {% templatetag closevariable %} por página</option>
-                    {% templatetag openblock %} endfor {% templatetag closeblock %}
+                    <option value="10" {% templatetag openblock %} if page_size == 10 {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>10 por página</option>
+                    <option value="20" {% templatetag openblock %} if page_size == 20 {% templatetag closeblock %}selected{% templatetag openblock %} endif {% templatetag closeblock %}>20 por página</option>
+                    <option value="50" {% templatetag openblock %} if page_size == 50 {% templatetag closeblock %}selected{% templatetag openblock %}>50 por página</option>
+                    <option value="100" {% templatetag openblock %} if page_size == 100 {% templatetag closeblock %}selected{% templatetag openblock %}>100 por página</option>
                 </select>
             </div>
             <div class="col-sm-auto">

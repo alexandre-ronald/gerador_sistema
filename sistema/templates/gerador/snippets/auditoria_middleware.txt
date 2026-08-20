@@ -1,0 +1,17 @@
+from .services import registrar_evento_request
+
+
+class AuditoriaMiddleware:
+    """Registra requisições HTTP do sistema gerado."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            registrar_evento_request(request, response)
+        except Exception:
+            # Auditoria não pode derrubar a aplicação auditada.
+            pass
+        return response

@@ -1,9 +1,9 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-title Instalador do Sistema - Sistema de Custos Hospitalares
+title Instalador do Sistema
 
 echo ====================================================================
-echo   Configurando ambiente local para: Sistema de Custos Hospitalares
+echo   Configurando ambiente local para o sistema gerado
 echo ====================================================================
 echo.
 
@@ -15,39 +15,54 @@ if %errorlevel% neq 0 (
     pause & exit /b %errorlevel%
 )
 
-:: 2. Ativar venv e instalar dependencias
+:: 2. Ativar venv e instalar as dependencias declaradas pelo gerador
 echo [*] Ativando ambiente virtual...
- Salvador:
-call .venv\Scripts\activate
-
-echo [*] Atualizando o gerenciador de pacotes (pip)...
-python -m pip install --upgrade pip
-
-echo [*] Instalando dependencias do framework...
-pip install django django-crispy-forms crispy-bootstrap5 pillow
+call .venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao instalar dependencias do Django.
+    echo [ERRO] Falha ao ativar o ambiente virtual.
     pause & exit /b %errorlevel%
 )
 
-:: 3. Rodar as migrações do banco gerado
+echo [*] Atualizando o gerenciador de pacotes (pip)...
+python -m pip install --upgrade pip
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao atualizar o pip.
+    pause & exit /b %errorlevel%
+)
+
+if not exist requirements.txt (
+    echo [ERRO] requirements.txt nao encontrado.
+    pause & exit /b 1
+)
+
+echo [*] Instalando dependencias do projeto...
+python -m pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao instalar as dependencias do projeto.
+    pause & exit /b %errorlevel%
+)
+
+:: 3. Rodar as migracoes do banco gerado
 echo [*] Configurando banco de dados inicial (Migrate)...
 python manage.py makemigrations
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao gerar as migrations.
+    pause & exit /b %errorlevel%
+)
 python manage.py migrate
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao criar as tabelas no Banco de Dados.
     pause & exit /b %errorlevel%
 )
 
-:: 4. Prompt para criar o admin do usuário final
+:: 4. Prompt para criar o admin do usuario final
 echo.
 echo ====================================================================
 echo   CRIE O SEU USUARIO ADMINISTRADOR DE ACESSO
 echo ====================================================================
 python manage.py createsuperuser
-echo.
 
-:: 5. Iniciar a aplicação
+echo.
 echo ====================================================================
 echo   Tudo pronto! Seu sistema foi configurado localmente.
 echo   O servidor sera iniciado em: http://127.0.0.1:8000/

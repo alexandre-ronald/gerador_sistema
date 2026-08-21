@@ -3,18 +3,16 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q
-from .models import {% for entidade in entidades %}{{ entidade.nome|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
-from .forms import {% for entidade in entidades %}{{ entidade.nome|title }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+from .forms import {% for entidade in entidades %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
-# --- Views para {{ entidade.nome|title }} ---
-
-class {{ entidade.nome|title }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
-    model = {{ entidade.nome|title }}
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_list.html'
+class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = {{ entidade.classe_nome }}
+    template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_list.html'
     context_object_name = 'objetos'
     paginate_by = 10
-    permission_required = '{{ app_name }}.view_{{ entidade.nome|lower }}'
+    permission_required = '{{ app_name }}.view_{{ entidade.codigo_nome }}'
     raise_exception = True
 
     def get_queryset(self):
@@ -22,57 +20,55 @@ class {{ entidade.nome|title }}ListView(LoginRequiredMixin, PermissionRequiredMi
         query = self.request.GET.get('q', '').strip()
         if query:
             search_filter = Q()
-            {% for campo in entidade.campos.all %}
-            {% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
-            search_filter |= Q({{ campo.nome|lower }}__icontains=query)
-            {% endif %}
-            {% endfor %}
+{% for campo in entidade.campos.all %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
+            search_filter |= Q({{ campo.codigo_nome }}__icontains=query)
+{% endif %}{% endfor %}
             queryset = queryset.filter(search_filter)
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['total_registros'] = self.get_queryset().count()
-        context['titulo_pagina'] = "{{ entidade.nome|title }}s"
+        context['titulo_pagina'] = "{{ entidade.nome }}"
         context['search_query'] = self.request.GET.get('q', '').strip()
         return context
 
 
-class {{ entidade.nome|title }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
-    model = {{ entidade.nome|title }}
-    form_class = {{ entidade.nome|title }}Form
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
-    permission_required = '{{ app_name }}.add_{{ entidade.nome|lower }}'
+class {{ entidade.classe_nome }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+    model = {{ entidade.classe_nome }}
+    form_class = {{ entidade.classe_nome }}Form
+    template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_form.html'
+    success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
+    permission_required = '{{ app_name }}.add_{{ entidade.codigo_nome }}'
     raise_exception = True
 
     def form_valid(self, form):
-        messages.success(self.request, "{{ entidade.nome|title }} criado com sucesso!")
+        messages.success(self.request, "{{ entidade.nome }} criado com sucesso!")
         return super().form_valid(form)
 
 
-class {{ entidade.nome|title }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
-    model = {{ entidade.nome|title }}
-    form_class = {{ entidade.nome|title }}Form
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_form.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
-    permission_required = '{{ app_name }}.change_{{ entidade.nome|lower }}'
+class {{ entidade.classe_nome }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    model = {{ entidade.classe_nome }}
+    form_class = {{ entidade.classe_nome }}Form
+    template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_form.html'
+    success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
+    permission_required = '{{ app_name }}.change_{{ entidade.codigo_nome }}'
     raise_exception = True
 
     def form_valid(self, form):
-        messages.success(self.request, "{{ entidade.nome|title }} atualizado!")
+        messages.success(self.request, "{{ entidade.nome }} atualizado!")
         return super().form_valid(form)
 
 
-class {{ entidade.nome|title }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
-    model = {{ entidade.nome|title }}
-    template_name = '{{ app_name }}/{{ entidade.nome|lower }}_confirm_delete.html'
-    success_url = reverse_lazy('{{ app_name }}:{{ entidade.nome|lower }}_list')
-    permission_required = '{{ app_name }}.delete_{{ entidade.nome|lower }}'
+class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    model = {{ entidade.classe_nome }}
+    template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_confirm_delete.html'
+    success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
+    permission_required = '{{ app_name }}.delete_{{ entidade.codigo_nome }}'
     raise_exception = True
 
     def delete(self, request, *args, **kwargs):
-        messages.warning(self.request, "{{ entidade.nome|title }} removido.")
+        messages.warning(self.request, "{{ entidade.nome }} removido.")
         return super().delete(request, *args, **kwargs)
 
 {% endfor %}

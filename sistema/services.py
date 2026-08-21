@@ -10,6 +10,13 @@ from .runtime_validation import validate_generated_runtime
 
 
 class GeradorService:
+    ALLOWED_FIELD_TYPES = {
+        "CharField", "TextField", "IntegerField", "FloatField", "DecimalField",
+        "BooleanField", "DateField", "DateTimeField", "TimeField", "EmailField",
+        "URLField", "FileField", "ImageField", "ForeignKey", "ManyToManyField",
+        "OneToOneField",
+    }
+
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.get(pk=sistema_id)
         self.nome_projeto = self._python_identifier(self.sistema.nome, fallback="projeto")
@@ -43,7 +50,16 @@ class GeradorService:
 
     @staticmethod
     def _is_relation(campo):
-        return str(campo.tipo).strip() in {"ForeignKey", "OneToOneField", "ManyToManyField"}
+        return str(campo.tipo_python).strip() in {"ForeignKey", "OneToOneField", "ManyToManyField"}
+
+    @classmethod
+    def _field_type(cls, campo):
+        tipo = str(campo.tipo or "").strip()
+        if tipo not in cls.ALLOWED_FIELD_TYPES:
+            raise ValueError(
+                f"Tipo de campo inválido para {campo.entidade.nome}.{campo.nome}: {tipo!r}"
+            )
+        return tipo
 
     @staticmethod
     def _python_literal(value):
@@ -88,6 +104,7 @@ class GeradorService:
         entidade.verbose_plural_python = self._python_literal(entidade.nome_plural or entidade.nome)
         for campo in entidade.campos.all():
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
+            campo.tipo_python = self._field_type(campo)
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.verbose_python = self._python_literal(campo.verbose_nome)
             campo.default_python = self._python_default(campo.default_value)
@@ -95,6 +112,8 @@ class GeradorService:
             campo.upload_to_python = self._python_literal(campo.upload_to) if campo.upload_to else repr("uploads/")
             campo.on_delete_python = campo.on_delete if campo.on_delete in {"models.CASCADE", "models.PROTECT", "models.SET_NULL", "models.RESTRICT"} else "models.CASCADE"
             campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if self._is_relation(campo) and campo.entidade_relacionada else ""
+            if self._is_relation(campo) and not campo.entidade_relacionada:
+                raise ValueError(f"Campo relacional sem entidade relacionada: {entidade.nome}.{campo.nome}")
 
     def _preparar_modulos(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))

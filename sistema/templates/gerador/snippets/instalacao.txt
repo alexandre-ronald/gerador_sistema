@@ -1,9 +1,10 @@
 @echo off
-SETLOCAL EnableDelayedExpansion
-title Instalador - {{ sistema.nome }}
+SETLOCAL EnableExtensions
+chcp 65001 >nul
+title Instalador - {{ sistema.nome|cut:"\r"|cut:"\n" }}
 
 echo ====================================================================
-echo   Instalador do sistema: {{ sistema.nome }}
+echo   Instalador do sistema: {{ sistema.nome|cut:"\r"|cut:"\n" }}
 echo ====================================================================
 echo.
 
@@ -36,6 +37,12 @@ if %errorlevel% neq 0 (
     pause & exit /b %errorlevel%
 )
 
+python manage.py check
+if %errorlevel% neq 0 (
+    echo [ERRO] O projeto gerado falhou no Django system check.
+    pause & exit /b %errorlevel%
+)
+
 python manage.py makemigrations
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao gerar migrations.
@@ -49,4 +56,8 @@ if %errorlevel% neq 0 (
 )
 
 python manage.py createsuperuser
+if %errorlevel% neq 0 (
+    echo [AVISO] Criacao do superusuario foi cancelada ou falhou.
+)
+
 python manage.py runserver

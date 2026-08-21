@@ -2,6 +2,23 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carrega configuracao local opcional de .env sem depender de python-dotenv.
+LOCAL_ENV_FILE = BASE_DIR / '.env'
+if LOCAL_ENV_FILE.exists():
+    try:
+        for raw_line in LOCAL_ENV_FILE.read_text(encoding='utf-8').splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except OSError:
+        pass
+
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-gen-{{ sistema.nome|slugify }}')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()]

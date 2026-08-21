@@ -3,6 +3,7 @@ import keyword
 import os
 import re
 import shutil
+from pathlib import Path
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 from .models import Sistema, Modulo, Entidade
@@ -22,7 +23,7 @@ class GeradorService:
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.get(pk=sistema_id)
         self.nome_projeto = self._python_identifier(self.sistema.nome, fallback="projeto")
-        self.diretorio_base = self.sistema.caminho_geracao
+        self.diretorio_base = Path(self.sistema.caminho_geracao).resolve()
         self.logs = []
 
     @staticmethod
@@ -75,9 +76,9 @@ class GeradorService:
 
     def gerar_projeto_completo(self):
         try:
-            if os.path.isdir(self.diretorio_base):
+            if self.diretorio_base.is_dir():
                 shutil.rmtree(self.diretorio_base)
-            os.makedirs(self.diretorio_base, exist_ok=True)
+            self.diretorio_base.mkdir(parents=True, exist_ok=True)
             self.log("🧹 Diretório de geração limpo antes da compilação")
             self._gerar_core()
             for modulo in self.sistema.modulos.all():
@@ -102,11 +103,15 @@ class GeradorService:
             raise
 
     def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
-        caminho_full = os.path.join(self.diretorio_base, caminho_relativo)
-        os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
+        caminho_full = self.diretorio_base / Path(caminho_relativo)
+        caminho_full.parent.mkdir(parents=True, exist_ok=True)
         with open(caminho_full, "w", encoding="utf-8") as f:
             f.write(render_to_string(template_name, contexto))
         self.log(f"Arquivo criado: {caminho_relativo}")
+
+    @staticmethod
+    def _normalizar_caminho_geracao(caminho):
+        return Path(caminho).resolve()
 
     def _gerar_docker(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
@@ -237,7 +242,7 @@ class GeradorService:
         ]:
             contexto = {**ctx, "banco_dados": self.sistema.banco_dados}
             self._escrever_arquivo(path, f"gerador/snippets/{template}", contexto)
-        os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True)
+        (self.diretorio_base / "static").mkdir(parents=True, exist_ok=True)
         self.log("Diretório criado: static/")
 
     def _gerar_templates_globais(self):
@@ -247,8 +252,9 @@ class GeradorService:
         self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)
 
     def _validar_htmls_gerados(self):
+        root = self._normalizar_caminho_geracao(self.diretorio_base)
         htmls = sorted(
-            path for path in self.diretorio_base.rglob("*.html")
+            path for path in root.rglob("*.html")
             if "templates" in path.parts and not any(part in {".venv", "__pycache__"} for part in path.parts)
         )
         if not htmls:

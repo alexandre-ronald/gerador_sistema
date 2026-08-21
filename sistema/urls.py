@@ -13,7 +13,6 @@ urlpatterns = [
     path("api/sistemas/<int:sistema_id>/", views.atualizar_sistema, name="atualizar_sistema"),
 
     path('gerar/<int:pk>/', views.gerar_sistema_view, name='gerar_sistema'),
-    path('sistema/gerar/<int:sistema_id>/', views.gerar_e_zipar_sistema, name='gerar_sistema1'),
 
     # Pipeline oficial: o instalador é materializado pelo GeradorService.
     path('gerar/<int:pk>/processar/', processar_geracao_ajax_novo, name='processar_geracao_ajax'),

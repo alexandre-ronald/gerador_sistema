@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.test import SimpleTestCase
@@ -73,13 +74,9 @@ class GeradorServiceRelationTests(SimpleTestCase):
         service = object.__new__(GeradorService)
         service.sistema = SimpleNamespace(
             modulos=SimpleNamespace(
-                prefetch_related=lambda *_args: SimpleNamespace(__iter__=lambda self: iter([modulo]))
+                prefetch_related=lambda *_args: [modulo]
             )
         )
-
-        # Use a concrete list-backed relation to keep this test independent
-        # from Django ORM behavior while reproducing the context lifecycle.
-        service.sistema.modulos.prefetch_related = lambda *_args: [modulo]
         modulos = service._preparar_modulos()
 
         self.assertIs(modulos[0].entidades_compiladas[0], entidade)
@@ -112,3 +109,29 @@ class GeradorServiceRelationTests(SimpleTestCase):
             service._preparar_entidade(entidade)
 
         self.assertIn("Tipo de campo inválido", str(exc.exception))
+
+
+class GeradorServiceArtifactRegressionTests(SimpleTestCase):
+    def _snippet(self, name):
+        return (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "gerador"
+            / "snippets"
+            / name
+        ).read_text(encoding="utf-8")
+
+    def test_html_list_uses_compiled_fields(self):
+        content = self._snippet("html_list.txt")
+        self.assertIn("entidade.campos_compilados", content)
+        self.assertNotIn("entidade.campos.all", content)
+
+    def test_generated_installer_has_no_invalid_command_and_installs_requirements(self):
+        content = self._snippet("instalacao.txt")
+        self.assertNotIn("Salvador:", content)
+        self.assertIn("python -m pip install -r requirements.txt", content)
+        self.assertIn("call .venv\\Scripts\\activate.bat", content)
+
+    def test_postgresql_requirements_include_psycopg_binary(self):
+        content = self._snippet("requirements.txt")
+        self.assertIn("psycopg[binary]>=3.2,<4", content)

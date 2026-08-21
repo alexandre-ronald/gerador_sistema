@@ -1,3 +1,4 @@
+import ast
 import os
 import re
 import shutil
@@ -19,30 +20,34 @@ class GeradorService:
         value = slugify(str(value or ""), allow_unicode=False).replace("-", "_")
         value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
         value = re.sub(r"_+", "_", value).strip("_") or fallback
-        if value[0].isdigit():
-            value = f"_{value}"
+        if value[0].isdigit(): value = f"_{value}"
         return value
 
     @staticmethod
     def _class_name(value, fallback="Modelo"):
         words = re.findall(r"[A-Za-z0-9]+", str(value or ""))
         name = "".join(word[:1].upper() + word[1:] for word in words) or fallback
-        if name[0].isdigit():
-            name = f"Modelo{name}"
-        return name
+        return f"Modelo{name}" if name[0].isdigit() else name
 
-    def log(self, mensagem):
-        self.logs.append(mensagem)
+    @staticmethod
+    def _python_default(value):
+        value = str(value or "").strip()
+        if not value: return ""
+        try:
+            ast.literal_eval(value)
+            return value
+        except (ValueError, SyntaxError):
+            return repr(value)
+
+    def log(self, mensagem): self.logs.append(mensagem)
 
     def gerar_projeto_completo(self):
         try:
-            if os.path.isdir(self.diretorio_base):
-                shutil.rmtree(self.diretorio_base)
+            if os.path.isdir(self.diretorio_base): shutil.rmtree(self.diretorio_base)
             os.makedirs(self.diretorio_base, exist_ok=True)
             self.log("🧹 Diretório de geração limpo antes da compilação")
             self._gerar_core()
-            for modulo in self.sistema.modulos.all():
-                self._gerar_modulo(modulo)
+            for modulo in self.sistema.modulos.all(): self._gerar_modulo(modulo)
             self._gerar_templates_globais()
             self.log("🔎 Iniciando validação do projeto gerado...")
             resultado_validacao = validate_generated_runtime(self.diretorio_base)
@@ -59,8 +64,8 @@ class GeradorService:
     def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
         caminho_full = os.path.join(self.diretorio_base, caminho_relativo)
         os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
-        conteudo = render_to_string(template_name, contexto)
-        with open(caminho_full, "w", encoding="utf-8") as f: f.write(conteudo)
+        with open(caminho_full, "w", encoding="utf-8") as f:
+            f.write(render_to_string(template_name, contexto))
         self.log(f"Arquivo criado: {caminho_relativo}")
 
     def _gerar_docker(self):
@@ -76,8 +81,9 @@ class GeradorService:
         for campo in entidade.campos.all():
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
-            tipo_str = str(campo.tipo).strip()
-            campo.eh_relacional = tipo_str in ["ForeignKey", "OneToOneField", "ManyToManyField"]
+            campo.default_python = self._python_default(campo.default_value)
+            tipo = str(campo.tipo).strip()
+            campo.eh_relacional = tipo in ["ForeignKey", "OneToOneField", "ManyToManyField"]
             campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if campo.eh_relacional and campo.entidade_relacionada else ""
         return entidade
 
@@ -94,14 +100,12 @@ class GeradorService:
                     if app_pai != app_name: imports_por_app.setdefault(app_pai, set()).add(campo.classe_relacionada)
         ctx = {"sistema": self.sistema, "app_name": app_name, "entidades": entidades,
                "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()}, "nome_projeto": self.nome_projeto}
-        self._escrever_arquivo(f"{app_name}/__init__.py", "gerador/snippets/init.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/models.py", "gerador/snippets/models.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/migrations/__init__.py", "gerador/snippets/init.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/forms.py", "gerador/snippets/forms_v2.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/views.py", "gerador/snippets/views.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/urls.py", "gerador/snippets/urls_app.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/admin.py", "gerador/snippets/admin.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/apps.py", "gerador/snippets/apps_config.txt", ctx)
+        for path, template in [
+            (f"{app_name}/__init__.py", "init.txt"), (f"{app_name}/models.py", "models.txt"),
+            (f"{app_name}/migrations/__init__.py", "init.txt"), (f"{app_name}/forms.py", "forms_v2.txt"),
+            (f"{app_name}/views.py", "views.txt"), (f"{app_name}/urls.py", "urls_app.txt"),
+            (f"{app_name}/admin.py", "admin.txt"), (f"{app_name}/apps.py", "apps_config.txt")]:
+            self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
         for entidade in entidades:
             ent_ctx = {**ctx, "entidade": entidade, "entidade_nome_lower": entidade.codigo_nome}
@@ -112,11 +116,10 @@ class GeradorService:
 
     def _gerar_core(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        self._escrever_arquivo("manage.py", "gerador/snippets/manage.txt", ctx)
-        self._escrever_arquivo(f"{self.nome_projeto}/__init__.py", "gerador/snippets/init.txt", ctx)
-        self._escrever_arquivo(f"{self.nome_projeto}/settings.py", "gerador/snippets/settings.txt", ctx)
-        self._escrever_arquivo(f"{self.nome_projeto}/urls.py", "gerador/snippets/urls_root.txt", ctx)
-        self._escrever_arquivo(f"{self.nome_projeto}/wsgi.py", "gerador/snippets/wsgi.txt", ctx)
+        for path, template in [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"),
+                               (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root.txt"),
+                               (f"{self.nome_projeto}/wsgi.py", "wsgi.txt")]:
+            self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_templates_globais(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))

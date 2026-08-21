@@ -31,16 +31,21 @@ class GeradorService:
         value = slugify(str(value or ""), allow_unicode=False).replace("-", "_")
         value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
         value = re.sub(r"_+", "_", value).strip("_") or fallback
-        if value[0].isdigit(): value = f"_{value}"
-        if keyword.iskeyword(value): value = f"{value}_"
+        if value[0].isdigit():
+            value = f"_{value}"
+        if keyword.iskeyword(value):
+            value = f"{value}_"
         return value
 
     @staticmethod
     def _class_name(value, fallback="Modelo"):
-        words = re.findall(r"[A-Za-z0-9]+", str(value or ""))
+        normalized = slugify(str(value or ""), allow_unicode=False).replace("-", " ")
+        words = re.findall(r"[A-Za-z0-9]+", normalized)
         name = "".join(word[:1].upper() + word[1:] for word in words) or fallback
-        if name[0].isdigit(): name = f"Modelo{name}"
-        if keyword.iskeyword(name): name = f"Modelo{name.title()}"
+        if name[0].isdigit():
+            name = f"Modelo{name}"
+        if keyword.iskeyword(name):
+            name = f"Modelo{name.title()}"
         return name
 
     @staticmethod
@@ -56,14 +61,15 @@ class GeradorService:
 
     @classmethod
     def _is_relation(cls, campo):
-        return str(campo.tipo or "").strip() in cls.RELATION_FIELD_TYPES
+        return str(getattr(campo, "tipo", "") or "").strip() in cls.RELATION_FIELD_TYPES
 
     @classmethod
     def _field_type(cls, campo):
-        tipo = str(campo.tipo or "").strip()
+        tipo = str(getattr(campo, "tipo", "") or "").strip()
         if tipo not in cls.ALLOWED_FIELD_TYPES:
+            entidade = getattr(getattr(campo, "entidade", None), "nome", "?")
             raise ValueError(
-                f"Tipo de campo inválido para {campo.entidade.nome}.{campo.nome}: {tipo!r}"
+                f"Tipo de campo inválido para {entidade}.{getattr(campo, 'nome', '?')}: {tipo!r}"
             )
         return tipo
 
@@ -160,6 +166,19 @@ class GeradorService:
                 self._preparar_entidade(entidade)
         return modulos
 
+    def _gerar_custom_user(self):
+        if not self.sistema.usar_custom_user:
+            return
+        for path, template in [
+            ("usuarios/__init__.py", "init.txt"),
+            ("usuarios/apps.py", "custom_user_apps.txt"),
+            ("usuarios/models.py", "custom_user_models.txt"),
+            ("usuarios/admin.py", "custom_user_admin.txt"),
+            ("usuarios/migrations/__init__.py", "init.txt"),
+        ]:
+            self._escrever_arquivo(path, f"gerador/snippets/{template}", {})
+        self.log("🔐 Modelo de usuário customizado materializado em usuarios/")
+
     def _gerar_modulo(self, modulo):
         app_name = self._python_identifier(modulo.nome, "app")
         modulo.app_name = app_name
@@ -242,6 +261,7 @@ class GeradorService:
         ]:
             contexto = {**ctx, "banco_dados": self.sistema.banco_dados}
             self._escrever_arquivo(path, f"gerador/snippets/{template}", contexto)
+        self._gerar_custom_user()
         (self.diretorio_base / "static").mkdir(parents=True, exist_ok=True)
         self.log("Diretório criado: static/")
 

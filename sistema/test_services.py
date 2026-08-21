@@ -135,3 +135,10 @@ class GeradorServiceArtifactRegressionTests(SimpleTestCase):
     def test_postgresql_requirements_include_psycopg_binary(self):
         content = self._snippet("requirements.txt")
         self.assertIn("psycopg[binary]>=3.2,<4", content)
+
+    def test_generation_path_is_normalized_before_rglob(self):
+        """The HTML validator must accept a string path and convert it to Path."""
+        normalized = GeradorService._normalizar_caminho_geracao("media/generated/1")
+
+        self.assertIsInstance(normalized, Path)
+        self.assertTrue(normalized.is_absolute())

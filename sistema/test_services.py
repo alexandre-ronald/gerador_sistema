@@ -98,6 +98,80 @@ class GeradorServiceRelationTests(SimpleTestCase):
             service._preparar_entidade(entidade)
         self.assertIn("Tipo de campo inválido", str(exc.exception))
 
+    def test_preparar_entidade_rejects_invalid_related_name(self):
+        entidade = SimpleNamespace(nome="Funcionario", nome_plural="Funcionários")
+        campo = SimpleNamespace(
+            nome="Departamento",
+            tipo="ForeignKey",
+            verbose_name="",
+            default_value="",
+            related_name_str="departamentos dos funcionarios",
+            upload_to="",
+            on_delete="models.CASCADE",
+            entidade_relacionada=SimpleNamespace(nome="Departamento"),
+            entidade=entidade,
+        )
+        entidade.campos = SimpleNamespace(all=lambda: [campo])
+
+        service = object.__new__(GeradorService)
+        with self.assertRaises(ValueError) as exc:
+            service._preparar_entidade(entidade)
+        self.assertIn("related_name inválido", str(exc.exception))
+
+    def test_preparar_entidade_accepts_related_name_plus(self):
+        entidade = SimpleNamespace(nome="Funcionario", nome_plural="Funcionários")
+        campo = SimpleNamespace(
+            nome="Departamento",
+            tipo="ForeignKey",
+            verbose_name="",
+            default_value="",
+            related_name_str="departamentos+",
+            upload_to="",
+            on_delete="models.CASCADE",
+            entidade_relacionada=SimpleNamespace(nome="Departamento"),
+            entidade=entidade,
+        )
+        entidade.campos = SimpleNamespace(all=lambda: [campo])
+
+        service = object.__new__(GeradorService)
+        service._preparar_entidade(entidade)
+        self.assertEqual(campo.related_name_python, "'departamentos+'")
+
+    def test_preparar_modulos_rejects_app_name_collision_after_normalization(self):
+        modulo_a = SimpleNamespace(nome="Gestão", entidades=SimpleNamespace(all=lambda: []))
+        modulo_b = SimpleNamespace(nome="Gestao", entidades=SimpleNamespace(all=lambda: []))
+        service = object.__new__(GeradorService)
+        service.sistema = SimpleNamespace(
+            modulos=SimpleNamespace(prefetch_related=lambda *_args: [modulo_a, modulo_b])
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            service._preparar_modulos()
+        self.assertIn("Colisão de nome de app", str(exc.exception))
+
+    def test_preparar_modulos_rejects_class_name_collision_after_normalization(self):
+        def entity(name):
+            return SimpleNamespace(
+                nome=name,
+                nome_plural=name,
+                campos=SimpleNamespace(all=lambda: []),
+            )
+
+        entidade_a = entity("Eleição")
+        entidade_b = entity("Eleicao")
+        modulo = SimpleNamespace(
+            nome="Votação",
+            entidades=SimpleNamespace(all=lambda: [entidade_a, entidade_b]),
+        )
+        service = object.__new__(GeradorService)
+        service.sistema = SimpleNamespace(
+            modulos=SimpleNamespace(prefetch_related=lambda *_args: [modulo])
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            service._preparar_modulos()
+        self.assertIn("Colisão de classe", str(exc.exception))
+
     def test_class_name_normalizes_accents_and_spaces(self):
         self.assertEqual(GeradorService._class_name("Eleição"), "Eleicao")
         self.assertEqual(GeradorService._class_name("Funcionário Público"), "FuncionarioPublico")

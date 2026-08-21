@@ -40,22 +40,16 @@ class GeradorService:
                 shutil.rmtree(self.diretorio_base)
             os.makedirs(self.diretorio_base, exist_ok=True)
             self.log("🧹 Diretório de geração limpo antes da compilação")
-
             self._gerar_core()
             for modulo in self.sistema.modulos.all():
                 self._gerar_modulo(modulo)
             self._gerar_templates_globais()
-
             self.log("🔎 Iniciando validação do projeto gerado...")
             resultado_validacao = validate_generated_runtime(self.diretorio_base)
-            for mensagem in resultado_validacao.get("messages", []):
-                self.log(mensagem)
-            for aviso in resultado_validacao.get("warnings", []):
-                self.log(f"⚠️ {aviso}")
+            for mensagem in resultado_validacao.get("messages", []): self.log(mensagem)
+            for aviso in resultado_validacao.get("warnings", []): self.log(f"⚠️ {aviso}")
             self.log(f"✅ Validação concluída: {resultado_validacao.get('checked', 0)} itens verificados")
-
-            if self.sistema.gerar_docker:
-                self._gerar_docker()
+            if self.sistema.gerar_docker: self._gerar_docker()
             self.log("✅ Geração concluída com sucesso!")
             return self.logs
         except Exception as e:
@@ -66,8 +60,7 @@ class GeradorService:
         caminho_full = os.path.join(self.diretorio_base, caminho_relativo)
         os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
         conteudo = render_to_string(template_name, contexto)
-        with open(caminho_full, "w", encoding="utf-8") as f:
-            f.write(conteudo)
+        with open(caminho_full, "w", encoding="utf-8") as f: f.write(conteudo)
         self.log(f"Arquivo criado: {caminho_relativo}")
 
     def _gerar_docker(self):
@@ -98,22 +91,18 @@ class GeradorService:
             for campo in entidade.campos.all():
                 if campo.eh_relacional and campo.entidade_relacionada:
                     app_pai = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
-                    if app_pai != app_name:
-                        imports_por_app.setdefault(app_pai, set()).add(campo.classe_relacionada)
-
+                    if app_pai != app_name: imports_por_app.setdefault(app_pai, set()).add(campo.classe_relacionada)
         ctx = {"sistema": self.sistema, "app_name": app_name, "entidades": entidades,
-               "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()},
-               "nome_projeto": self.nome_projeto}
+               "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()}, "nome_projeto": self.nome_projeto}
         self._escrever_arquivo(f"{app_name}/__init__.py", "gerador/snippets/init.txt", ctx)
         self._escrever_arquivo(f"{app_name}/models.py", "gerador/snippets/models.txt", ctx)
         self._escrever_arquivo(f"{app_name}/migrations/__init__.py", "gerador/snippets/init.txt", ctx)
-        self._escrever_arquivo(f"{app_name}/forms.py", "gerador/snippets/forms.txt", ctx)
+        self._escrever_arquivo(f"{app_name}/forms.py", "gerador/snippets/forms_v2.txt", ctx)
         self._escrever_arquivo(f"{app_name}/views.py", "gerador/snippets/views.txt", ctx)
         self._escrever_arquivo(f"{app_name}/urls.py", "gerador/snippets/urls_app.txt", ctx)
         self._escrever_arquivo(f"{app_name}/admin.py", "gerador/snippets/admin.txt", ctx)
         self._escrever_arquivo(f"{app_name}/apps.py", "gerador/snippets/apps_config.txt", ctx)
         self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
-
         for entidade in entidades:
             ent_ctx = {**ctx, "entidade": entidade, "entidade_nome_lower": entidade.codigo_nome}
             base_t = f"{app_name}/templates/{app_name}"
@@ -133,8 +122,7 @@ class GeradorService:
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
-            for entidade in modulo.entidades.all():
-                self._preparar_entidade(entidade)
+            for entidade in modulo.entidades.all(): self._preparar_entidade(entidade)
         ctx = {"sistema": self.sistema, "modulos": modulos}
         self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)
         self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)

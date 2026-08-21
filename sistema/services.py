@@ -70,9 +70,7 @@ class GeradorService:
                 self.log(mensagem)
             for aviso in resultado_validacao.get("warnings", []):
                 self.log(f"⚠️ {aviso}")
-            self.log(
-                f"✅ Validação concluída: {resultado_validacao.get('checked', 0)} itens verificados"
-            )
+            self.log(f"✅ Validação concluída: {resultado_validacao.get('checked', 0)} itens verificados")
             if self.sistema.gerar_docker:
                 self._gerar_docker()
             self.log("✅ Geração concluída com sucesso!")
@@ -90,11 +88,7 @@ class GeradorService:
 
     def _gerar_docker(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        for path, template in [
-            ("Dockerfile", "dockerfile.txt"),
-            ("docker-compose.yml", "docker_compose.txt"),
-            (".dockerignore", "dockerignore.txt"),
-        ]:
+        for path, template in [("Dockerfile", "dockerfile.txt"), ("docker-compose.yml", "docker_compose.txt"), (".dockerignore", "dockerignore.txt")]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _preparar_entidade(self, entidade):
@@ -104,10 +98,9 @@ class GeradorService:
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.default_python = self._python_default(campo.default_value)
-            campo.eh_relacional = self._is_relation(campo)
             campo.classe_relacionada = (
                 self._class_name(campo.entidade_relacionada.nome)
-                if campo.eh_relacional and campo.entidade_relacionada
+                if self._is_relation(campo) and campo.entidade_relacionada
                 else ""
             )
 
@@ -120,83 +113,35 @@ class GeradorService:
             self._preparar_entidade(entidade)
             for campo in entidade.campos.all():
                 if self._is_relation(campo) and campo.entidade_relacionada:
-                    app_pai = self._python_identifier(
-                        campo.entidade_relacionada.modulo.nome, "app"
-                    )
+                    app_pai = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     if app_pai != app_name:
-                        imports_por_app.setdefault(app_pai, set()).add(
-                            self._class_name(campo.entidade_relacionada.nome)
-                        )
-        ctx = {
-            "sistema": self.sistema,
-            "app_name": app_name,
-            "entidades": entidades,
-            "imports_por_app": {
-                k: sorted(v) for k, v in imports_por_app.items()
-            },
-            "nome_projeto": self.nome_projeto,
-        }
-        templates = [
-            (f"{app_name}/__init__.py", "init.txt"),
-            (f"{app_name}/models.py", "models.txt"),
-            (f"{app_name}/migrations/__init__.py", "init.txt"),
-            (f"{app_name}/forms.py", "forms_v2.txt"),
-            (f"{app_name}/views.py", "views.txt"),
-            (f"{app_name}/urls.py", "urls_app_v2.txt"),
-            (f"{app_name}/admin.py", "admin_v2.txt"),
-            (f"{app_name}/apps.py", "apps_config.txt"),
-        ]
+                        imports_por_app.setdefault(app_pai, set()).add(self._class_name(campo.entidade_relacionada.nome))
+        ctx = {"sistema": self.sistema, "app_name": app_name, "entidades": entidades, "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()}, "nome_projeto": self.nome_projeto}
+        templates = [(f"{app_name}/__init__.py", "init.txt"), (f"{app_name}/models.py", "models.txt"), (f"{app_name}/migrations/__init__.py", "init.txt"), (f"{app_name}/forms.py", "forms_v2.txt"), (f"{app_name}/views.py", "views.txt"), (f"{app_name}/urls.py", "urls_app_v2.txt"), (f"{app_name}/admin.py", "admin_v2.txt"), (f"{app_name}/apps.py", "apps_config.txt")]
         for path, template in templates:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
-        self._escrever_arquivo(
-            "templates/registration/login.html",
-            "gerador/snippets/login_html.txt",
-            ctx,
-        )
+        self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
         for entidade in entidades:
-            ent_ctx = {
-                **ctx,
-                "entidade": entidade,
-                "entidade_nome_lower": entidade.codigo_nome,
-            }
+            ent_ctx = {**ctx, "entidade": entidade, "entidade_nome_lower": entidade.codigo_nome}
             base_t = f"{app_name}/templates/{app_name}"
-            self._escrever_arquivo(
-                f"{base_t}/{entidade.codigo_nome}_list.html",
-                "gerador/snippets/html_list.txt",
-                ent_ctx,
-            )
-            self._escrever_arquivo(
-                f"{base_t}/{entidade.codigo_nome}_form.html",
-                "gerador/snippets/html_form.txt",
-                ent_ctx,
-            )
-            self._escrever_arquivo(
-                f"{base_t}/{entidade.codigo_nome}_confirm_delete.html",
-                "gerador/snippets/html_delete.txt",
-                ent_ctx,
-            )
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_list.html", "gerador/snippets/html_list.txt", ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_form.html", "gerador/snippets/html_form.txt", ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_confirm_delete.html", "gerador/snippets/html_delete.txt", ent_ctx)
 
     def _gerar_auditoria(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        templates = [
+        for path, template in [
             ("auditoria/__init__.py", "init.txt"),
             ("auditoria/apps.py", "auditoria_apps.txt"),
             ("auditoria/models.py", "auditoria_models.txt"),
             ("auditoria/middleware.py", "auditoria_middleware.txt"),
             ("auditoria/migrations/__init__.py", "init.txt"),
-        ]
-        for path, template in templates:
+        ]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_core(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        for path, template in [
-            ("manage.py", "manage.txt"),
-            (f"{self.nome_projeto}/__init__.py", "init.txt"),
-            (f"{self.nome_projeto}/settings.py", "settings.txt"),
-            (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"),
-            (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"),
-        ]:
+        for path, template in [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt")]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_templates_globais(self):

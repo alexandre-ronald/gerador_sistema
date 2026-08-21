@@ -3,8 +3,10 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q
+{% if entidades %}
 from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
 from .forms import {% for entidade in entidades %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+{% endif %}
 
 {% for entidade in entidades %}
 {% if entidade.gerar_crud_views %}

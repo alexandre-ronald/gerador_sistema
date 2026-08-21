@@ -43,11 +43,7 @@ class GeradorService:
 
     @staticmethod
     def _is_relation(campo):
-        return str(campo.tipo).strip() in {
-            "ForeignKey",
-            "OneToOneField",
-            "ManyToManyField",
-        }
+        return str(campo.tipo).strip() in {"ForeignKey", "OneToOneField", "ManyToManyField"}
 
     def log(self, mensagem):
         self.logs.append(mensagem)
@@ -98,11 +94,15 @@ class GeradorService:
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.default_python = self._python_default(campo.default_value)
-            campo.classe_relacionada = (
-                self._class_name(campo.entidade_relacionada.nome)
-                if self._is_relation(campo) and campo.entidade_relacionada
-                else ""
-            )
+            campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if self._is_relation(campo) and campo.entidade_relacionada else ""
+
+    def _preparar_modulos(self):
+        modulos = list(self.sistema.modulos.prefetch_related("entidades"))
+        for modulo in modulos:
+            modulo.app_name = self._python_identifier(modulo.nome, "app")
+            for entidade in modulo.entidades.all():
+                self._preparar_entidade(entidade)
+        return modulos
 
     def _gerar_modulo(self, modulo):
         app_name = self._python_identifier(modulo.nome, "app")
@@ -130,26 +130,17 @@ class GeradorService:
 
     def _gerar_auditoria(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        for path, template in [
-            ("auditoria/__init__.py", "init.txt"),
-            ("auditoria/apps.py", "auditoria_apps.txt"),
-            ("auditoria/models.py", "auditoria_models.txt"),
-            ("auditoria/middleware.py", "auditoria_middleware.txt"),
-            ("auditoria/migrations/__init__.py", "init.txt"),
-        ]:
+        for path, template in [("auditoria/__init__.py", "init.txt"), ("auditoria/apps.py", "auditoria_apps.txt"), ("auditoria/models.py", "auditoria_models.txt"), ("auditoria/middleware.py", "auditoria_middleware.txt"), ("auditoria/migrations/__init__.py", "init.txt")]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_core(self):
-        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
+        modulos = self._preparar_modulos()
+        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
         for path, template in [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt")]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_templates_globais(self):
-        modulos = list(self.sistema.modulos.prefetch_related("entidades"))
-        for modulo in modulos:
-            modulo.app_name = self._python_identifier(modulo.nome, "app")
-            for entidade in modulo.entidades.all():
-                self._preparar_entidade(entidade)
+        modulos = self._preparar_modulos()
         ctx = {"sistema": self.sistema, "modulos": modulos}
         self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)
         self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)

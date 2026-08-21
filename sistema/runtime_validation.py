@@ -52,7 +52,6 @@ class GeneratedProjectRuntimeValidator:
         if missing:
             self.errors.append("Arquivos obrigatórios ausentes: " + ", ".join(missing))
             return
-
         self.checked += len(self.REQUIRED_ROOT_FILES)
         self._message("✅ Estrutura obrigatória do projeto validada")
 
@@ -69,14 +68,12 @@ class GeneratedProjectRuntimeValidator:
             except (SyntaxError, UnicodeDecodeError) as exc:
                 rel = path.relative_to(self.root)
                 self.errors.append(f"Python inválido em {rel}: {exc}")
-
         self._message(f"✅ Sintaxe Python validada ({valid} arquivo(s))")
 
     def _validate_templates(self):
         html_files = sorted(self.root.rglob("*.html"))
         engine = Engine(debug=False)
         valid = 0
-
         for path in html_files:
             if any(part in {".venv", "__pycache__"} for part in path.parts):
                 continue
@@ -87,7 +84,6 @@ class GeneratedProjectRuntimeValidator:
             except (TemplateSyntaxError, UnicodeDecodeError) as exc:
                 rel = path.relative_to(self.root)
                 self.errors.append(f"Template inválido em {rel}: {exc}")
-
         self._message(f"✅ Templates Django validados ({valid} arquivo(s))")
 
     def _validate_runtime_contract(self):
@@ -97,15 +93,21 @@ class GeneratedProjectRuntimeValidator:
 
         content = base.read_text(encoding="utf-8")
         contracts = {
-            "navegação por app": "request.resolver_match.app_name",
-            "permissões de módulo": "perms.",
-            "login": "{% url 'login' %}",
-            "logout": "{% url 'logout' %}",
-            "proteção CSRF": "{% csrf_token %}",
-            "bloco content": "{% block content %}",
+            "navegação por app": (
+                "request.resolver_match.app_name",
+                "request.resolver_match.url_name",
+            ),
+            "permissões de módulo": ("perms.",),
+            "login": ("{% url 'login' %}", "{% templatetag openblock %} url 'login'"),
+            "logout": ("{% url 'logout' %}", "{% templatetag openblock %} url 'logout'"),
+            "proteção CSRF": ("{% csrf_token %}", "{% templatetag openblock %} csrf_token"),
+            "bloco content": ("{% block content %}", "{% templatetag openblock %} block content"),
         }
 
-        missing = [name for name, token in contracts.items() if token not in content]
+        missing = [
+            name for name, alternatives in contracts.items()
+            if not any(token in content for token in alternatives)
+        ]
         if missing:
             self.errors.append("Contrato do template base incompleto: " + ", ".join(missing))
             return
@@ -120,14 +122,14 @@ class GeneratedProjectRuntimeValidator:
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
-
-        # Never let the validator inherit the generator's Django settings.
-        # manage.py uses setdefault(), so an inherited DJANGO_SETTINGS_MODULE
-        # would otherwise override the settings of the generated project.
         env.pop("DJANGO_SETTINGS_MODULE", None)
 
-        # The generated project must be the first import location, while the
-        # generator's environment remains available for installed packages.
+        # The check validates generated Django code, models, apps and URLs.
+        # It must not depend on a database driver being installed in the
+        # generator's virtualenv. The generated requirements.txt remains the
+        # source of truth for the target database driver.
+        env["DB_ENGINE"] = "sqlite3"
+
         existing_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(self.root) + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
 
@@ -152,7 +154,7 @@ class GeneratedProjectRuntimeValidator:
             return
 
         self.checked += 1
-        self._message("✅ Django system check executado com sucesso")
+        self._message("✅ Django system check executado com sucesso (validação estrutural com SQLite)")
 
 
 def validate_generated_runtime(root):

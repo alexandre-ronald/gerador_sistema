@@ -1,4 +1,5 @@
 import ast
+import keyword
 import os
 import re
 import shutil
@@ -21,13 +22,16 @@ class GeradorService:
         value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
         value = re.sub(r"_+", "_", value).strip("_") or fallback
         if value[0].isdigit(): value = f"_{value}"
+        if keyword.iskeyword(value): value = f"{value}_"
         return value
 
     @staticmethod
     def _class_name(value, fallback="Modelo"):
         words = re.findall(r"[A-Za-z0-9]+", str(value or ""))
         name = "".join(word[:1].upper() + word[1:] for word in words) or fallback
-        return f"Modelo{name}" if name[0].isdigit() else name
+        if name[0].isdigit(): name = f"Modelo{name}"
+        if keyword.iskeyword(name): name = f"Modelo{name.title()}"
+        return name
 
     @staticmethod
     def _python_default(value):
@@ -40,6 +44,10 @@ class GeradorService:
     @staticmethod
     def _is_relation(campo):
         return str(campo.tipo).strip() in {"ForeignKey", "OneToOneField", "ManyToManyField"}
+
+    @staticmethod
+    def _python_literal(value):
+        return repr(str(value or ""))
 
     def log(self, mensagem): self.logs.append(mensagem)
 
@@ -79,7 +87,11 @@ class GeradorService:
         for campo in entidade.campos.all():
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
+            campo.verbose_python = self._python_literal(campo.verbose_nome)
             campo.default_python = self._python_default(campo.default_value)
+            campo.related_name_python = self._python_literal(campo.related_name_str) if campo.related_name_str else ""
+            campo.upload_to_python = self._python_literal(campo.upload_to) if campo.upload_to else repr("uploads/")
+            campo.on_delete_python = campo.on_delete if campo.on_delete in {"models.CASCADE", "models.PROTECT", "models.SET_NULL", "models.RESTRICT"} else "models.CASCADE"
             campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if self._is_relation(campo) and campo.entidade_relacionada else ""
 
     def _preparar_modulos(self):
@@ -113,20 +125,14 @@ class GeradorService:
 
     def _gerar_auditoria(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
-        templates = [
-            ("auditoria/__init__.py", "init.txt"),
-            ("auditoria/apps.py", "auditoria_apps.txt"),
-            ("auditoria/models.py", "auditoria_models.txt"),
-            ("auditoria/middleware.py", "auditoria_middleware.txt"),
-            ("auditoria/migrations/__init__.py", "init.txt"),
-            ("auditoria/migrations/0001_initial.py", "auditoria_migration_0001.txt"),
-        ]
+        templates = [("auditoria/__init__.py", "init.txt"), ("auditoria/apps.py", "auditoria_apps.txt"), ("auditoria/models.py", "auditoria_models.txt"), ("auditoria/middleware.py", "auditoria_middleware.txt"), ("auditoria/migrations/__init__.py", "init.txt"), ("auditoria/migrations/0001_initial.py", "auditoria_migration_0001.txt")]
         for path, template in templates: self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_core(self):
         modulos = self._preparar_modulos()
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
         for path, template in [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt")]: self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        self._escrever_arquivo("requirements.txt", "gerador/snippets/requirements.txt", {**ctx, "banco_dados": self.sistema.banco_dados})
 
     def _gerar_templates_globais(self):
         modulos = self._preparar_modulos()

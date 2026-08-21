@@ -1,0 +1,6 @@
+from django.contrib.auth.models import AbstractUser
+
+
+class User(AbstractUser):
+    """Usuário padrão do projeto gerado, extensível sem substituir o contrato do Django."""
+    pass

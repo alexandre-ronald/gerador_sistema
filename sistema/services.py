@@ -17,6 +17,12 @@ class GeradorService:
         "OneToOneField",
     }
 
+    RELATION_FIELD_TYPES = {
+        "ForeignKey",
+        "OneToOneField",
+        "ManyToManyField",
+    }
+
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.get(pk=sistema_id)
         self.nome_projeto = self._python_identifier(self.sistema.nome, fallback="projeto")
@@ -48,9 +54,9 @@ class GeradorService:
             ast.literal_eval(value); return value
         except (ValueError, SyntaxError): return repr(value)
 
-    @staticmethod
-    def _is_relation(campo):
-        return str(campo.tipo_python).strip() in {"ForeignKey", "OneToOneField", "ManyToManyField"}
+    @classmethod
+    def _is_relation(cls, campo):
+        return str(campo.tipo or "").strip() in cls.RELATION_FIELD_TYPES
 
     @classmethod
     def _field_type(cls, campo):

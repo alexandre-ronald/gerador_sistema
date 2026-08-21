@@ -97,7 +97,10 @@ class GeneratedProjectRuntimeValidator:
                 "request.resolver_match.app_name",
                 "request.resolver_match.url_name",
             ),
-            "permissões de módulo": ("perms.",),
+            "permissões de módulo": (
+                "perms.",
+                "templatetag openblock %} if perms.",
+            ),
             "login": ("{% url 'login' %}", "{% templatetag openblock %} url 'login'"),
             "logout": ("{% url 'logout' %}", "{% templatetag openblock %} url 'logout'"),
             "proteção CSRF": ("{% csrf_token %}", "{% templatetag openblock %} csrf_token"),
@@ -123,11 +126,6 @@ class GeneratedProjectRuntimeValidator:
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env.pop("DJANGO_SETTINGS_MODULE", None)
-
-        # The check validates generated Django code, models, apps and URLs.
-        # It must not depend on a database driver being installed in the
-        # generator's virtualenv. The generated requirements.txt remains the
-        # source of truth for the target database driver.
         env["DB_ENGINE"] = "sqlite3"
 
         existing_pythonpath = env.get("PYTHONPATH", "")

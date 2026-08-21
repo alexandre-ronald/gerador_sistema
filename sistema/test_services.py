@@ -20,8 +20,8 @@ class GeradorServiceRelationTests(SimpleTestCase):
         self.assertFalse(GeradorService._is_relation(campo))
         self.assertFalse(hasattr(campo, "tipo_python"))
 
-    def test_preparar_entidade_still_materializes_tipo_python_for_templates(self):
-        """tipo_python remains a compiler/template context value, not a model field."""
+    def test_preparar_entidade_keeps_same_compiled_field_instances(self):
+        """Compiled fields must be reused by templates instead of re-querying them."""
         entidade_relacionada = SimpleNamespace(nome="Departamento")
         campo = SimpleNamespace(
             nome="Departamento",
@@ -44,3 +44,30 @@ class GeradorServiceRelationTests(SimpleTestCase):
 
         self.assertEqual(campo.tipo_python, "ForeignKey")
         self.assertEqual(campo.classe_relacionada, "Departamento")
+        self.assertIs(entidade.campos_compilados[0], campo)
+        self.assertEqual(entidade.campos_compilados[0].codigo_nome, "departamento")
+
+    def test_preparar_entidade_rejects_invalid_field_type_before_rendering(self):
+        """An invalid type must fail during compilation, never produce models.()."""
+        campo = SimpleNamespace(
+            nome="Status",
+            tipo="",
+            verbose_name="",
+            default_value="",
+            related_name_str="",
+            upload_to="",
+            on_delete="models.CASCADE",
+            entidade_relacionada=None,
+        )
+        entidade = SimpleNamespace(
+            nome="Eleicao",
+            nome_plural="Eleições",
+            campos=SimpleNamespace(all=lambda: [campo]),
+        )
+
+        service = object.__new__(GeradorService)
+
+        with self.assertRaises(ValueError) as exc:
+            service._preparar_entidade(entidade)
+
+        self.assertIn("Tipo de campo inválido", str(exc.exception))

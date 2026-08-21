@@ -1,0 +1,15 @@
+from django import forms
+
+{% for entidade in entidades %}
+class {{ entidade.classe_nome }}Form(forms.ModelForm):
+    class Meta:
+        model = {{ entidade.classe_nome }}
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            field.widget.attrs.setdefault('class', 'form-control')
+            if isinstance(field, forms.ModelChoiceField):
+                field.empty_label = '--- Selecione uma opção ---'
+{% endfor %}

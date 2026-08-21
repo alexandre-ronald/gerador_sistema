@@ -13,8 +13,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-{% for modulo in sistema.modulos.all %}
-    '{{ modulo.nome|slugify|cut:"-" }}',
+{% for modulo in modulos %}
+    '{{ modulo.app_name }}',
 {% endfor %}
 {% if sistema.usar_auditoria %}
     'auditoria',

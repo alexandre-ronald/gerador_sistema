@@ -134,7 +134,9 @@ class GeradorService:
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
-            for entidade in modulo.entidades.all(): self._preparar_entidade(entidade)
+            modulo.entidades_compiladas = list(modulo.entidades.all())
+            for entidade in modulo.entidades_compiladas:
+                self._preparar_entidade(entidade)
         return modulos
 
     def _gerar_modulo(self, modulo):

@@ -28,6 +28,11 @@ class GeneratedProjectRuntimeValidator:
         self.errors = []
         self.warnings = []
         self.checked = 0
+        # Runtime-contract tests may invoke individual validation methods
+        # directly, without going through validate(). Keep the message
+        # collector part of the validator's initialized state rather than
+        # creating it only as a side effect of validate().
+        self._loggable = []
 
     def validate(self):
         if not self.root.exists():
@@ -113,11 +118,6 @@ class GeneratedProjectRuntimeValidator:
             if not any(token in content for token in alternatives)
         ]
 
-        # Module permissions are required when the generated base template
-        # actually exposes CRUD navigation for a module. A project with no
-        # generated CRUD navigation has nothing in the base template that
-        # needs a module-level permission guard, so requiring the literal
-        # ``perms.`` token there would be a false positive.
         has_module_crud_navigation = bool(self.MODULE_CRUD_URL_RE.search(content))
         if has_module_crud_navigation and not self._has_module_permission_contract(content):
             missing.append("permissões de módulo")

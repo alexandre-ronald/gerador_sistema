@@ -30,3 +30,30 @@ class GenerationPipelineRegressionTests(SimpleTestCase):
         self.assertIn("python -m pip install -r requirements.txt", content)
         self.assertIn("call .venv\\Scripts\\activate.bat", content)
         self.assertIn("python manage.py check", content)
+        self.assertIn("DB_PASSWORD", content)
+        self.assertIn("Path('.env').write_text", content)
+        self.assertIn("dbname='postgres'", content)
+        self.assertIn("CREATE DATABASE", content)
+
+    def test_postgresql_driver_is_declared_in_generated_requirements(self):
+        content = (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "gerador"
+            / "snippets"
+            / "requirements.txt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("psycopg[binary]>=3.2,<4", content)
+
+    def test_settings_loads_local_env_before_database_configuration(self):
+        content = (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "gerador"
+            / "snippets"
+            / "settings.txt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("LOCAL_ENV_FILE = BASE_DIR / '.env'", content)
+        self.assertIn("DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')", content)
+        self.assertIn("DB_HOST = os.getenv('DB_HOST', 'localhost')", content)
+        self.assertIn("DB_PORT = os.getenv('DB_PORT', '5432')", content)

@@ -1,5 +1,7 @@
 from django.contrib import admin
+{% if entidades %}
 from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% endif %}
 
 {% for entidade in entidades %}
 {% if entidade.gerar_admin %}

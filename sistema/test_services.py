@@ -38,6 +38,7 @@ class GeradorServiceRelationTests(SimpleTestCase):
             nome_plural="Funcionários",
             campos=SimpleNamespace(all=lambda: [campo]),
         )
+        campo.entidade = entidade
 
         service = object.__new__(GeradorService)
         service._preparar_entidade(entidade)
@@ -64,6 +65,7 @@ class GeradorServiceRelationTests(SimpleTestCase):
             nome_plural="Eleições",
             campos=SimpleNamespace(all=lambda: [campo]),
         )
+        campo.entidade = entidade
         modulo = SimpleNamespace(
             nome="Eleição",
             entidades=SimpleNamespace(all=lambda: [entidade]),
@@ -87,6 +89,10 @@ class GeradorServiceRelationTests(SimpleTestCase):
 
     def test_preparar_entidade_rejects_invalid_field_type_before_rendering(self):
         """An invalid type must fail during compilation, never produce models.()."""
+        entidade = SimpleNamespace(
+            nome="Eleicao",
+            nome_plural="Eleições",
+        )
         campo = SimpleNamespace(
             nome="Status",
             tipo="",
@@ -96,12 +102,9 @@ class GeradorServiceRelationTests(SimpleTestCase):
             upload_to="",
             on_delete="models.CASCADE",
             entidade_relacionada=None,
+            entidade=entidade,
         )
-        entidade = SimpleNamespace(
-            nome="Eleicao",
-            nome_plural="Eleições",
-            campos=SimpleNamespace(all=lambda: [campo]),
-        )
+        entidade.campos = SimpleNamespace(all=lambda: [campo])
 
         service = object.__new__(GeradorService)
 

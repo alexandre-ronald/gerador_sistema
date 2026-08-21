@@ -1,5 +1,6 @@
 import ast
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,10 @@ class GeneratedProjectRuntimeValidator:
         "templates/base.html",
         "templates/index.html",
         "templates/registration/login.html",
+    )
+
+    MODULE_CRUD_URL_RE = re.compile(
+        r"\{\%\s*url\s+['\"][A-Za-z_][A-Za-z0-9_]*:[A-Za-z_][A-Za-z0-9_]*_list['\"]"
     )
 
     def __init__(self, root):
@@ -97,10 +102,6 @@ class GeneratedProjectRuntimeValidator:
                 "request.resolver_match.app_name",
                 "request.resolver_match.url_name",
             ),
-            "permissões de módulo": (
-                "perms.",
-                "templatetag openblock %} if perms.",
-            ),
             "login": ("{% url 'login' %}", "{% templatetag openblock %} url 'login'"),
             "logout": ("{% url 'logout' %}", "{% templatetag openblock %} url 'logout'"),
             "proteção CSRF": ("{% csrf_token %}", "{% templatetag openblock %} csrf_token"),
@@ -111,12 +112,35 @@ class GeneratedProjectRuntimeValidator:
             name for name, alternatives in contracts.items()
             if not any(token in content for token in alternatives)
         ]
+
+        # Module permissions are required when the generated base template
+        # actually exposes CRUD navigation for a module. A project with no
+        # generated CRUD navigation has nothing in the base template that
+        # needs a module-level permission guard, so requiring the literal
+        # ``perms.`` token there would be a false positive.
+        has_module_crud_navigation = bool(self.MODULE_CRUD_URL_RE.search(content))
+        if has_module_crud_navigation and not self._has_module_permission_contract(content):
+            missing.append("permissões de módulo")
+
         if missing:
             self.errors.append("Contrato do template base incompleto: " + ", ".join(missing))
             return
 
-        self.checked += len(contracts)
-        self._message("✅ Contrato de navegação, permissões e autenticação validado")
+        self.checked += len(contracts) + int(has_module_crud_navigation)
+        if has_module_crud_navigation:
+            self._message("✅ Contrato de navegação, permissões e autenticação validado")
+        else:
+            self._message("✅ Contrato de navegação e autenticação validado (sem navegação CRUD de módulos)")
+
+    @staticmethod
+    def _has_module_permission_contract(content):
+        """Return whether a generated base template guards module CRUD links."""
+        permission_patterns = (
+            r"\bperms\.[A-Za-z_][A-Za-z0-9_]*\.view_[A-Za-z_][A-Za-z0-9_]*\b",
+            r"\bperms\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\.\s*view_[A-Za-z_][A-Za-z0-9_]*\b",
+            r"templatetag\s+openblock\s*%\}\s*if\s+perms\.",
+        )
+        return any(re.search(pattern, content) for pattern in permission_patterns)
 
     def _validate_django_check(self):
         manage = self.root / "manage.py"

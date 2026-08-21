@@ -8,32 +8,41 @@ from {{ app_externo }}.models import {{ modelos|join:", " }}
 {% for entidade in entidades %}
 class {{ entidade.classe_nome }}(models.Model):
 {% for campo in entidade.campos.all %}
-    {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" or campo.tipo == "ManyToManyField" %}
+{% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
         "{{ campo.classe_relacionada }}",
-        {% if campo.tipo != "ManyToManyField" %}on_delete={{ campo.on_delete|default:"models.CASCADE" }},{% endif %}
+        on_delete={{ campo.on_delete|default:"models.CASCADE" }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
         verbose_name="{{ campo.verbose_nome }}"
     )
-    {% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
+{% elif campo.tipo == "ManyToManyField" %}
+    {{ campo.codigo_nome }} = models.ManyToManyField(
+        "{{ campo.classe_relacionada }}",
+        blank={% if campo.blank %}True{% else %}False{% endif %},
+        {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
+        verbose_name="{{ campo.verbose_nome }}"
+    )
+{% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
         upload_to="{{ campo.upload_to|default:"uploads/" }}",
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         verbose_name="{{ campo.verbose_nome }}"
     )
-    {% else %}
+{% else %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
-        {% if campo.tipo == "CharField" or campo.tipo == "SlugField" or campo.tipo == "EmailField" %}max_length={{ campo.max_length|default:255 }},{% endif %}
-        {% if campo.default_value %}default={{ campo.default_value|safe }},{% endif %}
-        null={% if campo.null %}True{% else %}False{% endif %},
+{% if campo.tipo == "CharField" or campo.tipo == "SlugField" or campo.tipo == "EmailField" or campo.tipo == "URLField" %}        max_length={{ campo.max_length|default:255 }},
+{% endif %}{% if campo.tipo == "DecimalField" %}        max_digits={{ campo.max_digits|default:10 }},
+        decimal_places={{ campo.decimal_places|default:2 }},
+{% endif %}{% if campo.default_python %}        default={{ campo.default_python|safe }},
+{% endif %}        null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         unique={% if campo.unique %}True{% else %}False{% endif %},
         verbose_name="{{ campo.verbose_nome }}"
     )
-    {% endif %}
+{% endif %}
 {% endfor %}
 {% if sistema.usar_auditoria %}
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")

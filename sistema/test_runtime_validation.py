@@ -4,7 +4,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
-from sistema.runtime_validation import validate_generated_runtime
+from sistema.runtime_validation import validate_generated_runtime, GeneratedProjectRuntimeValidator
 
 
 BASE_TEMPLATE = """<!doctype html>
@@ -76,3 +76,50 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             validate_generated_runtime(root)
 
         self.assertIn("Contrato do template base incompleto", str(ctx.exception))
+
+    def test_module_permissions_are_required_when_crud_navigation_exists(self):
+        root = self._create_project()
+        (root / "templates" / "base.html").write_text(
+            "{% if request.resolver_match.app_name %}"
+            "<a href=\"{% url 'cadastro:pessoa_list' %}\">Pessoa</a>"
+            "{% endif %}"
+            "{% url 'login' %}{% url 'logout' %}"
+            "{% csrf_token %}{% block content %}{% endblock %}",
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(ValidationError) as ctx:
+            validate_generated_runtime(root)
+
+        self.assertIn("permissões de módulo", str(ctx.exception))
+
+    def test_module_permissions_accept_generated_permission_expression(self):
+        root = self._create_project()
+        (root / "templates" / "base.html").write_text(
+            "{% if request.resolver_match.app_name %}"
+            "{% if perms.cadastro.view_pessoa %}"
+            "<a href=\"{% url 'cadastro:pessoa_list' %}\">Pessoa</a>"
+            "{% endif %}{% endif %}"
+            "{% url 'login' %}{% url 'logout' %}"
+            "{% csrf_token %}{% block content %}{% endblock %}",
+            encoding="utf-8",
+        )
+
+        validator = GeneratedProjectRuntimeValidator(root)
+        validator._validate_runtime_contract()
+
+        self.assertNotIn("permissões de módulo", " ".join(validator.errors))
+
+    def test_module_permissions_are_not_required_without_crud_navigation(self):
+        root = self._create_project()
+        (root / "templates" / "base.html").write_text(
+            "{% if request.resolver_match.app_name %}Dashboard{% endif %}"
+            "{% url 'login' %}{% url 'logout' %}"
+            "{% csrf_token %}{% block content %}{% endblock %}",
+            encoding="utf-8",
+        )
+
+        validator = GeneratedProjectRuntimeValidator(root)
+        validator._validate_runtime_contract()
+
+        self.assertNotIn("permissões de módulo", " ".join(validator.errors))

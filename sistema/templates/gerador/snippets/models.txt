@@ -11,25 +11,25 @@ class {{ entidade.classe_nome }}(models.Model):
 {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
         "{{ campo.classe_relacionada }}",
-        on_delete={{ campo.on_delete|default:"models.CASCADE" }},
+        on_delete={{ campo.on_delete_python|default:"models.CASCADE" }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
-        verbose_name="{{ campo.verbose_nome }}"
+        {% if campo.related_name_python %}related_name={{ campo.related_name_python|safe }},{% endif %}
+        verbose_name={{ campo.verbose_python|safe }}
     )
 {% elif campo.tipo == "ManyToManyField" %}
     {{ campo.codigo_nome }} = models.ManyToManyField(
         "{{ campo.classe_relacionada }}",
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
-        verbose_name="{{ campo.verbose_nome }}"
+        {% if campo.related_name_python %}related_name={{ campo.related_name_python|safe }},{% endif %}
+        verbose_name={{ campo.verbose_python|safe }}
     )
 {% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
-        upload_to="{{ campo.upload_to|default:"uploads/" }}",
+        upload_to={{ campo.upload_to_python|safe }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_nome }}"
+        verbose_name={{ campo.verbose_python|safe }}
     )
 {% else %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
@@ -40,7 +40,7 @@ class {{ entidade.classe_nome }}(models.Model):
 {% endif %}        null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         unique={% if campo.unique %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_nome }}"
+        verbose_name={{ campo.verbose_python|safe }}
     )
 {% endif %}
 {% endfor %}
@@ -50,8 +50,8 @@ class {{ entidade.classe_nome }}(models.Model):
 {% endif %}
 
     class Meta:
-        verbose_name = "{{ entidade.nome }}"
-        verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome }}"
+        verbose_name = {{ entidade.nome|default:"Modelo"|safe|escapejs }}
+        verbose_name_plural = {{ entidade.nome_plural|default:entidade.nome|safe|escapejs }}
 
     def __str__(self):
         return {% if entidade.campos.all %}str(self.{{ entidade.campos.all.0.codigo_nome }}){% else %}str(self.pk){% endif %}

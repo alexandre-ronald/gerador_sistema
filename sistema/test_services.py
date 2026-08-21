@@ -11,18 +11,15 @@ class GeradorServiceRelationTests(SimpleTestCase):
         """Relation detection must use the persisted Campo.tipo field."""
         for tipo in ("ForeignKey", "OneToOneField", "ManyToManyField"):
             campo = SimpleNamespace(tipo=tipo)
-
             self.assertTrue(GeradorService._is_relation(campo))
             self.assertFalse(hasattr(campo, "tipo_python"))
 
     def test_is_relation_rejects_non_relation_without_tipo_python(self):
         campo = SimpleNamespace(tipo="CharField")
-
         self.assertFalse(GeradorService._is_relation(campo))
         self.assertFalse(hasattr(campo, "tipo_python"))
 
     def test_preparar_entidade_keeps_same_compiled_field_instances(self):
-        """Compiled fields must be reused by templates instead of re-querying them."""
         entidade_relacionada = SimpleNamespace(nome="Departamento")
         campo = SimpleNamespace(
             nome="Departamento",
@@ -50,7 +47,6 @@ class GeradorServiceRelationTests(SimpleTestCase):
         self.assertEqual(entidade.campos_compilados[0].codigo_nome, "departamento")
 
     def test_preparar_modulos_keeps_same_compiled_entity_instances(self):
-        """Module templates must reuse entities prepared by the compiler."""
         campo = SimpleNamespace(
             nome="Nome",
             tipo="CharField",
@@ -73,9 +69,7 @@ class GeradorServiceRelationTests(SimpleTestCase):
         )
         service = object.__new__(GeradorService)
         service.sistema = SimpleNamespace(
-            modulos=SimpleNamespace(
-                prefetch_related=lambda *_args: [modulo]
-            )
+            modulos=SimpleNamespace(prefetch_related=lambda *_args: [modulo])
         )
         modulos = service._preparar_modulos()
 
@@ -85,11 +79,7 @@ class GeradorServiceRelationTests(SimpleTestCase):
         self.assertEqual(campo.codigo_nome, "nome")
 
     def test_preparar_entidade_rejects_invalid_field_type_before_rendering(self):
-        """An invalid type must fail during compilation, never produce models.()."""
-        entidade = SimpleNamespace(
-            nome="Eleicao",
-            nome_plural="Eleições",
-        )
+        entidade = SimpleNamespace(nome="Eleicao", nome_plural="Eleições")
         campo = SimpleNamespace(
             nome="Status",
             tipo="",
@@ -104,11 +94,13 @@ class GeradorServiceRelationTests(SimpleTestCase):
         entidade.campos = SimpleNamespace(all=lambda: [campo])
 
         service = object.__new__(GeradorService)
-
         with self.assertRaises(ValueError) as exc:
             service._preparar_entidade(entidade)
-
         self.assertIn("Tipo de campo inválido", str(exc.exception))
+
+    def test_class_name_normalizes_accents_and_spaces(self):
+        self.assertEqual(GeradorService._class_name("Eleição"), "Eleicao")
+        self.assertEqual(GeradorService._class_name("Funcionário Público"), "FuncionarioPublico")
 
 
 class GeradorServiceArtifactRegressionTests(SimpleTestCase):
@@ -137,8 +129,22 @@ class GeradorServiceArtifactRegressionTests(SimpleTestCase):
         self.assertIn("psycopg[binary]>=3.2,<4", content)
 
     def test_generation_path_is_normalized_before_rglob(self):
-        """The HTML validator must accept a string path and convert it to Path."""
         normalized = GeradorService._normalizar_caminho_geracao("media/generated/1")
-
         self.assertIsInstance(normalized, Path)
         self.assertTrue(normalized.is_absolute())
+
+    def test_settings_supports_validation_database_override(self):
+        content = self._snippet("settings.txt")
+        self.assertIn("DB_ENGINE = os.getenv", content)
+        self.assertIn("django.db.backends.sqlite3", content)
+        self.assertIn("AUTH_USER_MODEL = 'usuarios.User'", content)
+
+    def test_custom_user_artifacts_exist_as_templates(self):
+        self.assertIn("AbstractUser", self._snippet("custom_user_models.txt"))
+        self.assertIn("UserAdmin", self._snippet("custom_user_admin.txt"))
+
+    def test_views_use_compiled_fields_and_crud_flag(self):
+        content = self._snippet("views.txt")
+        self.assertIn("entidade.campos_compilados", content)
+        self.assertIn("entidade.gerar_crud_views", content)
+        self.assertNotIn("entidade.nome|title", content)

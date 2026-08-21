@@ -19,6 +19,7 @@ class GeradorService:
     }
 
     RELATION_FIELD_TYPES = {"ForeignKey", "OneToOneField", "ManyToManyField"}
+    RELATED_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\+)?$")
 
     def __init__(self, sistema_id):
         self.sistema = Sistema.objects.get(pk=sistema_id)
@@ -72,6 +73,19 @@ class GeradorService:
                 f"Tipo de campo inválido para {entidade}.{getattr(campo, 'nome', '?')}: {tipo!r}"
             )
         return tipo
+
+    @classmethod
+    def _related_name(cls, campo):
+        value = str(getattr(campo, "related_name_str", "") or "").strip()
+        if not value:
+            return ""
+        if not cls.RELATED_NAME_RE.fullmatch(value):
+            raise ValueError(
+                f"related_name inválido para {getattr(getattr(campo, 'entidade', None), 'nome', '?')}."
+                f"{getattr(campo, 'nome', '?')}: {value!r}. Use apenas letras, números e underscore, "
+                "opcionalmente terminando com '+'."
+            )
+        return value
 
     @staticmethod
     def _python_literal(value):
@@ -141,7 +155,8 @@ class GeradorService:
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.verbose_python = self._python_literal(campo.verbose_nome)
             campo.default_python = self._python_default(campo.default_value)
-            campo.related_name_python = self._python_literal(campo.related_name_str) if campo.related_name_str else ""
+            related_name = self._related_name(campo)
+            campo.related_name_python = self._python_literal(related_name) if related_name else ""
             campo.upload_to_python = self._python_literal(campo.upload_to) if campo.upload_to else repr("uploads/")
             campo.on_delete_python = campo.on_delete if campo.on_delete in {
                 "models.CASCADE", "models.PROTECT", "models.SET_NULL", "models.RESTRICT"
@@ -159,11 +174,28 @@ class GeradorService:
 
     def _preparar_modulos(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
+        app_names = {}
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
+            anterior = app_names.get(modulo.app_name)
+            if anterior is not None and anterior != modulo.nome:
+                raise ValueError(
+                    f"Colisão de nome de app após normalização: {anterior!r} e {modulo.nome!r} "
+                    f"geram {modulo.app_name!r}. Renomeie um dos módulos."
+                )
+            app_names[modulo.app_name] = modulo.nome
+
             modulo.entidades_compiladas = list(modulo.entidades.all())
+            class_names = {}
             for entidade in modulo.entidades_compiladas:
                 self._preparar_entidade(entidade)
+                anterior = class_names.get(entidade.classe_nome)
+                if anterior is not None and anterior != entidade.nome:
+                    raise ValueError(
+                        f"Colisão de classe no módulo {modulo.nome!r}: {anterior!r} e {entidade.nome!r} "
+                        f"geram {entidade.classe_nome!r}. Renomeie uma das entidades."
+                    )
+                class_names[entidade.classe_nome] = entidade.nome
         return modulos
 
     def _gerar_custom_user(self):

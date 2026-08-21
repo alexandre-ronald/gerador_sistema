@@ -84,6 +84,8 @@ class GeradorService:
     def _preparar_entidade(self, entidade):
         entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade")
         entidade.classe_nome = self._class_name(entidade.nome)
+        entidade.verbose_python = self._python_literal(entidade.nome)
+        entidade.verbose_plural_python = self._python_literal(entidade.nome_plural or entidade.nome)
         for campo in entidade.campos.all():
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome

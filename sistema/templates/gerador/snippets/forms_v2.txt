@@ -1,4 +1,5 @@
 from django import forms
+from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
 class {{ entidade.classe_nome }}Form(forms.ModelForm):

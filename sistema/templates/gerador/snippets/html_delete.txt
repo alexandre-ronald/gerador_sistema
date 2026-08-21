@@ -1,4 +1,0 @@
-{% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
-{% templatetag openblock %} block content {% templatetag closeblock %}
-<div class="row justify-content-center pt-5"><div class="col-md-6"><div class="card shadow-sm text-center p-4"><h4 class="fw-bold">Confirmar Exclusão</h4><p class="text-muted">Tem certeza que deseja remover este registro de <strong>{{ entidade.nome }}</strong>?</p><form method="post">{% templatetag openblock %} csrf_token {% templatetag closeblock %}<button type="submit" class="btn btn-danger">Sim, Excluir</button><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light ms-2">Cancelar</a></form></div></div></div>
-{% templatetag openblock %} endblock {% templatetag closeblock %}

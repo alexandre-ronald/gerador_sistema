@@ -1,52 +1,49 @@
 from django.db import models
-from django.conf import settings  # Necessário para o AUTH_USER_MODEL
+from django.conf import settings
 
-# --- IMPORTS DE OUTROS APPS ---
 {% for app_externo, modelos in imports_por_app.items %}
 from {{ app_externo }}.models import {{ modelos|join:", " }}
 {% endfor %}
 
 {% for entidade in entidades %}
-class {{ entidade.nome|title|cut:" " }}(models.Model):
-    {% for campo in entidade.campos.all %}
+class {{ entidade.classe_nome }}(models.Model):
+{% for campo in entidade.campos.all %}
     {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" or campo.tipo == "ManyToManyField" %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
-        '{{ campo.entidade_relacionada.modulo.nome|slugify|lower }}.{{ campo.entidade_relacionada.nome|title|cut:" " }}',
-        on_delete={{ campo.on_delete|default:"models.CASCADE" }},
+    {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
+        "{{ campo.classe_relacionada }}",
+        {% if campo.tipo != "ManyToManyField" %}on_delete={{ campo.on_delete|default:"models.CASCADE" }},{% endif %}
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         {% if campo.related_name_str %}related_name="{{ campo.related_name_str }}",{% endif %}
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        verbose_name="{{ campo.verbose_nome }}"
     )
     {% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
-        upload_to='{{ campo.upload_to|default:"uploads/" }}',
+    {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
+        upload_to="{{ campo.upload_to|default:"uploads/" }}",
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        verbose_name="{{ campo.verbose_nome }}"
     )
     {% else %}
-    {{ campo.nome|lower }} = models.{{ campo.tipo }}(
+    {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
         {% if campo.tipo == "CharField" or campo.tipo == "SlugField" or campo.tipo == "EmailField" %}max_length={{ campo.max_length|default:255 }},{% endif %}
-        {% if campo.default_value %}default='{{ campo.default_value }}',{% endif %}
+        {% if campo.default_value %}default={{ campo.default_value|safe }},{% endif %}
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
         unique={% if campo.unique %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_name|default:campo.nome|title }}"
+        verbose_name="{{ campo.verbose_nome }}"
     )
     {% endif %}
-    {% endfor %}
-    
-    {% if sistema.usar_auditoria %}
-    # --- CAMPOS DE AUDITORIA ---
+{% endfor %}
+{% if sistema.usar_auditoria %}
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     criado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Criado por")
-    {% endif %}
+{% endif %}
 
     class Meta:
-        verbose_name = "{{ entidade.nome|title }}"
-        verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome|title }}s"
+        verbose_name = "{{ entidade.nome }}"
+        verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome }}"
 
     def __str__(self):
-        return {% if entidade.campos.all %}str(self.{{ entidade.campos.all.0.nome|lower }}){% else %}str(self.id){% endif %}
+        return {% if entidade.campos.all %}str(self.{{ entidade.campos.all.0.codigo_nome }}){% else %}str(self.pk){% endif %}
 {% endfor %}

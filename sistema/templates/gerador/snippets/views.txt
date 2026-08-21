@@ -7,6 +7,7 @@ from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% 
 from .forms import {% for entidade in entidades %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 
 {% for entidade in entidades %}
+{% if entidade.gerar_crud_views %}
 class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.classe_nome }}
     template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_list.html'
@@ -20,7 +21,7 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
         query = self.request.GET.get('q', '').strip()
         if query:
             search_filter = Q()
-{% for campo in entidade.campos.all %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
+{% for campo in entidade.campos_compilados %}{% if campo.tipo_python == 'CharField' or campo.tipo_python == 'TextField' or campo.tipo_python == 'EmailField' or campo.tipo_python == 'URLField' %}
             search_filter |= Q({{ campo.codigo_nome }}__icontains=query)
 {% endif %}{% endfor %}
             queryset = queryset.filter(search_filter)
@@ -68,7 +69,8 @@ class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequire
     raise_exception = True
 
     def delete(self, request, *args, **kwargs):
-        messages.warning(self.request, "{{ entidade.nome }} removido.")
+        messages.warning(self.request, "{{ entidade.nome }} removido!")
         return super().delete(request, *args, **kwargs)
 
+{% endif %}
 {% endfor %}

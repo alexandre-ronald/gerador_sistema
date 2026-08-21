@@ -1,0 +1,52 @@
+@echo off
+SETLOCAL EnableDelayedExpansion
+title Instalador - {{ sistema.nome }}
+
+echo ====================================================================
+echo   Instalador do sistema: {{ sistema.nome }}
+echo ====================================================================
+echo.
+
+python -m venv .venv
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao criar o ambiente virtual.
+    pause & exit /b %errorlevel%
+)
+
+call .venv\Scripts\activate.bat
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao ativar o ambiente virtual.
+    pause & exit /b %errorlevel%
+)
+
+python -m pip install --upgrade pip
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao atualizar o pip.
+    pause & exit /b %errorlevel%
+)
+
+if not exist requirements.txt (
+    echo [ERRO] requirements.txt nao encontrado.
+    pause & exit /b 1
+)
+
+python -m pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao instalar as dependencias.
+    pause & exit /b %errorlevel%
+)
+
+python manage.py makemigrations
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao gerar migrations.
+    pause & exit /b %errorlevel%
+)
+
+python manage.py migrate
+if %errorlevel% neq 0 (
+    echo [ERRO] Falha ao executar migrations.
+    pause & exit /b %errorlevel%
+)
+
+python manage.py createsuperuser
+python manage.py runserver

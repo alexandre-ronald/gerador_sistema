@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 from .models import Sistema, Modulo, Entidade
@@ -35,14 +36,14 @@ class GeradorService:
 
     def gerar_projeto_completo(self):
         try:
-            if not os.path.exists(self.diretorio_base):
-                os.makedirs(self.diretorio_base, exist_ok=True)
+            if os.path.isdir(self.diretorio_base):
+                shutil.rmtree(self.diretorio_base)
+            os.makedirs(self.diretorio_base, exist_ok=True)
+            self.log("🧹 Diretório de geração limpo antes da compilação")
 
             self._gerar_core()
-
             for modulo in self.sistema.modulos.all():
                 self._gerar_modulo(modulo)
-
             self._gerar_templates_globais()
 
             self.log("🔎 Iniciando validação do projeto gerado...")
@@ -55,7 +56,6 @@ class GeradorService:
 
             if self.sistema.gerar_docker:
                 self._gerar_docker()
-
             self.log("✅ Geração concluída com sucesso!")
             return self.logs
         except Exception as e:
@@ -80,16 +80,12 @@ class GeradorService:
     def _preparar_entidade(self, entidade):
         entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade")
         entidade.classe_nome = self._class_name(entidade.nome)
-        entidade.url_name = entidade.codigo_nome
         for campo in entidade.campos.all():
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
             tipo_str = str(campo.tipo).strip()
             campo.eh_relacional = tipo_str in ["ForeignKey", "OneToOneField", "ManyToManyField"]
-            if campo.eh_relacional and campo.entidade_relacionada:
-                campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome)
-            else:
-                campo.classe_relacionada = ""
+            campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if campo.eh_relacional and campo.entidade_relacionada else ""
         return entidade
 
     def _gerar_modulo(self, modulo):
@@ -97,7 +93,6 @@ class GeradorService:
         modulo.app_name = app_name
         entidades = list(modulo.entidades.all())
         imports_por_app = {}
-
         for entidade in entidades:
             self._preparar_entidade(entidade)
             for campo in entidade.campos.all():
@@ -106,14 +101,9 @@ class GeradorService:
                     if app_pai != app_name:
                         imports_por_app.setdefault(app_pai, set()).add(campo.classe_relacionada)
 
-        ctx = {
-            "sistema": self.sistema,
-            "app_name": app_name,
-            "entidades": entidades,
-            "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()},
-            "nome_projeto": self.nome_projeto,
-        }
-
+        ctx = {"sistema": self.sistema, "app_name": app_name, "entidades": entidades,
+               "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()},
+               "nome_projeto": self.nome_projeto}
         self._escrever_arquivo(f"{app_name}/__init__.py", "gerador/snippets/init.txt", ctx)
         self._escrever_arquivo(f"{app_name}/models.py", "gerador/snippets/models.txt", ctx)
         self._escrever_arquivo(f"{app_name}/migrations/__init__.py", "gerador/snippets/init.txt", ctx)
@@ -125,12 +115,11 @@ class GeradorService:
         self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
 
         for entidade in entidades:
-            ent_slug = entidade.codigo_nome
-            ent_ctx = {**ctx, "entidade": entidade, "entidade_nome_lower": ent_slug}
+            ent_ctx = {**ctx, "entidade": entidade, "entidade_nome_lower": entidade.codigo_nome}
             base_t = f"{app_name}/templates/{app_name}"
-            self._escrever_arquivo(f"{base_t}/{ent_slug}_list.html", "gerador/snippets/html_list.txt", ent_ctx)
-            self._escrever_arquivo(f"{base_t}/{ent_slug}_form.html", "gerador/snippets/html_form.txt", ent_ctx)
-            self._escrever_arquivo(f"{base_t}/{ent_slug}_confirm_delete.html", "gerador/snippets/html_delete.txt", ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_list.html", "gerador/snippets/html_list.txt", ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_form.html", "gerador/snippets/html_form.txt", ent_ctx)
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_confirm_delete.html", "gerador/snippets/html_delete.txt", ent_ctx)
 
     def _gerar_core(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}

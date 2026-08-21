@@ -108,7 +108,13 @@ class GeradorService:
         entidade.classe_nome = self._class_name(entidade.nome)
         entidade.verbose_python = self._python_literal(entidade.nome)
         entidade.verbose_plural_python = self._python_literal(entidade.nome_plural or entidade.nome)
-        for campo in entidade.campos.all():
+
+        # Materialize the related fields once and keep the exact prepared
+        # instances in the template context. Calling entidade.campos.all
+        # again from a template creates/retrieves fresh model instances and
+        # loses compiler-only attributes such as codigo_nome and tipo_python.
+        campos_compilados = list(entidade.campos.all())
+        for campo in campos_compilados:
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.tipo_python = self._field_type(campo)
             campo.verbose_nome = campo.verbose_name or campo.nome
@@ -120,6 +126,9 @@ class GeradorService:
             campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if self._is_relation(campo) and campo.entidade_relacionada else ""
             if self._is_relation(campo) and not campo.entidade_relacionada:
                 raise ValueError(f"Campo relacional sem entidade relacionada: {entidade.nome}.{campo.nome}")
+
+        entidade.campos_compilados = campos_compilados
+        return campos_compilados
 
     def _preparar_modulos(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
@@ -135,7 +144,7 @@ class GeradorService:
         imports_por_app = {}
         for entidade in entidades:
             self._preparar_entidade(entidade)
-            for campo in entidade.campos.all():
+            for campo in entidade.campos_compilados:
                 if self._is_relation(campo) and campo.entidade_relacionada:
                     app_pai = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     if app_pai != app_name: imports_por_app.setdefault(app_pai, set()).add(self._class_name(campo.entidade_relacionada.nome))

@@ -10,14 +10,14 @@
     <form method="get" class="row g-2"><div class="col-md-8"><input type="search" name="q" value="{% templatetag openvariable %} search_query {% templatetag closevariable %}" class="form-control" placeholder="Buscar..."></div><div class="col-auto"><button class="btn btn-outline-primary" type="submit">Pesquisar</button></div></form>
 </div></div>
 <div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
-{% for campo in entidade.campos.all %}<th>{{ campo.verbose_nome }}</th>{% endfor %}<th>Ações</th>
+{% for campo in entidade.campos_compilados %}<th>{{ campo.verbose_nome }}</th>{% endfor %}<th>Ações</th>
 </tr></thead><tbody>
 {% templatetag openblock %} for item in page_obj {% templatetag closeblock %}<tr>
-{% for campo in entidade.campos.all %}<td>{% templatetag openvariable %} item.{{ campo.codigo_nome }} {% templatetag closevariable %}</td>{% endfor %}
+{% for campo in entidade.campos_compilados %}<td>{% templatetag openvariable %} item.{{ campo.codigo_nome }} {% templatetag closevariable %}</td>{% endfor %}
 <td>
 {% templatetag openblock %} if perms.{{ app_name }}.change_{{ entidade.codigo_nome }} {% templatetag closeblock %}<a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_update' item.pk {% templatetag closeblock %}" class="btn btn-sm btn-light">Editar</a>{% templatetag openblock %} endif {% templatetag closeblock %}
 {% templatetag openblock %} if perms.{{ app_name }}.delete_{{ entidade.codigo_nome }} {% templatetag closeblock %}<a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_delete' item.pk {% templatetag closeblock %}" class="btn btn-sm btn-light text-danger">Excluir</a>{% templatetag openblock %} endif {% templatetag closeblock %}
-</td></tr>{% templatetag openblock %} empty {% templatetag closeblock %}<tr><td colspan="{{ entidade.campos.all|length|add:1 }}" class="text-center py-4">Nenhum registro encontrado.</td></tr>{% templatetag openblock %} endfor {% templatetag closeblock %}
+</td></tr>{% templatetag openblock %} empty {% templatetag closeblock %}<tr><td colspan="{{ entidade.campos_compilados|length|add:1 }}" class="text-center py-4">Nenhum registro encontrado.</td></tr>{% templatetag openblock %} endfor {% templatetag closeblock %}
 </tbody></table></div></div>
 {% templatetag openblock %} if is_paginated {% templatetag closeblock %}<nav class="mt-4"><ul class="pagination justify-content-center">
 {% templatetag openblock %} if page_obj.has_previous {% templatetag closeblock %}<li class="page-item"><a class="page-link" href="?q={% templatetag openvariable %} search_query {% templatetag closevariable %}&page={% templatetag openvariable %} page_obj.previous_page_number {% templatetag closevariable %}">Anterior</a></li>{% templatetag openblock %} endif {% templatetag closeblock %}

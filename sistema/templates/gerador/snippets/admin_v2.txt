@@ -4,5 +4,5 @@ from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% 
 {% for entidade in entidades %}
 @admin.register({{ entidade.classe_nome }})
 class {{ entidade.classe_nome }}Admin(admin.ModelAdmin):
-    list_display = [{% for campo in entidade.campos.all %}'{{ campo.codigo_nome }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    list_display = [{% for campo in entidade.campos_compilados %}'{{ campo.codigo_nome }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
 {% endfor %}

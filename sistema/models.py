@@ -8,7 +8,7 @@ User = get_user_model()
 class Sistema(models.Model):
     BD_CHOICES = [
         ("sqlite3", "SQLite"),
-        ("postgresql", "PostgreSQL"),  # Corrigido
+        ("postgresql", "PostgreSQL"),
         ("mysql", "MySQL"),
         ("sqlserver", "SQL Server"),
         ("oracle", "Oracle"),
@@ -36,8 +36,6 @@ class Sistema(models.Model):
         default="lateral",
         verbose_name="Estilo do Menu",
     )
-
-    # NOVOS: Configurações Globais do Gerador
     usar_custom_user = models.BooleanField(
         default=True, verbose_name="Gerar Custom User Model?"
     )
@@ -90,8 +88,6 @@ class Entidade(models.Model):
         max_length=100, blank=True, verbose_name="Nome no Plural (Verbose Name Plural)"
     )
     descricao = models.TextField(blank=True)
-
-    # NOVOS: Flags para o Gerador
     gerar_admin = models.BooleanField(
         default=True, verbose_name="Registrar no admin.py?"
     )
@@ -124,11 +120,11 @@ class Campo(models.Model):
         ("TimeField", "TimeField"),
         ("EmailField", "EmailField"),
         ("URLField", "URLField"),
-        ("FileField", "FileField"),  # NOVO
-        ("ImageField", "ImageField"),  # NOVO
+        ("FileField", "FileField"),
+        ("ImageField", "ImageField"),
         ("ForeignKey", "ForeignKey"),
         ("ManyToManyField", "ManyToManyField"),
-        ("OneToOneField", "OneToOneField"),  # NOVO
+        ("OneToOneField", "OneToOneField"),
     ]
 
     ON_DELETE_CHOICES = [
@@ -145,16 +141,12 @@ class Campo(models.Model):
     tipo = models.CharField(
         max_length=20, choices=TIPO_CAMPO_CHOICES, verbose_name="Tipo do Campo"
     )
-
-    # Opções Comuns
     null = models.BooleanField(default=False)
     blank = models.BooleanField(default=False)
     unique = models.BooleanField(default=False)
     default_value = models.CharField(
         max_length=255, blank=True, help_text="Valor padrão (ex: 'Ativo', True, 0)"
-    )  # NOVO
-
-    # Atributos Específicos
+    )
     max_length = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Max Length"
     )
@@ -166,9 +158,7 @@ class Campo(models.Model):
     )
     upload_to = models.CharField(
         max_length=255, blank=True, verbose_name="Pasta de Upload (File/Image)"
-    )  # NOVO
-
-    # Relacionamentos
+    )
     entidade_relacionada = models.ForeignKey(
         Entidade,
         on_delete=models.SET_NULL,
@@ -179,14 +169,17 @@ class Campo(models.Model):
     )
     on_delete = models.CharField(
         max_length=50, choices=ON_DELETE_CHOICES, default="models.CASCADE", blank=True
-    )  # NOVO
+    )
     related_name_str = models.CharField(
         max_length=100, blank=True, verbose_name="Related Name"
-    )  # NOVO
-
-    # Metadados
+    )
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
+
+    @property
+    def eh_relacional(self):
+        """Indica se o campo representa um relacionamento Django."""
+        return self.tipo in {"ForeignKey", "OneToOneField", "ManyToManyField"}
 
     def __str__(self):
         return f"{self.entidade.nome}.{self.nome} ({self.tipo})"

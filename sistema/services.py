@@ -79,6 +79,23 @@ class GeradorService:
             f.write(render_to_string(template_name, contexto))
         self.log(f"Arquivo criado: {caminho_relativo}")
 
+    def _gerar_requirements(self):
+        requirements = ["Django>=5.2,<7"]
+        if self.sistema.banco_dados == "postgresql":
+            requirements.append("psycopg[binary]>=3.2")
+        elif self.sistema.banco_dados == "mysql":
+            requirements.append("mysqlclient>=2.2")
+        elif self.sistema.banco_dados == "sqlserver":
+            requirements.append("mssql-django>=1.5")
+        elif self.sistema.banco_dados == "oracle":
+            requirements.append("oracledb>=2.0")
+        if self.sistema.gerar_api_rest:
+            requirements.append("djangorestframework>=3.15")
+        path = os.path.join(self.diretorio_base, "requirements.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(requirements) + "\n")
+        self.log("Arquivo criado: requirements.txt")
+
     def _gerar_docker(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
         for path, template in [
@@ -153,6 +170,7 @@ class GeradorService:
             (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"),
         ]:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        self._gerar_requirements()
         os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True)
         os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True)
         self.log("✅ Diretórios static/ e media/ preparados")

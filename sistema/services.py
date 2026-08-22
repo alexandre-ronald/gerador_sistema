@@ -74,8 +74,6 @@ class GeradorService:
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.default_python = self._python_default(campo.default_value)
-            tipo = str(campo.tipo).strip()
-            campo.eh_relacional = tipo in ["ForeignKey", "OneToOneField", "ManyToManyField"]
             campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if campo.eh_relacional and campo.entidade_relacionada else ""
 
     def _gerar_modulo(self, modulo):

@@ -16,7 +16,7 @@
     </style>
 </head>
 <body>
-<!-- Runtime contract: request.resolver_match.app_name | perms. | {% url 'login' %} | {% url 'logout' %} | {% csrf_token %} | {% block content %} -->
+<!-- Runtime contract: app navigation | module permissions | authentication | CSRF | content block -->
 <div class="{% if sistema.tipo_menu == 'lateral' %}d-flex{% endif %}">
 {% if sistema.tipo_menu == 'lateral' %}
 <nav class="sidebar shadow">

@@ -32,7 +32,14 @@
         <hr class="mx-3">
         <div class="small text-uppercase px-4 mb-2 text-white-50">Módulos</div>
         {% for modulo in modulos %}
-        <li class="nav-item"><div class="small text-uppercase px-4 mt-3 mb-1 text-white-50 fw-semibold">{{ modulo.nome }}</div></li>
+        <li class="nav-item">
+            <a href="#modulo-{{ modulo.app_name }}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">
+                <i class="bi bi-grid me-2"></i>{{ modulo.nome }}
+            </a>
+        </li>
+        <li id="modulo-{{ modulo.app_name }}" class="nav-item">
+            <div class="small text-uppercase px-4 mt-2 mb-1 text-white-50 fw-semibold">{{ modulo.nome }}</div>
+        </li>
         {% for entidade in modulo.entidades.all %}
         {% if entidade.gerar_crud_views %}
         <li class="nav-item">

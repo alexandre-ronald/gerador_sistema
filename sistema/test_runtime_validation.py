@@ -4,6 +4,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
+from sistema.models import Campo
 from sistema.runtime_validation import validate_generated_runtime
 
 
@@ -76,3 +77,9 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             validate_generated_runtime(root)
 
         self.assertIn("Contrato do template base incompleto", str(ctx.exception))
+
+    def test_campo_exposes_relational_contract(self):
+        self.assertFalse(Campo(tipo="CharField").eh_relacional)
+        self.assertTrue(Campo(tipo="ForeignKey").eh_relacional)
+        self.assertTrue(Campo(tipo="OneToOneField").eh_relacional)
+        self.assertTrue(Campo(tipo="ManyToManyField").eh_relacional)

@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h4 class="fw-bold mb-0">{% if object %}Editar{% else %}Cadastrar{% endif %} Funcionário</h4></div><div class="card-body">
+<form method="post">{% csrf_token %}<button type="submit" class="btn btn-primary">Salvar Registro</button><a href="{% url 'gestao_de_pessoas:funcionario_list' %}" class="btn btn-light ms-2">Voltar</a></form>
+</div></div></div></div>
+{% endblock %}

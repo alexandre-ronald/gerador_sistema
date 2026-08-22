@@ -103,3 +103,89 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             identifier = GeradorService._python_identifier(value)
             self.assertNotEqual(identifier, value)
             self.assertTrue(identifier.isidentifier())
+
+class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
+    """Garante que o snippet de settings gera DATABASES válido para todos os bancos."""
+
+    def _render_settings(self, banco_dados):
+        from django.template.loader import render_to_string
+        from types import SimpleNamespace
+
+        sistema = SimpleNamespace(nome="Sistema de Teste", banco_dados=banco_dados)
+        modulo = SimpleNamespace(app_name="app_teste")
+
+        return render_to_string(
+            "gerador/snippets/settings.txt",
+            {
+                "sistema": sistema,
+                "nome_projeto": "sistema_de_teste",
+                "modulos": [modulo],
+            },
+        )
+
+    def test_sqlite_settings_contains_engine_and_name(self):
+        content = self._render_settings("sqlite3")
+        self.assertIn("django.db.backends.sqlite3", content)
+        self.assertIn("db.sqlite3", content)
+        self.assertIn("ENGINE", content)
+        self.assertNotIn("'default': {\n    }", content.replace(" ", ""))
+
+    def test_postgresql_settings_contains_engine_and_env(self):
+        content = self._render_settings("postgresql")
+        self.assertIn("django.db.backends.postgresql", content)
+        self.assertIn("POSTGRES_DB", content)
+        self.assertIn("sistema_de_teste_db", content)
+        self.assertNotIn("sistema-de-teste_db", content)
+
+    def test_mysql_settings_contains_engine(self):
+        content = self._render_settings("mysql")
+        self.assertIn("django.db.backends.mysql", content)
+        self.assertIn("MYSQL_DATABASE", content)
+
+    def test_sqlserver_settings_contains_engine(self):
+        content = self._render_settings("sqlserver")
+        self.assertIn("'ENGINE': 'mssql'", content)
+        self.assertIn("MSSQL_DATABASE", content)
+
+    def test_oracle_settings_contains_engine(self):
+        content = self._render_settings("oracle")
+        self.assertIn("django.db.backends.oracle", content)
+        self.assertIn("ORACLE_NAME", content)
+
+    def test_unknown_database_falls_back_to_sqlite(self):
+        content = self._render_settings("banco_desconhecido")
+        self.assertIn("django.db.backends.sqlite3", content)
+        self.assertIn("db.sqlite3", content)
+
+    def test_requirements_include_driver_for_postgresql(self):
+        from sistema.services import GeradorService
+
+        class FakeSistema:
+            banco_dados = "postgresql"
+            gerar_api_rest = False
+
+        svc = GeradorService.__new__(GeradorService)
+        svc.sistema = FakeSistema()
+        svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")
+        svc.logs = []
+        svc._gerar_requirements()
+        req = Path(svc.diretorio_base, "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn("psycopg", req)
+        self.assertIn("Django", req)
+
+    def test_requirements_sqlite_has_no_extra_driver(self):
+        from sistema.services import GeradorService
+
+        class FakeSistema:
+            banco_dados = "sqlite3"
+            gerar_api_rest = False
+
+        svc = GeradorService.__new__(GeradorService)
+        svc.sistema = FakeSistema()
+        svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")
+        svc.logs = []
+        svc._gerar_requirements()
+        req = Path(svc.diretorio_base, "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn("Django", req)
+        self.assertNotIn("psycopg", req)
+        self.assertNotIn("mysqlclient", req)

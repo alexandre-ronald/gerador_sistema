@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><h3 class="fw-bold mb-1">Gerenciamento de Cargo</h3><span class="text-muted small"></span></div>
+    {% if perms.eleicao.add_cargo %}
+    <a href="{% url 'eleicao:cargo_create' %}" class="btn btn-primary">Novo Registro</a>
+    {% endif %}
+</div>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body">
+    <form method="get" class="row g-2"><div class="col-md-8"><input type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="Buscar..."></div><div class="col-auto"><button class="btn btn-outline-primary" type="submit">Pesquisar</button></div></form>
+</div></div>
+<div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
+<th></th><th></th><th>Ações</th>
+</tr></thead><tbody>
+{% for item in page_obj %}<tr>
+<td>{{ item.descricao }}</td><td>{{ item.sigla }}</td>
+<td>
+{% if perms.eleicao.change_cargo %}<a href="{% url 'eleicao:cargo_update' item.pk %}" class="btn btn-sm btn-light">Editar</a>{% endif %}
+{% if perms.eleicao.delete_cargo %}<a href="{% url 'eleicao:cargo_delete' item.pk %}" class="btn btn-sm btn-light text-danger">Excluir</a>{% endif %}
+</td></tr>{% empty %}<tr><td colspan="3" class="text-center py-4">Nenhum registro encontrado.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% if is_paginated %}<nav class="mt-4"><ul class="pagination justify-content-center">
+{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Anterior</a></li>{% endif %}
+<li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Próxima</a></li>{% endif %}
+</ul></nav>{% endif %}
+{% endblock %}

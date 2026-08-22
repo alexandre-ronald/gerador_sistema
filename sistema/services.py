@@ -101,8 +101,14 @@ class GeradorService:
             self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_confirm_delete.html", "gerador/snippets/html_delete.txt", ent_ctx)
 
     def _gerar_core(self):
-        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}
+        modulos = list(self.sistema.modulos.prefetch_related("entidades"))
+        for modulo in modulos:
+            modulo.app_name = self._python_identifier(modulo.nome, "app")
+        ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
         for path, template in [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt")]: self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True)
+        os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True)
+        self.log("✅ Diretórios static/ e media/ preparados")
 
     def _gerar_templates_globais(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))

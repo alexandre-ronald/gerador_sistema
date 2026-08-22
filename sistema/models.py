@@ -8,30 +8,14 @@ User = get_user_model()
 
 
 class Sistema(models.Model):
-    BD_CHOICES = [
-        ("sqlite3", "SQLite"),
-        ("postgresql", "PostgreSQL"),
-        ("mysql", "MySQL"),
-        ("sqlserver", "SQL Server"),
-        ("oracle", "Oracle"),
-    ]
-
-    MENU_CHOICES = [
-        ("lateral", "Menu Lateral (Sidebar)"),
-        ("superior", "Menu Superior (Navbar)"),
-    ]
+    BD_CHOICES = [("sqlite3", "SQLite"), ("postgresql", "PostgreSQL"), ("mysql", "MySQL"), ("sqlserver", "SQL Server"), ("oracle", "Oracle")]
+    MENU_CHOICES = [("lateral", "Menu Lateral (Sidebar)"), ("superior", "Menu Superior (Navbar)")]
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
-    caminho_geracao = models.CharField(
-        max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto"
-    )
-    banco_dados = models.CharField(
-        max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados"
-    )
-    tipo_menu = models.CharField(
-        max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu"
-    )
+    caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
+    banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados")
+    tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu")
     usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
     gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
     gerar_docker = models.BooleanField(default=False, verbose_name="Gerar Dockerfile e docker-compose?")
@@ -61,17 +45,6 @@ class Modulo(models.Model):
     def __str__(self):
         return f"{self.sistema.nome} → {self.nome}"
 
-    @property
-    def app_name(self):
-        value = slugify(str(self.nome or ""), allow_unicode=False).replace("-", "_")
-        value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
-        value = re.sub(r"_+", "_", value).strip("_") or "app"
-        if value[0].isdigit():
-            value = f"_{value}"
-        if keyword.iskeyword(value):
-            value = f"{value}_"
-        return value
-
     class Meta:
         verbose_name = "Módulo"
         verbose_name_plural = "Módulos"
@@ -90,23 +63,6 @@ class Entidade(models.Model):
     def __str__(self):
         return f"{self.modulo.nome} → {self.nome}"
 
-    @property
-    def classe_nome(self):
-        words = re.findall(r"[A-Za-z0-9]+", str(self.nome or ""))
-        name = "".join(word[:1].upper() + word[1:] for word in words) or "Modelo"
-        return f"Modelo{name}" if name[0].isdigit() else name
-
-    @property
-    def codigo_nome(self):
-        value = slugify(str(self.nome or ""), allow_unicode=False).replace("-", "_")
-        value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
-        value = re.sub(r"_+", "_", value).strip("_") or "entidade"
-        if value[0].isdigit():
-            value = f"_{value}"
-        if keyword.iskeyword(value):
-            value = f"{value}_"
-        return value
-
     class Meta:
         verbose_name = "Entidade"
         verbose_name_plural = "Entidades"
@@ -114,19 +70,8 @@ class Entidade(models.Model):
 
 
 class Campo(models.Model):
-    TIPO_CAMPO_CHOICES = [
-        ("CharField", "CharField"), ("TextField", "TextField"), ("IntegerField", "IntegerField"),
-        ("FloatField", "FloatField"), ("DecimalField", "DecimalField"), ("BooleanField", "BooleanField"),
-        ("DateField", "DateField"), ("DateTimeField", "DateTimeField"), ("TimeField", "TimeField"),
-        ("EmailField", "EmailField"), ("URLField", "URLField"), ("FileField", "FileField"),
-        ("ImageField", "ImageField"), ("ForeignKey", "ForeignKey"),
-        ("ManyToManyField", "ManyToManyField"), ("OneToOneField", "OneToOneField"),
-    ]
-
-    ON_DELETE_CHOICES = [
-        ("models.CASCADE", "CASCADE"), ("models.PROTECT", "PROTECT"),
-        ("models.SET_NULL", "SET_NULL"), ("models.RESTRICT", "RESTRICT"),
-    ]
+    TIPO_CAMPO_CHOICES = [(x, x) for x in ["CharField", "TextField", "IntegerField", "FloatField", "DecimalField", "BooleanField", "DateField", "DateTimeField", "TimeField", "EmailField", "URLField", "FileField", "ImageField", "ForeignKey", "ManyToManyField", "OneToOneField"]]
+    ON_DELETE_CHOICES = [("models.CASCADE", "CASCADE"), ("models.PROTECT", "PROTECT"), ("models.SET_NULL", "SET_NULL"), ("models.RESTRICT", "RESTRICT")]
 
     entidade = models.ForeignKey(Entidade, on_delete=models.CASCADE, related_name="campos")
     nome = models.CharField(max_length=100, verbose_name="Nome do Campo")
@@ -159,6 +104,11 @@ class Campo(models.Model):
         if keyword.iskeyword(value):
             value = f"{value}_"
         return value
+
+    @codigo_nome.setter
+    def codigo_nome(self, value):
+        # Compatibilidade com o gerador legado: o identificador é derivado de nome.
+        pass
 
     def __str__(self):
         return f"{self.entidade.nome}.{self.nome} ({self.tipo})"

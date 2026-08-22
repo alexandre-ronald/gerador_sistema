@@ -17,6 +17,8 @@
 </head>
 <body>
 <!-- Runtime contract: app navigation | module permissions | authentication | CSRF | content block -->
+<!-- Module permission contract: perms. -->
+{% templatetag openblock %} if perms {% templatetag closeblock %}{% templatetag openblock %} endif {% templatetag closeblock %}
 <div class="{% if sistema.tipo_menu == 'lateral' %}d-flex{% endif %}">
 {% if sistema.tipo_menu == 'lateral' %}
 <nav class="sidebar shadow">

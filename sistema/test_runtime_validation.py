@@ -35,6 +35,7 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             """import os\nimport sys\nos.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')\nfrom django.core.management import execute_from_command_line\nexecute_from_command_line(sys.argv)\n""",
             encoding="utf-8",
         )
+        (root / "requirements.txt").write_text("Django>=5.2,<7\n", encoding="utf-8")
         (root / "demo" / "__init__.py").write_text("", encoding="utf-8")
         (root / "demo" / "settings.py").write_text(
             """SECRET_KEY = 'test'\nDEBUG = True\nROOT_URLCONF = 'demo.urls'\nALLOWED_HOSTS = []\nINSTALLED_APPS = ['django.contrib.auth', 'django.contrib.contenttypes']\nDATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}\nTEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': ['templates'], 'APP_DIRS': True, 'OPTIONS': {'context_processors': []}}]\nMIDDLEWARE = []\nUSE_TZ = True\n""",

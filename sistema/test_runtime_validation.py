@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 
 from sistema.models import Campo
 from sistema.runtime_validation import validate_generated_runtime
+from sistema.services import GeradorService
 
 
 BASE_TEMPLATE = """<!doctype html>
@@ -83,3 +84,9 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
         self.assertTrue(Campo(tipo="ForeignKey").eh_relacional)
         self.assertTrue(Campo(tipo="OneToOneField").eh_relacional)
         self.assertTrue(Campo(tipo="ManyToManyField").eh_relacional)
+
+    def test_python_identifier_never_returns_keyword(self):
+        for value in ["class", "from", "import", "for", "while", "def"]:
+            identifier = GeradorService._python_identifier(value)
+            self.assertNotEqual(identifier, value)
+            self.assertTrue(identifier.isidentifier())

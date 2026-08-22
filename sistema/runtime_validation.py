@@ -16,6 +16,7 @@ class GeneratedProjectRuntimeValidator:
         "templates/base.html",
         "templates/index.html",
         "templates/registration/login.html",
+        "requirements.txt",
     )
 
     def __init__(self, root):
@@ -120,14 +121,8 @@ class GeneratedProjectRuntimeValidator:
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
-
-        # Never let the validator inherit the generator's Django settings.
-        # manage.py uses setdefault(), so an inherited DJANGO_SETTINGS_MODULE
-        # would otherwise override the settings of the generated project.
         env.pop("DJANGO_SETTINGS_MODULE", None)
 
-        # The generated project must be the first import location, while the
-        # generator's environment remains available for installed packages.
         existing_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(self.root) + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
 
@@ -148,6 +143,24 @@ class GeneratedProjectRuntimeValidator:
 
         if result.returncode != 0:
             output = (result.stdout + "\n" + result.stderr).strip()
+            missing_driver = (
+                "Error loading psycopg2 or psycopg module" in output
+                or "Error loading MySQLdb module" in output
+                or "No module named 'MySQLdb'" in output
+                or "No module named 'oracledb'" in output
+                or "No module named 'mssql'" in output
+            )
+            if missing_driver:
+                warning = (
+                    "Django system check não pôde abrir o banco porque o driver configurado "
+                    "não está instalado no ambiente do gerador. O projeto gerado contém o "
+                    "requirements.txt correspondente. Execute 'python -m pip install -r requirements.txt' "
+                    "no projeto gerado antes de executar migrate/runserver."
+                )
+                self.warnings.append(warning)
+                self._message("⚠️ Django system check adiado: driver do banco ausente no ambiente atual")
+                return
+
             self.errors.append(f"Django system check falhou: {output[-4000:]}")
             return
 

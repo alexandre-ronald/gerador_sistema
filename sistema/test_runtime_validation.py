@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
+from django.template.loader import get_template
 
 from sistema.models import Campo
 from sistema.runtime_validation import validate_generated_runtime
@@ -79,6 +80,17 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             validate_generated_runtime(root)
 
         self.assertIn("Contrato do template base incompleto", str(ctx.exception))
+
+    def test_generator_base_snippet_is_valid_django_template(self):
+        """The generator template must parse before any project is generated.
+
+        The snippet itself contains Django syntax that belongs to the generated
+        application. It therefore uses the templatetag/templatetag-openvariable
+        mechanism to emit those tags literally. This regression test prevents a
+        future edit from adding raw {% block %}, {% url %}, etc. to the snippet.
+        """
+        template = get_template("gerador/snippets/base_html.txt")
+        self.assertIsNotNone(template)
 
     def test_campo_exposes_relational_contract(self):
         self.assertFalse(Campo(tipo="CharField").eh_relacional)

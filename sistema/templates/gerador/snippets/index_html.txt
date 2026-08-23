@@ -2,107 +2,49 @@
 
 {% templatetag openblock %} block content {% templatetag closeblock %}
 <style>
-    .dashboard-card {
-        background: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color-translucent);
-        border-radius: 1.25rem;
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.08);
-        border-color: var(--bs-primary);
-    }
+    .dashboard-card { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color-translucent); border-radius: 1.25rem; transition: all .3s ease; height: 100%; }
+    .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,.08); border-color: var(--bs-primary); }
     .welcome-header { display: inline-flex; align-items: center; gap: 15px; color: var(--bs-emphasis-color); }
-    .rocket-icon { font-size: 2.8rem; color: #0dcaf0; filter: drop-shadow(0 4px 8px rgba(13, 202, 240, 0.3)); animation: float 3s ease-in-out infinite; }
-    @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-
-    /* Novos Cards de Entidade */
-    .entity-card {
-        display: block;
-        text-decoration: none;
-        color: inherit;
-        background: var(--bs-secondary-bg);
-        border-left: 4px solid var(--bs-info);
-        border-radius: 10px;
-        padding: 1.25rem;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    .entity-card:hover {
-        background: var(--bs-tertiary-bg);
-        transform: translateX(8px);
-        border-left-color: var(--bs-primary);
-        box-shadow: -5px 5px 15px rgba(0,0,0,0.05);
-        color: inherit;
-    }
-    .entity-icon-wrapper {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bs-info-bg-subtle);
-        border-radius: 8px;
-        color: var(--bs-info);
-        transition: 0.3s;
-    }
-    .entity-card:hover .entity-icon-wrapper {
-        background: var(--bs-primary);
-        color: white;
-    }
-    .module-badge {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 700;
-        opacity: 0.7;
-    }
+    .rocket-icon { font-size: 2.8rem; color: #0dcaf0; filter: drop-shadow(0 4px 8px rgba(13,202,240,.3)); animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+    .entity-card { display:block; text-decoration:none; color:inherit; background:var(--bs-secondary-bg); border-left:4px solid var(--bs-info); border-radius:10px; padding:1.25rem; transition:all .25s cubic-bezier(.4,0,.2,1); position:relative; overflow:hidden; }
+    .entity-card:hover { background:var(--bs-tertiary-bg); transform:translateX(8px); border-left-color:var(--bs-primary); box-shadow:-5px 5px 15px rgba(0,0,0,.05); color:inherit; }
+    .entity-icon-wrapper { width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:var(--bs-info-bg-subtle); border-radius:8px; color:var(--bs-info); transition:.3s; }
+    .entity-card:hover .entity-icon-wrapper { background:var(--bs-primary); color:white; }
+    .module-badge { font-size:.65rem; text-transform:uppercase; letter-spacing:.5px; font-weight:700; opacity:.7; }
 </style>
 
 <div class="container-fluid py-4">
     <div class="row mb-5">
         <div class="col-12 text-center text-md-start">
-            <h1 class="welcome-header fw-bold">
-                Bem-vindo ao {{ sistema.nome }}
-                <i class="bi bi-rocket-takeoff-fill rocket-icon"></i>
-            </h1>
+            <h1 class="welcome-header fw-bold">Bem-vindo ao {{ sistema.nome }} <i class="bi bi-rocket-takeoff-fill rocket-icon"></i></h1>
             <p class="text-muted fs-5">Gestão simplificada. O que vamos acessar agora?</p>
         </div>
     </div>
 
-    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
-        <i class="bi bi-grid-fill text-primary"></i> Módulos Ativos
-    </h5>
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
     <div class="row g-4 mb-5">
         {% for modulo in sistema.modulos.all %}
-            <div class="col-md-6 col-lg-3">
-                <div class="card dashboard-card p-4">
-                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                        <i class="bi bi-folder2-open text-primary fs-4"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">{{ modulo.nome }}</h4>
-                    <p class="text-muted small mb-0">{{ modulo.entidades.all|length }} Tabelas registradas</p>
-                </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card dashboard-card p-4">
+                <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="bi bi-folder2-open text-primary fs-4"></i></div>
+                <h4 class="fw-bold mb-1">{{ modulo.nome }}</h4>
+                <p class="text-muted small mb-0">{{ modulo.entidades.all|length }} Tabelas registradas</p>
             </div>
+        </div>
         {% endfor %}
     </div>
 
-    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
-        <i class="bi bi-layers-half text-info"></i> Entidades do Sistema
-    </h5>
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
     <div class="row g-3">
-        {% for modulo in sistema.modulos.all %}
+        {% for modulo in modulos %}
             {% for entidade in modulo.entidades.all %}
+                {% if entidade.gerar_crud_views %}
                 <div class="col-md-4 col-lg-3">
-                    <a href="{% templatetag openblock %} url '{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list' {% templatetag closeblock %}" class="entity-card border shadow-sm">
+                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="entity-card border shadow-sm">
                         <div class="d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center gap-3">
-                                <div class="entity-icon-wrapper">
-                                    <i class="bi bi-table"></i>
-                                </div>
+                                <div class="entity-icon-wrapper"><i class="bi bi-table"></i></div>
                                 <div>
                                     <div class="module-badge text-primary">{{ modulo.nome }}</div>
                                     <div class="fw-bold fs-6">{{ entidade.nome|title }}</div>
@@ -112,6 +54,7 @@
                         </div>
                     </a>
                 </div>
+                {% endif %}
             {% endfor %}
         {% endfor %}
     </div>

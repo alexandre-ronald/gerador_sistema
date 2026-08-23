@@ -8,7 +8,7 @@ class GeneratedFormsSnippetTests(SimpleTestCase):
     """Regression tests for the generated forms.py contract."""
 
     def _render_forms(self):
-        entidade = SimpleNamespace(classe_nome="FuncionRio")
+        entidade = SimpleNamespace(classe_nome="Funcionario")
         return render_to_string(
             "gerador/snippets/forms_v2.txt",
             {"entidades": [entidade]},
@@ -16,11 +16,12 @@ class GeneratedFormsSnippetTests(SimpleTestCase):
 
     def test_generated_forms_imports_model_classes(self):
         content = self._render_forms()
-        self.assertIn("from .models import FuncionRio", content)
-        self.assertIn("model = FuncionRio", content)
+        self.assertIn("from .models import Funcionario", content)
+        self.assertIn("model = Funcionario", content)
 
     def test_generated_form_is_self_contained(self):
         content = self._render_forms()
-        self.assertNotIn("model = FuncionRio\n", content.replace(
-            "from .models import FuncionRio\n", ""
+        self.assertNotIn("FuncionRio", content)
+        self.assertNotIn("model = Funcionario\n", content.replace(
+            "from .models import Funcionario\n", ""
         ))

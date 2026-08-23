@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.text import slugify
 
-from .models import Sistema
+from .models import Sistema, VersaoGeracao
 from .services import GeradorService
 
 
@@ -23,12 +23,10 @@ def _bat_env_writer(db_type):
         keys = ["ORACLE_NAME", "ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_HOST", "ORACLE_PORT"]
     else:
         keys = []
-
     pairs = ", ".join(f"{key!r}: os.environ.get({key!r}, '')" for key in keys)
     if pairs:
         pairs += ", "
     pairs += "'DJANGO_DEBUG': '1', 'DJANGO_ALLOWED_HOSTS': 'localhost,127.0.0.1', 'DJANGO_SECRET_KEY': os.environ.get('DJANGO_SECRET_KEY') or secrets.token_urlsafe(50)"
-
     return f'''python -c "import os,json,secrets; from pathlib import Path; v={{ {pairs} }}; Path('.env').write_text(''.join(k+'='+json.dumps(val, ensure_ascii=False)+'\\n' for k,val in v.items()), encoding='utf-8')"
 if %errorlevel% neq 0 (
     echo [ERRO] Nao foi possivel criar o arquivo .env.
@@ -58,7 +56,6 @@ set /p POSTGRES_PORT=Porta [5432]:
 if "!POSTGRES_PORT!"=="" set "POSTGRES_PORT=5432"
 
 ''' + _bat_env_writer(db_type)
-
     if db_type == "mysql":
         return '''echo.
 echo ====================================================================
@@ -76,7 +73,6 @@ set /p MYSQL_PORT=Porta [3306]:
 if "!MYSQL_PORT!"=="" set "MYSQL_PORT=3306"
 
 ''' + _bat_env_writer(db_type)
-
     if db_type == "sqlserver":
         return '''echo.
 echo ====================================================================
@@ -94,7 +90,6 @@ set /p MSSQL_PORT=Porta [1433]:
 if "!MSSQL_PORT!"=="" set "MSSQL_PORT=1433"
 
 ''' + _bat_env_writer(db_type)
-
     if db_type == "oracle":
         return '''echo.
 echo ====================================================================
@@ -112,7 +107,6 @@ set /p ORACLE_PORT=Porta [1521]:
 if "!ORACLE_PORT!"=="" set "ORACLE_PORT=1521"
 
 ''' + _bat_env_writer(db_type)
-
     return _bat_env_writer(db_type) + '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
 echo.
 '''
@@ -136,7 +130,6 @@ if not exist "manage.py" (
     exit /b 1
 )
 
-:: 1. Criar ambiente virtual
 echo [1/6] Criando ambiente virtual Python (.venv)...
 if not exist ".venv\\Scripts\\python.exe" python -m venv .venv
 if %errorlevel% neq 0 (
@@ -148,7 +141,6 @@ call ".venv\\Scripts\\activate.bat"
 echo [OK] Ambiente virtual pronto.
 echo.
 
-:: 2. Instalar exatamente as dependencias declaradas pelo gerador
 echo [2/6] Atualizando pip...
 python -m pip install --upgrade pip
 if %errorlevel% neq 0 (
@@ -167,10 +159,9 @@ if %errorlevel% neq 0 (
 echo [OK] Dependencias instaladas.
 echo.
 
-:: 3. Configurar banco e gerar .env
+:: Configurar banco e gerar .env
 {db_prompt}
 
-:: 4. Validar configuracao antes das migracoes
 echo [4/6] Validando configuracao Django...
 python manage.py check
 if %errorlevel% neq 0 (
@@ -182,7 +173,6 @@ if %errorlevel% neq 0 (
 echo [OK] Configuracao Django validada.
 echo.
 
-:: 5. Criar tabelas
 echo [5/6] Criando e aplicando migracoes...
 python manage.py makemigrations
 if %errorlevel% neq 0 (
@@ -200,12 +190,9 @@ if %errorlevel% neq 0 (
 echo [OK] Banco de dados configurado.
 echo.
 
-:: 6. Criar administrador e iniciar
 echo [6/6] Criando usuario administrador...
 python manage.py createsuperuser
-if %errorlevel% neq 0 (
-    echo [AVISO] O superusuario nao foi criado. Voce podera cria-lo depois com createsuperuser.
-)
+if %errorlevel% neq 0 echo [AVISO] O superusuario nao foi criado.
 
 echo.
 echo ====================================================================
@@ -220,14 +207,54 @@ python manage.py runserver
 '''
 
 
+def _estrutura_snapshot(sistema):
+    return {
+        "sistema": {
+            "nome": sistema.nome,
+            "descricao": sistema.descricao,
+            "banco_dados": sistema.banco_dados,
+            "tipo_menu": sistema.tipo_menu,
+            "gerar_api_rest": sistema.gerar_api_rest,
+            "gerar_docker": sistema.gerar_docker,
+            "usar_custom_user": sistema.usar_custom_user,
+            "usar_auditoria": sistema.usar_auditoria,
+        },
+        "modulos": [
+            {
+                "nome": modulo.nome,
+                "descricao": modulo.descricao,
+                "entidades": [
+                    {
+                        "nome": entidade.nome,
+                        "nome_plural": entidade.nome_plural,
+                        "campos": [
+                            {
+                                "nome": campo.nome,
+                                "tipo": campo.tipo,
+                                "null": campo.null,
+                                "blank": campo.blank,
+                                "unique": campo.unique,
+                                "default": campo.default_value,
+                                "rel": campo.entidade_relacionada.nome if campo.entidade_relacionada else None,
+                            }
+                            for campo in entidade.campos.all()
+                        ],
+                    }
+                    for entidade in modulo.entidades.all()
+                ],
+            }
+            for modulo in sistema.modulos.all()
+        ],
+    }
+
+
 def processar_geracao_ajax(request, pk):
-    """Gera o projeto, cria um instalador consistente com o banco e exporta o ZIP."""
+    """Gera o projeto, cria instalador, registra a versão e exporta o ZIP."""
     try:
         gerador = GeradorService(pk)
         logs_execucao = gerador.gerar_projeto_completo()
         sistema = get_object_or_404(Sistema, pk=pk)
         diretorio_destino = sistema.caminho_geracao
-
         if not diretorio_destino or not os.path.isdir(diretorio_destino):
             raise RuntimeError(f"Diretorio de destino '{diretorio_destino}' nao foi localizado.")
 
@@ -254,14 +281,52 @@ def processar_geracao_ajax(request, pk):
         sistema.arquivo_zip = f"downloads_sistemas/{nome_zip}"
         sistema.save(update_fields=["arquivo_zip", "atualizado_em"])
 
+        numero = (VersaoGeracao.objects.filter(sistema=sistema).order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
+        versao = VersaoGeracao.objects.create(
+            sistema=sistema,
+            numero=numero,
+            descricao=f"Geração {timestamp}",
+            estrutura_json=_estrutura_snapshot(sistema),
+        )
+        with open(caminho_zip_final, "rb") as zip_file:
+            versao.arquivo_zip.save(nome_zip, zip_file, save=True)
+
+        logs_execucao.append(f"Versao de geracao registrada: v{numero}")
         logs_execucao.append(f"Arquivo compactado gerado com sucesso: {nome_zip}")
         logs_execucao.append("Processo de exportacao finalizado com sucesso!")
 
         return JsonResponse({
             "status": "sucesso",
             "logs": logs_execucao,
+            "versao": numero,
             "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk}),
         })
-
     except Exception as exc:
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
+
+
+def preview_geracao(request, pk):
+    """Retorna o preview estrutural da última geração sem executar o projeto."""
+    sistema = get_object_or_404(Sistema, pk=pk)
+    versao = sistema.versoes.first()
+    if not versao:
+        return JsonResponse({"status": "erro", "mensagem": "Nenhuma geração disponível para preview."}, status=404)
+
+    root = sistema.caminho_geracao
+    arquivos = []
+    if os.path.isdir(root):
+        for base, dirs, names in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
+            for name in names:
+                rel = os.path.relpath(os.path.join(base, name), root).replace(os.sep, "/")
+                arquivos.append(rel)
+    arquivos.sort()
+
+    return JsonResponse({
+        "status": "sucesso",
+        "sistema": sistema.nome,
+        "versao": versao.numero,
+        "criado_em": versao.criado_em.isoformat(),
+        "estrutura": versao.estrutura_json,
+        "arquivos": arquivos,
+    })

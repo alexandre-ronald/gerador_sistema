@@ -35,6 +35,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo [OK] Arquivo .env criado com as configuracoes do banco.
+echo.
 '''
 
 
@@ -112,7 +113,8 @@ if "!ORACLE_PORT!"=="" set "ORACLE_PORT=1521"
 ''' + _bat_env_writer(db_type)
 
     return '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
-echo.\n'''
+echo.
+'''
 
 
 def _installer_content(sistema):
@@ -180,7 +182,7 @@ echo [OK] Configuracao Django validada.
 echo.
 
 :: 5. Criar tabelas
- echo [5/6] Criando e aplicando migracoes...
+echo [5/6] Criando e aplicando migracoes...
 python manage.py makemigrations
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao gerar as migracoes.
@@ -198,7 +200,7 @@ echo [OK] Banco de dados configurado.
 echo.
 
 :: 6. Criar administrador e iniciar
- echo [6/6] Criando usuario administrador...
+echo [6/6] Criando usuario administrador...
 python manage.py createsuperuser
 if %errorlevel% neq 0 (
     echo [AVISO] O superusuario nao foi criado. Voce podera cria-lo depois com createsuperuser.

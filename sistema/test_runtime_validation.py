@@ -31,7 +31,6 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
         root = Path(tempfile.mkdtemp(prefix="django_generated_test_"))
         (root / "templates" / "registration").mkdir(parents=True)
         (root / "demo").mkdir()
-
         (root / "manage.py").write_text(
             """import os\nimport sys\nos.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')\nfrom django.core.management import execute_from_command_line\nexecute_from_command_line(sys.argv)\n""",
             encoding="utf-8",
@@ -46,10 +45,7 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             """from django.urls import path\nfrom django.http import HttpResponse\n\ndef view(request):\n    return HttpResponse('ok')\n\nurlpatterns = [path('', view, name='index'), path('login/', view, name='login'), path('logout/', view, name='logout')]\n""",
             encoding="utf-8",
         )
-        (root / "demo" / "wsgi.py").write_text(
-            """import os\nos.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')\n""",
-            encoding="utf-8",
-        )
+        (root / "demo" / "wsgi.py").write_text("import os\nos.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')\n", encoding="utf-8")
         (root / "templates" / "base.html").write_text(BASE_TEMPLATE, encoding="utf-8")
         (root / "templates" / "index.html").write_text("{% extends 'base.html' %}{% block content %}OK{% endblock %}", encoding="utf-8")
         (root / "templates" / "registration" / "login.html").write_text("Login", encoding="utf-8")
@@ -64,31 +60,18 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
     def test_invalid_template_is_rejected(self):
         root = self._create_project()
         (root / "templates" / "index.html").write_text("{% if broken %}", encoding="utf-8")
-
         with self.assertRaises(ValidationError) as ctx:
             validate_generated_runtime(root)
-
         self.assertIn("Template inválido", str(ctx.exception))
 
     def test_authentication_contract_is_required(self):
         root = self._create_project()
-        (root / "templates" / "base.html").write_text(
-            "{% block content %}{% endblock %}", encoding="utf-8"
-        )
-
+        (root / "templates" / "base.html").write_text("{% block content %}{% endblock %}", encoding="utf-8")
         with self.assertRaises(ValidationError) as ctx:
             validate_generated_runtime(root)
-
         self.assertIn("Contrato do template base incompleto", str(ctx.exception))
 
     def test_generator_base_snippet_is_valid_django_template(self):
-        """The generator template must parse before any project is generated.
-
-        The snippet itself contains Django syntax that belongs to the generated
-        application. It therefore uses the templatetag/templatetag-openvariable
-        mechanism to emit those tags literally. This regression test prevents a
-        future edit from adding raw {% block %}, {% url %}, etc. to the snippet.
-        """
         template = get_template("gerador/snippets/base_html.txt")
         self.assertIsNotNone(template)
 
@@ -104,31 +87,36 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             self.assertNotEqual(identifier, value)
             self.assertTrue(identifier.isidentifier())
 
-class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
-    """Garante que o snippet de settings gera DATABASES válido para todos os bancos."""
+    def test_class_name_removes_accents_without_corrupting_the_word(self):
+        cases = {
+            "Funcionário": "Funcionario",
+            "Eleição": "Eleicao",
+            "Órgão": "Orgao",
+            "Seção": "Secao",
+            "Município": "Municipio",
+            "Área de Gestão": "AreaDeGestao",
+        }
+        for original, expected in cases.items():
+            self.assertEqual(GeradorService._class_name(original), expected)
 
+    def test_class_name_does_not_generate_legacy_funcionrio_form(self):
+        self.assertEqual(GeradorService._class_name("Funcionário"), "Funcionario")
+        self.assertNotEqual(GeradorService._class_name("Funcionário"), "FuncionRio")
+
+
+class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
     def _render_settings(self, banco_dados):
         from django.template.loader import render_to_string
         from types import SimpleNamespace
-
         sistema = SimpleNamespace(nome="Sistema de Teste", banco_dados=banco_dados)
         modulo = SimpleNamespace(app_name="app_teste")
-
-        return render_to_string(
-            "gerador/snippets/settings.txt",
-            {
-                "sistema": sistema,
-                "nome_projeto": "sistema_de_teste",
-                "modulos": [modulo],
-            },
-        )
+        return render_to_string("gerador/snippets/settings.txt", {"sistema": sistema, "nome_projeto": "sistema_de_teste", "modulos": [modulo]})
 
     def test_sqlite_settings_contains_engine_and_name(self):
         content = self._render_settings("sqlite3")
         self.assertIn("django.db.backends.sqlite3", content)
         self.assertIn("db.sqlite3", content)
         self.assertIn("ENGINE", content)
-        self.assertNotIn("'default': {\n    }", content.replace(" ", ""))
 
     def test_postgresql_settings_contains_engine_and_env(self):
         content = self._render_settings("postgresql")
@@ -158,12 +146,9 @@ class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
         self.assertIn("db.sqlite3", content)
 
     def test_requirements_include_driver_for_postgresql(self):
-        from sistema.services import GeradorService
-
         class FakeSistema:
             banco_dados = "postgresql"
             gerar_api_rest = False
-
         svc = GeradorService.__new__(GeradorService)
         svc.sistema = FakeSistema()
         svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")
@@ -174,12 +159,9 @@ class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
         self.assertIn("Django", req)
 
     def test_requirements_sqlite_has_no_extra_driver(self):
-        from sistema.services import GeradorService
-
         class FakeSistema:
             banco_dados = "sqlite3"
             gerar_api_rest = False
-
         svc = GeradorService.__new__(GeradorService)
         svc.sistema = FakeSistema()
         svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")

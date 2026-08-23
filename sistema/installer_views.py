@@ -12,6 +12,14 @@ from .models import Sistema, VersaoGeracao
 from .services import GeradorService
 
 
+def _bat_display_name(value):
+    """Retorna nome seguro para uso em mensagens de CMD/Windows."""
+    import unicodedata
+
+    value = str(value or "Sistema")
+    return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+
+
 def _bat_env_writer(db_type):
     if db_type == "postgresql":
         keys = ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST", "POSTGRES_PORT"]
@@ -45,15 +53,20 @@ echo ====================================================================
 echo   CONFIGURACAO DO BANCO POSTGRESQL
 echo ====================================================================
 echo.
-set /p POSTGRES_DB=Nome do banco [sistema_db]: 
-if "!POSTGRES_DB!"=="" set "POSTGRES_DB=sistema_db"
-set /p POSTGRES_USER=Usuario [postgres]: 
-if "!POSTGRES_USER!"=="" set "POSTGRES_USER=postgres"
-set /p POSTGRES_PASSWORD=Senha: 
-set /p POSTGRES_HOST=Host [localhost]: 
-if "!POSTGRES_HOST!"=="" set "POSTGRES_HOST=localhost"
-set /p POSTGRES_PORT=Porta [5432]: 
-if "!POSTGRES_PORT!"=="" set "POSTGRES_PORT=5432"
+set "POSTGRES_DB="
+set /p "POSTGRES_DB=Nome do banco [sistema_db]: "
+if not defined POSTGRES_DB set "POSTGRES_DB=sistema_db"
+set "POSTGRES_USER="
+set /p "POSTGRES_USER=Usuario [postgres]: "
+if not defined POSTGRES_USER set "POSTGRES_USER=postgres"
+set "POSTGRES_PASSWORD="
+set /p "POSTGRES_PASSWORD=Senha: "
+set "POSTGRES_HOST="
+set /p "POSTGRES_HOST=Host [localhost]: "
+if not defined POSTGRES_HOST set "POSTGRES_HOST=localhost"
+set "POSTGRES_PORT="
+set /p "POSTGRES_PORT=Porta [5432]: "
+if not defined POSTGRES_PORT set "POSTGRES_PORT=5432"
 
 ''' + _bat_env_writer(db_type)
     if db_type == "mysql":
@@ -62,15 +75,20 @@ echo ====================================================================
 echo   CONFIGURACAO DO BANCO MYSQL
 echo ====================================================================
 echo.
-set /p MYSQL_DATABASE=Nome do banco [sistema_db]: 
-if "!MYSQL_DATABASE!"=="" set "MYSQL_DATABASE=sistema_db"
-set /p MYSQL_USER=Usuario [root]: 
-if "!MYSQL_USER!"=="" set "MYSQL_USER=root"
-set /p MYSQL_PASSWORD=Senha: 
-set /p MYSQL_HOST=Host [localhost]: 
-if "!MYSQL_HOST!"=="" set "MYSQL_HOST=localhost"
-set /p MYSQL_PORT=Porta [3306]: 
-if "!MYSQL_PORT!"=="" set "MYSQL_PORT=3306"
+set "MYSQL_DATABASE="
+set /p "MYSQL_DATABASE=Nome do banco [sistema_db]: "
+if not defined MYSQL_DATABASE set "MYSQL_DATABASE=sistema_db"
+set "MYSQL_USER="
+set /p "MYSQL_USER=Usuario [root]: "
+if not defined MYSQL_USER set "MYSQL_USER=root"
+set "MYSQL_PASSWORD="
+set /p "MYSQL_PASSWORD=Senha: "
+set "MYSQL_HOST="
+set /p "MYSQL_HOST=Host [localhost]: "
+if not defined MYSQL_HOST set "MYSQL_HOST=localhost"
+set "MYSQL_PORT="
+set /p "MYSQL_PORT=Porta [3306]: "
+if not defined MYSQL_PORT set "MYSQL_PORT=3306"
 
 ''' + _bat_env_writer(db_type)
     if db_type == "sqlserver":
@@ -79,15 +97,20 @@ echo ====================================================================
 echo   CONFIGURACAO DO SQL SERVER
 echo ====================================================================
 echo.
-set /p MSSQL_DATABASE=Nome do banco [sistema_db]: 
-if "!MSSQL_DATABASE!"=="" set "MSSQL_DATABASE=sistema_db"
-set /p MSSQL_USER=Usuario [sa]: 
-if "!MSSQL_USER!"=="" set "MSSQL_USER=sa"
-set /p MSSQL_PASSWORD=Senha: 
-set /p MSSQL_HOST=Host [localhost]: 
-if "!MSSQL_HOST!"=="" set "MSSQL_HOST=localhost"
-set /p MSSQL_PORT=Porta [1433]: 
-if "!MSSQL_PORT!"=="" set "MSSQL_PORT=1433"
+set "MSSQL_DATABASE="
+set /p "MSSQL_DATABASE=Nome do banco [sistema_db]: "
+if not defined MSSQL_DATABASE set "MSSQL_DATABASE=sistema_db"
+set "MSSQL_USER="
+set /p "MSSQL_USER=Usuario [sa]: "
+if not defined MSSQL_USER set "MSSQL_USER=sa"
+set "MSSQL_PASSWORD="
+set /p "MSSQL_PASSWORD=Senha: "
+set "MSSQL_HOST="
+set /p "MSSQL_HOST=Host [localhost]: "
+if not defined MSSQL_HOST set "MSSQL_HOST=localhost"
+set "MSSQL_PORT="
+set /p "MSSQL_PORT=Porta [1433]: "
+if not defined MSSQL_PORT set "MSSQL_PORT=1433"
 
 ''' + _bat_env_writer(db_type)
     if db_type == "oracle":
@@ -96,15 +119,20 @@ echo ====================================================================
 echo   CONFIGURACAO DO ORACLE
 echo ====================================================================
 echo.
-set /p ORACLE_NAME=Service/Database [sistema_db]: 
-if "!ORACLE_NAME!"=="" set "ORACLE_NAME=sistema_db"
-set /p ORACLE_USER=Usuario [system]: 
-if "!ORACLE_USER!"=="" set "ORACLE_USER=system"
-set /p ORACLE_PASSWORD=Senha: 
-set /p ORACLE_HOST=Host [localhost]: 
-if "!ORACLE_HOST!"=="" set "ORACLE_HOST=localhost"
-set /p ORACLE_PORT=Porta [1521]: 
-if "!ORACLE_PORT!"=="" set "ORACLE_PORT=1521"
+set "ORACLE_NAME="
+set /p "ORACLE_NAME=Service/Database [sistema_db]: "
+if not defined ORACLE_NAME set "ORACLE_NAME=sistema_db"
+set "ORACLE_USER="
+set /p "ORACLE_USER=Usuario [system]: "
+if not defined ORACLE_USER set "ORACLE_USER=system"
+set "ORACLE_PASSWORD="
+set /p "ORACLE_PASSWORD=Senha: "
+set "ORACLE_HOST="
+set /p "ORACLE_HOST=Host [localhost]: "
+if not defined ORACLE_HOST set "ORACLE_HOST=localhost"
+set "ORACLE_PORT="
+set /p "ORACLE_PORT=Porta [1521]: "
+if not defined ORACLE_PORT set "ORACLE_PORT=1521"
 
 ''' + _bat_env_writer(db_type)
     return _bat_env_writer(db_type) + '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
@@ -114,13 +142,14 @@ echo.
 
 def _installer_content(sistema):
     db_prompt = _bat_database_prompt(sistema.banco_dados)
+    display_name = _bat_display_name(sistema.nome)
     return f'''@echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title Instalador - {sistema.nome}
+title Instalador - {display_name}
 
 echo ====================================================================
-echo   Configurando ambiente local para: {sistema.nome}
+echo   Configurando ambiente local para: {display_name}
 echo ====================================================================
 echo.
 
@@ -149,7 +178,7 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo [3/6] Instalando dependencias do projeto...
+echo [3/6] Instalando dependencias do projeto via requirements.txt...
 python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao instalar as dependencias de requirements.txt.
@@ -197,7 +226,7 @@ if %errorlevel% neq 0 echo [AVISO] O superusuario nao foi criado.
 echo.
 echo ====================================================================
 echo   INSTALACAO CONCLUIDA COM SUCESSO!
-echo   Sistema: {sistema.nome}
+echo   Sistema: {display_name}
 echo   Banco: {sistema.get_banco_dados_display()}
 echo   URL: http://127.0.0.1:8000/
 echo ====================================================================
@@ -260,7 +289,7 @@ def processar_geracao_ajax(request, pk):
 
         logs_execucao.append("Injetando instalador UTF-8 com configuracao do banco...")
         caminho_bat = os.path.join(diretorio_destino, "instalacao.bat")
-        with open(caminho_bat, "w", encoding="utf-8", newline="") as bat_file:
+        with open(caminho_bat, "w", encoding="utf-8-sig", newline="") as bat_file:
             bat_file.write(_installer_content(sistema))
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -285,7 +314,7 @@ def processar_geracao_ajax(request, pk):
         versao = VersaoGeracao.objects.create(
             sistema=sistema,
             numero=numero,
-            descricao=f"Geração {timestamp}",
+            descricao=f"Geracao {timestamp}",
             estrutura_json=_estrutura_snapshot(sistema),
         )
         with open(caminho_zip_final, "rb") as zip_file:

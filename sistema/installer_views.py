@@ -24,17 +24,18 @@ def _bat_env_writer(db_type):
     else:
         keys = []
 
-    if not keys:
-        return ""
-
     pairs = ", ".join(f"{key!r}: os.environ.get({key!r}, '')" for key in keys)
-    return f'''python -c "import os,json; from pathlib import Path; v={{ {pairs} }}; Path('.env').write_text(''.join(k+'='+json.dumps(val, ensure_ascii=False)+'\\n' for k,val in v.items()), encoding='utf-8')"
+    if pairs:
+        pairs += ", "
+    pairs += "'DJANGO_DEBUG': '1', 'DJANGO_ALLOWED_HOSTS': 'localhost,127.0.0.1', 'DJANGO_SECRET_KEY': os.environ.get('DJANGO_SECRET_KEY') or secrets.token_urlsafe(50)"
+
+    return f'''python -c "import os,json,secrets; from pathlib import Path; v={{ {pairs} }}; Path('.env').write_text(''.join(k+'='+json.dumps(val, ensure_ascii=False)+'\\n' for k,val in v.items()), encoding='utf-8')"
 if %errorlevel% neq 0 (
     echo [ERRO] Nao foi possivel criar o arquivo .env.
     pause
     exit /b 1
 )
-echo [OK] Arquivo .env criado com as configuracoes do banco.
+echo [OK] Arquivo .env criado com as configuracoes do ambiente e do banco.
 echo.
 '''
 
@@ -112,7 +113,7 @@ if "!ORACLE_PORT!"=="" set "ORACLE_PORT=1521"
 
 ''' + _bat_env_writer(db_type)
 
-    return '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
+    return _bat_env_writer(db_type) + '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
 echo.
 '''
 

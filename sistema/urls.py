@@ -14,6 +14,7 @@ urlpatterns = [
     path('gerar/<int:pk>/', views.gerar_sistema_view, name='gerar_sistema'),
     path('sistema/gerar/<int:sistema_id>/', views.gerar_e_zipar_sistema, name='gerar_sistema1'),
     path('gerar/<int:pk>/processar/', installer_views.processar_geracao_ajax, name='processar_geracao_ajax'),
+    path('gerar/<int:pk>/preview/', installer_views.preview_geracao, name='preview_geracao'),
     path('gerar/<int:pk>/sucesso/', views.gerar_sucesso_view, name='gerar_sucesso'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),

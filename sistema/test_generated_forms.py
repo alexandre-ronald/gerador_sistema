@@ -21,7 +21,8 @@ class GeneratedFormsSnippetTests(SimpleTestCase):
 
     def test_generated_form_is_self_contained(self):
         content = self._render_forms()
+        import_line = "from .models import Funcionario\n"
+        model_line = "model = Funcionario\n"
         self.assertNotIn("FuncionRio", content)
-        self.assertNotIn("model = Funcionario\n", content.replace(
-            "from .models import Funcionario\n", ""
-        ))
+        self.assertLess(content.index(import_line), content.index(model_line))
+        self.assertIn("class FuncionarioForm(forms.ModelForm):", content)

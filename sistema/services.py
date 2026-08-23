@@ -29,9 +29,18 @@ class GeradorService:
 
     @staticmethod
     def _class_name(value, fallback="Modelo"):
-        words = re.findall(r"[A-Za-z0-9]+", str(value or ""))
-        name = "".join(word[:1].upper() + word[1:] for word in words) or fallback
-        return f"Modelo{name}" if name[0].isdigit() else name
+        """Converte o nome exibido em um identificador de classe Python válido.
+
+        A normalização passa obrigatoriamente por _python_identifier, que usa
+        slugify(allow_unicode=False) para remover acentos. Assim, por exemplo,
+        "Funcionário" vira "Funcionario" e nunca "FuncionRio".
+        """
+        normalized = GeradorService._python_identifier(value, fallback=fallback)
+        parts = [part for part in normalized.split("_") if part]
+        name = "".join(part[:1].upper() + part[1:] for part in parts) or fallback
+        if name[0].isdigit():
+            name = f"Modelo{name}"
+        return name
 
     @staticmethod
     def _python_default(value):

@@ -1,6 +1,29 @@
 {% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
 {% templatetag openblock %} block content {% templatetag closeblock %}
-<div class="row justify-content-center"><div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h4 class="fw-bold mb-0">{% templatetag openblock %} if object {% templatetag closeblock %}Editar{% templatetag openblock %} else {% templatetag closeblock %}Cadastrar{% templatetag openblock %} endif {% templatetag closeblock %} {{ entidade.nome }}</h4></div><div class="card-body">
-<form method="post">{% templatetag openblock %} csrf_token {% templatetag closeblock %}{{ form.as_p }}<button type="submit" class="btn btn-primary">Salvar Registro</button><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light ms-2">Voltar</a></form>
-</div></div></div></div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="fw-bold mb-0">
+                    {% templatetag openblock %} if object {% templatetag closeblock %}Editar{% templatetag openblock %} else {% templatetag closeblock %}Cadastrar{% templatetag openblock %} endif {% templatetag closeblock %} {{ entidade.nome }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% templatetag openblock %} csrf_token {% templatetag closeblock %}
+                    {% templatetag openblock %} if form.non_field_errors {% templatetag closeblock %}
+                        <div class="alert alert-danger">{% templatetag openvariable %} form.non_field_errors {% templatetag closevariable %}</div>
+                    {% templatetag openblock %} endif {% templatetag closeblock %}
+                    {% templatetag openvariable %} form.as_div {% templatetag closevariable %}
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Salvar Registro
+                        </button>
+                        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light ms-2">Voltar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% templatetag openblock %} endblock {% templatetag closeblock %}

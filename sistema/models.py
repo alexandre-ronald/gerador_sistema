@@ -37,6 +37,26 @@ class Sistema(models.Model):
         verbose_name_plural = "Sistemas"
 
 
+class VersaoGeracao(models.Model):
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="versoes")
+    numero = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+    descricao = models.CharField(max_length=255, blank=True)
+    estrutura_json = models.JSONField(default=dict)
+    arquivo_zip = models.FileField(upload_to="sistemas_versoes/", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Versão de Geração"
+        verbose_name_plural = "Versões de Geração"
+        ordering = ["-numero"]
+        constraints = [
+            models.UniqueConstraint(fields=["sistema", "numero"], name="uniq_versao_sistema_numero")
+        ]
+
+    def __str__(self):
+        return f"{self.sistema.nome} v{self.numero}"
+
+
 class Modulo(models.Model):
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="modulos")
     nome = models.CharField(max_length=100, verbose_name="Nome do Módulo (App)")
@@ -107,7 +127,6 @@ class Campo(models.Model):
 
     @codigo_nome.setter
     def codigo_nome(self, value):
-        # Compatibilidade com o gerador legado: o identificador é derivado de nome.
         pass
 
     def __str__(self):

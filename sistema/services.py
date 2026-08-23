@@ -80,7 +80,7 @@ class GeradorService:
         self.log(f"Arquivo criado: {caminho_relativo}")
 
     def _gerar_requirements(self):
-        requirements = ["Django>=5.2,<7"]
+        requirements = ["Django>=5.2,<7", "python-dotenv>=1.0"]
         if self.sistema.banco_dados == "postgresql":
             requirements.append("psycopg[binary]>=3.2")
         elif self.sistema.banco_dados == "mysql":

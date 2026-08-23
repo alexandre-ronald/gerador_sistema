@@ -1,5 +1,6 @@
 import ast
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -34,6 +35,7 @@ class GeneratedProjectRuntimeValidator:
         self._validate_python_files()
         self._validate_templates()
         self._validate_runtime_contract()
+        self._validate_dependency_contract()
         self._validate_django_check()
 
         if self.errors:
@@ -114,6 +116,52 @@ class GeneratedProjectRuntimeValidator:
         self.checked += len(contracts)
         self._message("✅ Contrato de navegação, permissões e autenticação validado")
 
+    def _read_requirements(self):
+        path = self.root / "requirements.txt"
+        if not path.is_file():
+            return set()
+        names = set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            name = re.split(r"[<>=!~;\[]", line, maxsplit=1)[0].strip().lower()
+            if name:
+                names.add(name)
+        return names
+
+    def _validate_dependency_contract(self):
+        """Ensure settings imports have their runtime dependencies in requirements."""
+        requirements = self._read_requirements()
+        settings = self.root / "*"
+        settings_files = list(self.root.glob("*/settings.py"))
+        if not settings_files:
+            self.errors.append("Arquivo settings.py do projeto gerado não foi localizado")
+            return
+
+        content = settings_files[0].read_text(encoding="utf-8")
+        missing = []
+
+        if "from dotenv import load_dotenv" in content and "python-dotenv" not in requirements:
+            missing.append("python-dotenv (usado por settings.py)")
+
+        backend_dependencies = {
+            "django.db.backends.postgresql": "psycopg",
+            "django.db.backends.mysql": "mysqlclient",
+            "django.db.backends.oracle": "oracledb",
+            "'mssql'": "mssql-django",
+        }
+        for backend, dependency in backend_dependencies.items():
+            if backend in content and dependency not in requirements:
+                missing.append(f"{dependency} (backend {backend})")
+
+        if missing:
+            self.errors.append("Dependências ausentes em requirements.txt: " + ", ".join(missing))
+            return
+
+        self.checked += 1
+        self._message("✅ Contrato de dependências e settings validado")
+
     def _validate_django_check(self):
         manage = self.root / "manage.py"
         if not manage.is_file():
@@ -149,16 +197,17 @@ class GeneratedProjectRuntimeValidator:
                 or "No module named 'MySQLdb'" in output
                 or "No module named 'oracledb'" in output
                 or "No module named 'mssql'" in output
+                or "No module named 'dotenv'" in output
             )
             if missing_driver:
                 warning = (
-                    "Django system check não pôde abrir o banco porque o driver configurado "
-                    "não está instalado no ambiente do gerador. O projeto gerado contém o "
-                    "requirements.txt correspondente. Execute 'python -m pip install -r requirements.txt' "
+                    "Django system check não pôde abrir o banco porque uma dependência do projeto "
+                    "gerado ainda não está instalada no ambiente do gerador. O projeto gerado contém "
+                    "o requirements.txt correspondente. Execute 'python -m pip install -r requirements.txt' "
                     "no projeto gerado antes de executar migrate/runserver."
                 )
                 self.warnings.append(warning)
-                self._message("⚠️ Django system check adiado: driver do banco ausente no ambiente atual")
+                self._message("⚠️ Django system check adiado: dependência externa ausente no ambiente atual")
                 return
 
             self.errors.append(f"Django system check falhou: {output[-4000:]}")

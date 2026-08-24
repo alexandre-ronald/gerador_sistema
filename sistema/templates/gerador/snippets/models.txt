@@ -1,16 +1,12 @@
 from django.db import models
 from django.conf import settings
 
-{% for app_externo, modelos in imports_por_app.items %}
-from {{ app_externo }}.models import {{ modelos|join:", " }}
-{% endfor %}
-
 {% for entidade in entidades %}
 class {{ entidade.classe_nome }}(models.Model):
 {% for campo in entidade.campos_geracao %}
 {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
-        "{{ campo.classe_relacionada|default:"self" }}",
+        "{% if campo.app_relacionada and campo.app_relacionada != app_name %}{{ campo.app_relacionada }}.{{ campo.classe_relacionada }}{% else %}{{ campo.classe_relacionada|default:"self" }}{% endif %}",
         on_delete={{ campo.on_delete|default:"models.CASCADE" }},
         null={% if campo.null %}True{% else %}False{% endif %},
         blank={% if campo.blank %}True{% else %}False{% endif %},
@@ -19,28 +15,19 @@ class {{ entidade.classe_nome }}(models.Model):
     )
 {% elif campo.tipo == "ManyToManyField" %}
     {{ campo.codigo_nome }} = models.ManyToManyField(
-        "{{ campo.classe_relacionada|default:"self" }}",
+        "{% if campo.app_relacionada and campo.app_relacionada != app_name %}{{ campo.app_relacionada }}.{{ campo.classe_relacionada }}{% else %}{{ campo.classe_relacionada|default:"self" }}{% endif %}",
         blank={% if campo.blank %}True{% else %}False{% endif %},
         {% if campo.related_name_str %}related_name="{{ campo.related_name_str|escapejs }}",{% endif %}
         verbose_name="{{ campo.verbose_nome|escapejs }}"
     )
 {% elif campo.tipo == "FileField" or campo.tipo == "ImageField" %}
-    {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
-        upload_to="{{ campo.upload_to|default:"uploads/"|escapejs }}",
-        null={% if campo.null %}True{% else %}False{% endif %},
-        blank={% if campo.blank %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_nome|escapejs }}"
-    )
+    {{ campo.codigo_nome }} = models.{{ campo.tipo }}(upload_to="{{ campo.upload_to|default:"uploads/"|escapejs }}", null={% if campo.null %}True{% else %}False{% endif %}, blank={% if campo.blank %}True{% else %}False{% endif %}, verbose_name="{{ campo.verbose_nome|escapejs }}")
 {% else %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
-{% if campo.tipo == "CharField" or campo.tipo == "SlugField" or campo.tipo == "EmailField" or campo.tipo == "URLField" %}        max_length={{ campo.max_length|default:255 }},
-{% endif %}{% if campo.tipo == "DecimalField" %}        max_digits={{ campo.max_digits|default:10 }},
-        decimal_places={{ campo.decimal_places|default:2 }},
+{% if campo.tipo == "CharField" or campo.tipo == "EmailField" or campo.tipo == "URLField" %}        max_length={{ campo.max_length|default:255 }},
+{% endif %}{% if campo.tipo == "DecimalField" %}        max_digits={{ campo.max_digits|default:10 }}, decimal_places={{ campo.decimal_places|default:2 }},
 {% endif %}{% if campo.default_python %}        default={{ campo.default_python|safe }},
-{% endif %}        null={% if campo.null %}True{% else %}False{% endif %},
-        blank={% if campo.blank %}True{% else %}False{% endif %},
-        unique={% if campo.unique %}True{% else %}False{% endif %},
-        verbose_name="{{ campo.verbose_nome|escapejs }}"
+{% endif %}        null={% if campo.null %}True{% else %}False{% endif %}, blank={% if campo.blank %}True{% else %}False{% endif %}, unique={% if campo.unique %}True{% else %}False{% endif %}, verbose_name="{{ campo.verbose_nome|escapejs }}"
     )
 {% endif %}
 {% endfor %}

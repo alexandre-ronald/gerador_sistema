@@ -3,10 +3,10 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q
-from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
-from .forms import {% for entidade in entidades %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
-
-{% for entidade in entidades %}
+{% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+from .forms import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+{% endif %}
+{% for entidade in entidades_crud %}
 class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.classe_nome }}
     template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_list.html'
@@ -33,7 +33,6 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
         context['search_query'] = self.request.GET.get('q', '').strip()
         return context
 
-
 class {{ entidade.classe_nome }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = {{ entidade.classe_nome }}
     form_class = {{ entidade.classe_nome }}Form
@@ -41,11 +40,10 @@ class {{ entidade.classe_nome }}CreateView(LoginRequiredMixin, PermissionRequire
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.add_{{ entidade.codigo_nome }}'
     raise_exception = True
-
     def form_valid(self, form):
-        messages.success(self.request, "{{ entidade.nome }} criado com sucesso!")
+{% if sistema.usar_auditoria %}        form.instance.criado_por = self.request.user
+{% endif %}        messages.success(self.request, "{{ entidade.nome }} criado com sucesso!")
         return super().form_valid(form)
-
 
 class {{ entidade.classe_nome }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = {{ entidade.classe_nome }}
@@ -54,11 +52,9 @@ class {{ entidade.classe_nome }}UpdateView(LoginRequiredMixin, PermissionRequire
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.change_{{ entidade.codigo_nome }}'
     raise_exception = True
-
     def form_valid(self, form):
         messages.success(self.request, "{{ entidade.nome }} atualizado!")
         return super().form_valid(form)
-
 
 class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = {{ entidade.classe_nome }}
@@ -66,7 +62,6 @@ class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequire
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.delete_{{ entidade.codigo_nome }}'
     raise_exception = True
-
     def delete(self, request, *args, **kwargs):
         messages.warning(self.request, "{{ entidade.nome }} removido.")
         return super().delete(request, *args, **kwargs)

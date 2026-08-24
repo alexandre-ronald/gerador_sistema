@@ -3,6 +3,7 @@ import zipfile
 from datetime import datetime
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -10,27 +11,22 @@ from django.utils.text import slugify
 
 from .models import Sistema, VersaoGeracao
 from .services import GeradorService
+from .structure_service import serialize_system_structure
 
 
 def _bat_display_name(value):
-    """Retorna nome seguro para uso em mensagens de CMD/Windows."""
     import unicodedata
-
-    value = str(value or "Sistema")
-    return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    return unicodedata.normalize("NFKD", str(value or "Sistema")).encode("ascii", "ignore").decode("ascii")
 
 
 def _bat_env_writer(db_type):
-    if db_type == "postgresql":
-        keys = ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST", "POSTGRES_PORT"]
-    elif db_type == "mysql":
-        keys = ["MYSQL_DATABASE", "MYSQL_USER", "MYSQL_PASSWORD", "MYSQL_HOST", "MYSQL_PORT"]
-    elif db_type == "sqlserver":
-        keys = ["MSSQL_DATABASE", "MSSQL_USER", "MSSQL_PASSWORD", "MSSQL_HOST", "MSSQL_PORT"]
-    elif db_type == "oracle":
-        keys = ["ORACLE_NAME", "ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_HOST", "ORACLE_PORT"]
-    else:
-        keys = []
+    keys_by_db = {
+        "postgresql": ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST", "POSTGRES_PORT"],
+        "mysql": ["MYSQL_DATABASE", "MYSQL_USER", "MYSQL_PASSWORD", "MYSQL_HOST", "MYSQL_PORT"],
+        "sqlserver": ["MSSQL_DATABASE", "MSSQL_USER", "MSSQL_PASSWORD", "MSSQL_HOST", "MSSQL_PORT"],
+        "oracle": ["ORACLE_NAME", "ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_HOST", "ORACLE_PORT"],
+    }
+    keys = keys_by_db.get(db_type, [])
     pairs = ", ".join(f"{key!r}: os.environ.get({key!r}, '')" for key in keys)
     if pairs:
         pairs += ", "
@@ -41,321 +37,126 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-echo [OK] Arquivo .env criado com as configuracoes do ambiente e do banco.
+echo [OK] Arquivo .env criado.
 echo.
 '''
 
 
 def _bat_database_prompt(db_type):
-    if db_type == "postgresql":
-        return '''echo.
-echo ====================================================================
-echo   CONFIGURACAO DO BANCO POSTGRESQL
-echo ====================================================================
-echo.
-set "POSTGRES_DB="
-set /p "POSTGRES_DB=Nome do banco [sistema_db]: "
-if not defined POSTGRES_DB set "POSTGRES_DB=sistema_db"
-set "POSTGRES_USER="
-set /p "POSTGRES_USER=Usuario [postgres]: "
-if not defined POSTGRES_USER set "POSTGRES_USER=postgres"
-set "POSTGRES_PASSWORD="
-set /p "POSTGRES_PASSWORD=Senha: "
-set "POSTGRES_HOST="
-set /p "POSTGRES_HOST=Host [localhost]: "
-if not defined POSTGRES_HOST set "POSTGRES_HOST=localhost"
-set "POSTGRES_PORT="
-set /p "POSTGRES_PORT=Porta [5432]: "
-if not defined POSTGRES_PORT set "POSTGRES_PORT=5432"
-
-''' + _bat_env_writer(db_type)
-    if db_type == "mysql":
-        return '''echo.
-echo ====================================================================
-echo   CONFIGURACAO DO BANCO MYSQL
-echo ====================================================================
-echo.
-set "MYSQL_DATABASE="
-set /p "MYSQL_DATABASE=Nome do banco [sistema_db]: "
-if not defined MYSQL_DATABASE set "MYSQL_DATABASE=sistema_db"
-set "MYSQL_USER="
-set /p "MYSQL_USER=Usuario [root]: "
-if not defined MYSQL_USER set "MYSQL_USER=root"
-set "MYSQL_PASSWORD="
-set /p "MYSQL_PASSWORD=Senha: "
-set "MYSQL_HOST="
-set /p "MYSQL_HOST=Host [localhost]: "
-if not defined MYSQL_HOST set "MYSQL_HOST=localhost"
-set "MYSQL_PORT="
-set /p "MYSQL_PORT=Porta [3306]: "
-if not defined MYSQL_PORT set "MYSQL_PORT=3306"
-
-''' + _bat_env_writer(db_type)
-    if db_type == "sqlserver":
-        return '''echo.
-echo ====================================================================
-echo   CONFIGURACAO DO SQL SERVER
-echo ====================================================================
-echo.
-set "MSSQL_DATABASE="
-set /p "MSSQL_DATABASE=Nome do banco [sistema_db]: "
-if not defined MSSQL_DATABASE set "MSSQL_DATABASE=sistema_db"
-set "MSSQL_USER="
-set /p "MSSQL_USER=Usuario [sa]: "
-if not defined MSSQL_USER set "MSSQL_USER=sa"
-set "MSSQL_PASSWORD="
-set /p "MSSQL_PASSWORD=Senha: "
-set "MSSQL_HOST="
-set /p "MSSQL_HOST=Host [localhost]: "
-if not defined MSSQL_HOST set "MSSQL_HOST=localhost"
-set "MSSQL_PORT="
-set /p "MSSQL_PORT=Porta [1433]: "
-if not defined MSSQL_PORT set "MSSQL_PORT=1433"
-
-''' + _bat_env_writer(db_type)
-    if db_type == "oracle":
-        return '''echo.
-echo ====================================================================
-echo   CONFIGURACAO DO ORACLE
-echo ====================================================================
-echo.
-set "ORACLE_NAME="
-set /p "ORACLE_NAME=Service/Database [sistema_db]: "
-if not defined ORACLE_NAME set "ORACLE_NAME=sistema_db"
-set "ORACLE_USER="
-set /p "ORACLE_USER=Usuario [system]: "
-if not defined ORACLE_USER set "ORACLE_USER=system"
-set "ORACLE_PASSWORD="
-set /p "ORACLE_PASSWORD=Senha: "
-set "ORACLE_HOST="
-set /p "ORACLE_HOST=Host [localhost]: "
-if not defined ORACLE_HOST set "ORACLE_HOST=localhost"
-set "ORACLE_PORT="
-set /p "ORACLE_PORT=Porta [1521]: "
-if not defined ORACLE_PORT set "ORACLE_PORT=1521"
-
-''' + _bat_env_writer(db_type)
-    return _bat_env_writer(db_type) + '''echo [OK] Banco SQLite selecionado. Nenhuma configuracao externa de banco e necessaria.
-echo.
-'''
+    defaults = {
+        "postgresql": [("POSTGRES_DB", "sistema_db"), ("POSTGRES_USER", "postgres"), ("POSTGRES_PASSWORD", ""), ("POSTGRES_HOST", "localhost"), ("POSTGRES_PORT", "5432")],
+        "mysql": [("MYSQL_DATABASE", "sistema_db"), ("MYSQL_USER", "root"), ("MYSQL_PASSWORD", ""), ("MYSQL_HOST", "localhost"), ("MYSQL_PORT", "3306")],
+        "sqlserver": [("MSSQL_DATABASE", "sistema_db"), ("MSSQL_USER", "sa"), ("MSSQL_PASSWORD", ""), ("MSSQL_HOST", "localhost"), ("MSSQL_PORT", "1433")],
+        "oracle": [("ORACLE_NAME", "sistema_db"), ("ORACLE_USER", "system"), ("ORACLE_PASSWORD", ""), ("ORACLE_HOST", "localhost"), ("ORACLE_PORT", "1521")],
+    }
+    if db_type not in defaults:
+        return "echo [OK] Banco SQLite selecionado.\necho.\n"
+    lines = ["echo.", f"echo CONFIGURACAO DO BANCO {db_type.upper()}", "echo."]
+    for key, default in defaults[db_type]:
+        lines.append(f'set "{key}="')
+        lines.append(f'set /p "{key}={key} [{default}]: "')
+        if default:
+            lines.append(f'if not defined {key} set "{key}={default}"')
+    lines.append("")
+    lines.append(_bat_env_writer(db_type))
+    return "\n".join(lines)
 
 
 def _installer_content(sistema):
-    db_prompt = _bat_database_prompt(sistema.banco_dados)
-    display_name = _bat_display_name(sistema.nome)
+    name = _bat_display_name(sistema.nome)
     return f'''@echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title Instalador - {display_name}
+title Instalador - {name}
 
-echo ====================================================================
-echo   Configurando ambiente local para: {display_name}
-echo ====================================================================
-echo.
-
+echo ================================================================
+echo   Configurando: {name}
+echo ================================================================
 if not exist "manage.py" (
     echo [ERRO] Execute este instalador na pasta raiz do projeto.
     pause
     exit /b 1
 )
-
-echo [1/6] Criando ambiente virtual Python (.venv)...
 if not exist ".venv\\Scripts\\python.exe" python -m venv .venv
-if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao criar o ambiente virtual. Verifique se o Python esta no PATH.
-    pause
-    exit /b %errorlevel%
-)
+if %errorlevel% neq 0 exit /b %errorlevel%
 call ".venv\\Scripts\\activate.bat"
-echo [OK] Ambiente virtual pronto.
-echo.
-
-echo [2/6] Atualizando pip...
 python -m pip install --upgrade pip
-if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao atualizar o pip.
-    pause
-    exit /b %errorlevel%
-)
-
-echo [3/6] Instalando dependencias do projeto via requirements.txt...
 python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao instalar as dependencias de requirements.txt.
+    echo [ERRO] Falha na instalacao das dependencias.
     pause
     exit /b %errorlevel%
 )
-echo [OK] Dependencias instaladas.
-echo.
-
-:: Configurar banco e gerar .env
-{db_prompt}
-
-echo [4/6] Validando configuracao Django...
+{_bat_database_prompt(sistema.banco_dados)}
 python manage.py check
 if %errorlevel% neq 0 (
-    echo [ERRO] O Django encontrou problemas na configuracao.
-    echo        Verifique o arquivo .env e as dependencias instaladas.
+    echo [ERRO] Falha no Django check.
     pause
     exit /b %errorlevel%
 )
-echo [OK] Configuracao Django validada.
-echo.
-
-echo [5/6] Criando e aplicando migracoes...
 python manage.py makemigrations
-if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao gerar as migracoes.
-    pause
-    exit /b %errorlevel%
-)
 python manage.py migrate
 if %errorlevel% neq 0 (
-    echo [ERRO] Falha ao criar as tabelas no banco de dados.
-    echo        Confirme se o servidor do banco esta ativo e se os dados do .env estao corretos.
+    echo [ERRO] Falha nas migracoes.
     pause
     exit /b %errorlevel%
 )
-echo [OK] Banco de dados configurado.
-echo.
-
-echo [6/6] Criando usuario administrador...
 python manage.py createsuperuser
-if %errorlevel% neq 0 echo [AVISO] O superusuario nao foi criado.
-
-echo.
-echo ====================================================================
-echo   INSTALACAO CONCLUIDA COM SUCESSO!
-echo   Sistema: {display_name}
-echo   Banco: {sistema.get_banco_dados_display()}
-echo   URL: http://127.0.0.1:8000/
-echo ====================================================================
-echo.
-pause
 python manage.py runserver
 '''
 
 
-def _estrutura_snapshot(sistema):
-    return {
-        "sistema": {
-            "nome": sistema.nome,
-            "descricao": sistema.descricao,
-            "banco_dados": sistema.banco_dados,
-            "tipo_menu": sistema.tipo_menu,
-            "gerar_api_rest": sistema.gerar_api_rest,
-            "gerar_docker": sistema.gerar_docker,
-            "usar_custom_user": sistema.usar_custom_user,
-            "usar_auditoria": sistema.usar_auditoria,
-        },
-        "modulos": [
-            {
-                "nome": modulo.nome,
-                "descricao": modulo.descricao,
-                "entidades": [
-                    {
-                        "nome": entidade.nome,
-                        "nome_plural": entidade.nome_plural,
-                        "campos": [
-                            {
-                                "nome": campo.nome,
-                                "tipo": campo.tipo,
-                                "null": campo.null,
-                                "blank": campo.blank,
-                                "unique": campo.unique,
-                                "default": campo.default_value,
-                                "rel": campo.entidade_relacionada.nome if campo.entidade_relacionada else None,
-                            }
-                            for campo in entidade.campos.all()
-                        ],
-                    }
-                    for entidade in modulo.entidades.all()
-                ],
-            }
-            for modulo in sistema.modulos.all()
-        ],
-    }
-
-
+@login_required
 def processar_geracao_ajax(request, pk):
-    """Gera o projeto, cria instalador, registra a versão e exporta o ZIP."""
     try:
-        gerador = GeradorService(pk)
-        logs_execucao = gerador.gerar_projeto_completo()
-        sistema = get_object_or_404(Sistema, pk=pk)
-        diretorio_destino = sistema.caminho_geracao
-        if not diretorio_destino or not os.path.isdir(diretorio_destino):
-            raise RuntimeError(f"Diretorio de destino '{diretorio_destino}' nao foi localizado.")
+        sistema = get_object_or_404(Sistema, pk=pk, usuario=request.user)
+        logs = GeradorService(sistema.pk).gerar_projeto_completo()
+        root = sistema.caminho_geracao
+        if not root or not os.path.isdir(root):
+            raise RuntimeError(f"Diretório de destino '{root}' não foi localizado.")
 
-        logs_execucao.append("Injetando instalador UTF-8 com configuracao do banco...")
-        caminho_bat = os.path.join(diretorio_destino, "instalacao.bat")
-        with open(caminho_bat, "w", encoding="utf-8-sig", newline="") as bat_file:
+        with open(os.path.join(root, "instalacao.bat"), "w", encoding="utf-8-sig", newline="") as bat_file:
             bat_file.write(_installer_content(sistema))
+        logs.append("Instalador criado: instalacao.bat")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         nome_zip = f"{slugify(sistema.nome)}_{timestamp}.zip"
-        diretorio_zips = os.path.join(settings.MEDIA_ROOT, "downloads_sistemas")
-        os.makedirs(diretorio_zips, exist_ok=True)
-        caminho_zip_final = os.path.join(diretorio_zips, nome_zip)
-
-        logs_execucao.append("Iniciando compactacao portatil em arquivo .ZIP...")
-        with zipfile.ZipFile(caminho_zip_final, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for raiz, dirs, arquivos in os.walk(diretorio_destino):
+        pasta_zip = os.path.join(settings.MEDIA_ROOT, "downloads_sistemas")
+        os.makedirs(pasta_zip, exist_ok=True)
+        zip_path = os.path.join(pasta_zip, nome_zip)
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for base, dirs, files in os.walk(root):
                 dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
-                for arquivo in arquivos:
-                    caminho_completo = os.path.join(raiz, arquivo)
-                    caminho_relativo = os.path.relpath(caminho_completo, diretorio_destino)
-                    zipf.write(caminho_completo, caminho_relativo)
+                for filename in files:
+                    full = os.path.join(base, filename)
+                    zipf.write(full, os.path.relpath(full, root))
 
         sistema.arquivo_zip = f"downloads_sistemas/{nome_zip}"
         sistema.save(update_fields=["arquivo_zip", "atualizado_em"])
-
-        numero = (VersaoGeracao.objects.filter(sistema=sistema).order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
+        numero = (sistema.versoes.order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
         versao = VersaoGeracao.objects.create(
-            sistema=sistema,
-            numero=numero,
-            descricao=f"Geracao {timestamp}",
-            estrutura_json=_estrutura_snapshot(sistema),
+            sistema=sistema, numero=numero, descricao=f"Geração {timestamp}", estrutura_json=serialize_system_structure(sistema)
         )
-        with open(caminho_zip_final, "rb") as zip_file:
+        with open(zip_path, "rb") as zip_file:
             versao.arquivo_zip.save(nome_zip, zip_file, save=True)
 
-        logs_execucao.append(f"Versao de geracao registrada: v{numero}")
-        logs_execucao.append(f"Arquivo compactado gerado com sucesso: {nome_zip}")
-        logs_execucao.append("Processo de exportacao finalizado com sucesso!")
-
-        return JsonResponse({
-            "status": "sucesso",
-            "logs": logs_execucao,
-            "versao": numero,
-            "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk}),
-        })
+        logs.extend([f"Versão de geração registrada: v{numero}", f"ZIP gerado: {nome_zip}"])
+        return JsonResponse({"status": "sucesso", "logs": logs, "versao": numero, "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk})})
     except Exception as exc:
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 
 
+@login_required
 def preview_geracao(request, pk):
-    """Retorna o preview estrutural da última geração sem executar o projeto."""
-    sistema = get_object_or_404(Sistema, pk=pk)
+    sistema = get_object_or_404(Sistema, pk=pk, usuario=request.user)
     versao = sistema.versoes.first()
     if not versao:
         return JsonResponse({"status": "erro", "mensagem": "Nenhuma geração disponível para preview."}, status=404)
-
     root = sistema.caminho_geracao
     arquivos = []
     if os.path.isdir(root):
         for base, dirs, names in os.walk(root):
             dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
             for name in names:
-                rel = os.path.relpath(os.path.join(base, name), root).replace(os.sep, "/")
-                arquivos.append(rel)
-    arquivos.sort()
-
-    return JsonResponse({
-        "status": "sucesso",
-        "sistema": sistema.nome,
-        "versao": versao.numero,
-        "criado_em": versao.criado_em.isoformat(),
-        "estrutura": versao.estrutura_json,
-        "arquivos": arquivos,
-    })
+                arquivos.append(os.path.relpath(os.path.join(base, name), root).replace(os.sep, "/"))
+    return JsonResponse({"status": "sucesso", "sistema": sistema.nome, "versao": versao.numero, "criado_em": versao.criado_em.isoformat(), "estrutura": versao.estrutura_json, "arquivos": sorted(arquivos)})

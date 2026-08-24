@@ -4,7 +4,7 @@ from . import views
 app_name = '{{ app_name }}'
 
 urlpatterns = [
-{% for entidade in entidades %}
+{% for entidade in entidades_crud %}
     path('{{ entidade.codigo_nome }}/', views.{{ entidade.classe_nome }}ListView.as_view(), name='{{ entidade.codigo_nome }}_list'),
     path('{{ entidade.codigo_nome }}/novo/', views.{{ entidade.classe_nome }}CreateView.as_view(), name='{{ entidade.codigo_nome }}_create'),
     path('{{ entidade.codigo_nome }}/<int:pk>/editar/', views.{{ entidade.classe_nome }}UpdateView.as_view(), name='{{ entidade.codigo_nome }}_update'),

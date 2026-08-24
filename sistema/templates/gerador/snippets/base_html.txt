@@ -16,11 +16,9 @@
     </style>
 </head>
 <body>
-<!-- Runtime contract: app navigation | module permissions | authentication | CSRF | content block -->
-<!-- Every CRUD URL is emitted with the persisted Python-safe app/entity identifiers. -->
-<!-- Human names are presentation only and are never used as URL namespaces. -->
-<!-- Permission contract: every generated CRUD link carries data-permission="app.view_entity". -->
-<!-- Authorization is enforced by the generated Django views; navigation remains complete. -->
+<!-- Runtime contract: navigation is supplied by the single generated context processor. -->
+<!-- URL namespaces and permissions are generated from Python-safe identifiers only. -->
+<!-- Human labels are presentation data and may contain accents. -->
 <div class="{% if sistema.tipo_menu == 'lateral' %}d-flex{% endif %}">
 {% if sistema.tipo_menu == 'lateral' %}
 <nav class="sidebar shadow">
@@ -28,28 +26,19 @@
         <h6 class="mb-0 text-white fw-bold"><i class="bi bi-stack-overflow me-2 text-info"></i>{{ sistema.nome }}</h6>
     </div>
     <ul class="nav flex-column">
-        <li class="nav-item">
-            <a href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.url_name == 'index' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
-        </li>
+        <li class="nav-item"><a href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.url_name == 'index' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
         <hr class="mx-3">
-        {% for modulo in modulos %}
-        <li class="nav-item">
-            <div class="small text-uppercase px-4 mt-2 mb-1 text-white-50 fw-semibold">{{ modulo.nome }}</div>
-        </li>
-        {% for entidade in modulo.entidades_geracao %}
-        {% if entidade.gerar_crud_views %}
-        <li class="nav-item">
-            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == modulo.app_name {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" data-permission="{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}">
-                <i class="bi bi-grid me-2"></i>{{ entidade.nome }}
-            </a>
-        </li>
-        {% endif %}
-        {% endfor %}
+        {% for modulo in navigation_modules %}
+            <li class="nav-item"><div class="small text-uppercase px-4 mt-2 mb-1 text-white-50 fw-semibold">{{ modulo.label }}</div></li>
+            {% for item in modulo.items %}
+            <li class="nav-item"><a href="{% templatetag openblock %} url item.url_name {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == item.app_name {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" data-permission="{{ item.permission }}"><i class="bi bi-grid me-2"></i>{{ item.label }}</a></li>
+            {% endfor %}
+        {% empty %}
+            <li class="nav-item px-4 text-white-50 small py-2">Nenhum módulo disponível.</li>
         {% endfor %}
     </ul>
 </nav>
 {% endif %}
-
 <div class="main-content w-100">
 <nav class="navbar navbar-expand-lg border-bottom px-4 py-2 bg-body-tertiary">
     <div class="container-fluid">
@@ -57,38 +46,26 @@
         {% if sistema.tipo_menu == 'superior' %}
         <div class="d-flex align-items-center gap-2 ms-3 overflow-auto">
             <a href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">Dashboard</a>
-            {% for modulo in modulos %}
-                {% for entidade in modulo.entidades_geracao %}
-                    {% if entidade.gerar_crud_views %}
-                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link" data-permission="{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}">{{ modulo.nome }} / {{ entidade.nome }}</a>
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
+            {% for modulo in navigation_modules %}{% for item in modulo.items %}
+            <a href="{% templatetag openblock %} url item.url_name {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link {% templatetag openblock %} if request.resolver_match.app_name == item.app_name {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" data-permission="{{ item.permission }}">{{ modulo.label }} / {{ item.label }}</a>
+            {% endfor %}{% endfor %}
         </div>
         {% endif %}
         <div class="ms-auto d-flex align-items-center gap-3">
             <div class="user-chip"><i class="bi bi-person-circle text-primary"></i> <span class="small">{% templatetag openvariable %} user.username|default:"Visitante" {% templatetag closevariable %}</span></div>
             {% templatetag openblock %} if user.is_authenticated {% templatetag closeblock %}
-            <form action="{% templatetag openblock %} url 'logout' {% templatetag closeblock %}" method="post" class="m-0">
-                {% templatetag openblock %} csrf_token {% templatetag closeblock %}
-                <button type="submit" class="btn btn-danger btn-sm">Sair</button>
-            </form>
-            {% templatetag openblock %} else {% templatetag closeblock %}
-            <a href="{% templatetag openblock %} url 'login' {% templatetag closeblock %}" class="btn btn-primary btn-sm">Entrar</a>
-            {% templatetag openblock %} endif {% templatetag closeblock %}
+            <form action="{% templatetag openblock %} url 'logout' {% templatetag closeblock %}" method="post" class="m-0">{% templatetag openblock %} csrf_token {% templatetag closeblock %}<button type="submit" class="btn btn-danger btn-sm">Sair</button></form>
+            {% templatetag openblock %} else {% templatetag closeblock %}<a href="{% templatetag openblock %} url 'login' {% templatetag closeblock %}" class="btn btn-primary btn-sm">Entrar</a>{% templatetag openblock %} endif {% templatetag closeblock %}
         </div>
     </div>
 </nav>
 <div class="p-4">
     {% templatetag openblock %} if messages {% templatetag closeblock %}
-    {% templatetag openblock %} for message in messages {% templatetag closeblock %}
-    <div class="alert alert-{% templatetag openvariable %} message.tags {% templatetag closevariable %}">{% templatetag openvariable %} message {% templatetag closevariable %}</div>
-    {% templatetag openblock %} endfor {% templatetag closeblock %}
+    {% templatetag openblock %} for message in messages {% templatetag closeblock %}<div class="alert alert-{% templatetag openvariable %} message.tags {% templatetag closevariable %}">{% templatetag openvariable %} message {% templatetag closevariable %}</div>{% templatetag openblock %} endfor {% templatetag closeblock %}
     {% templatetag openblock %} endif {% templatetag closeblock %}
     {% templatetag openblock %} block content {% templatetag closeblock %}{% templatetag openblock %} endblock {% templatetag closeblock %}
 </div>
-</div>
-</div>
+</div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

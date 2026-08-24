@@ -49,9 +49,7 @@ class VersaoGeracao(models.Model):
         verbose_name = "Versão de Geração"
         verbose_name_plural = "Versões de Geração"
         ordering = ["-numero"]
-        constraints = [
-            models.UniqueConstraint(fields=["sistema", "numero"], name="uniq_versao_sistema_numero")
-        ]
+        constraints = [models.UniqueConstraint(fields=["sistema", "numero"], name="uniq_versao_sistema_numero")]
 
     def __str__(self):
         return f"{self.sistema.nome} v{self.numero}"
@@ -77,7 +75,7 @@ class Entidade(models.Model):
     nome_plural = models.CharField(max_length=100, blank=True, verbose_name="Nome no Plural (Verbose Name Plural)")
     descricao = models.TextField(blank=True)
     gerar_admin = models.BooleanField(default=True, verbose_name="Registrar no admin.py?")
-    gerar_crud_views = models.BooleanField(default=False, verbose_name="Gerar Views e Templates de CRUD?")
+    gerar_crud_views = models.BooleanField(default=True, verbose_name="Gerar Views e Templates de CRUD?")
     gerar_endpoints_api = models.BooleanField(default=False, verbose_name="Gerar ViewSets e Serializers (API)?")
 
     def __str__(self):

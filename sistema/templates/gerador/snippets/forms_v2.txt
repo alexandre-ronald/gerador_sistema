@@ -1,16 +1,28 @@
 from django import forms
 from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
 
-{% for entidade in entidades %}
-class {{ entidade.classe_nome }}Form(forms.ModelForm):
+
+class BootstrapModelForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput): field.widget.attrs.setdefault("class", "form-check-input")
+            elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)): field.widget.attrs.setdefault("class", "form-select")
+            else: field.widget.attrs.setdefault("class", "form-control")
+            if isinstance(field, forms.ModelChoiceField): field.empty_label = "--- Selecione uma opção ---"
+
+{% for entidade in entidades_crud %}
+class {{ entidade.classe_nome }}Form(BootstrapModelForm):
     class Meta:
         model = {{ entidade.classe_nome }}
-        fields = '__all__'
+        fields = [
+{% for campo in entidade.campos_geracao %}            "{{ campo.codigo_nome }}",
+{% endfor %}        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name, field in self.fields.items():
-            field.widget.attrs.setdefault('class', 'form-control')
-            if isinstance(field, forms.ModelChoiceField):
-                field.empty_label = '--- Selecione uma opção ---'
+{% for campo in entidade.campos_geracao %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
+{% if campo.help_text %}        self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
+{% endif %}{% endfor %}
+
 {% endfor %}

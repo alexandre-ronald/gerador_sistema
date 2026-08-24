@@ -29,7 +29,7 @@
             <div class="card dashboard-card p-4">
                 <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="bi bi-folder2-open text-primary fs-4"></i></div>
                 <h4 class="fw-bold mb-1">{{ modulo.nome }}</h4>
-                <p class="text-muted small mb-0">{{ modulo.entidades.all|length }} Tabelas registradas</p>
+                <p class="text-muted small mb-0">{{ modulo.entidades_geracao|length }} Tabelas registradas</p>
             </div>
         </div>
         {% empty %}
@@ -40,7 +40,7 @@
     <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
     <div class="row g-3">
         {% for modulo in modulos %}
-            {% for entidade in modulo.entidades.all %}
+            {% for entidade in modulo.entidades_geracao %}
                 {% if entidade.gerar_crud_views %}
                 {% templatetag openblock %} with url_name=modulo.app_name|add:":"|add:entidade.codigo_nome|add:"_list" {% templatetag closeblock %}
                 <div class="col-md-4 col-lg-3">

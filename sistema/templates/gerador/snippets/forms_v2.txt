@@ -11,7 +11,8 @@ class BootstrapModelForm(forms.ModelForm):
             else: field.widget.attrs.setdefault("class", "form-control")
             if isinstance(field, forms.ModelChoiceField): field.empty_label = "--- Selecione uma opção ---"
 
-{% for entidade in entidades_crud %}
+{% with entidades_form=entidades_crud|default:entidades %}
+{% for entidade in entidades_form %}
 class {{ entidade.classe_nome }}Form(BootstrapModelForm):
     class Meta:
         model = {{ entidade.classe_nome }}
@@ -26,3 +27,4 @@ class {{ entidade.classe_nome }}Form(BootstrapModelForm):
 {% endif %}{% endfor %}
 
 {% endfor %}
+{% endwith %}

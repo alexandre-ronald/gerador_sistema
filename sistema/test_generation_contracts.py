@@ -4,7 +4,33 @@ from django.test import SimpleTestCase
 from django.template.loader import render_to_string
 
 
+class _RelatedManagerStub:
+    def __init__(self, items):
+        self._items = list(items)
+
+    def all(self):
+        return self._items
+
+
 class GeneratedTemplateContractTests(SimpleTestCase):
+    def _module_context(self):
+        entidade = SimpleNamespace(
+            nome="Funcionário",
+            codigo_nome="funcionario",
+            gerar_crud_views=True,
+        )
+        modulo = SimpleNamespace(
+            nome="Gestão de Pessoas",
+            app_name="gestao_de_pessoas",
+            entidades=_RelatedManagerStub([entidade]),
+        )
+        sistema = SimpleNamespace(
+            nome="Teste",
+            tipo_menu="lateral",
+            modulos=_RelatedManagerStub([modulo]),
+        )
+        return modulo, entidade, sistema
+
     def test_form_template_preserves_runtime_form_tags(self):
         content = render_to_string(
             "gerador/snippets/html_form.txt",
@@ -17,19 +43,22 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("{% csrf_token %}", content)
 
     def test_index_template_uses_python_safe_namespace(self):
+        modulo, entidade, sistema = self._module_context()
         content = render_to_string(
             "gerador/snippets/index_html.txt",
-            {"modulos": [], "sistema": SimpleNamespace(nome="Teste", modulos=[])},
+            {"modulos": [modulo], "sistema": sistema},
         )
-        self.assertIn("{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list", content)
+        self.assertIn("gestao_de_pessoas:funcionario_list", content)
+        self.assertNotIn("gestão de pessoas:funcionário_list", content)
         self.assertNotIn("{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list", content)
 
     def test_base_template_uses_python_safe_namespace(self):
+        modulo, entidade, sistema = self._module_context()
         content = render_to_string(
             "gerador/snippets/base_html.txt",
-            {"modulos": [], "sistema": SimpleNamespace(nome="Teste", tipo_menu="lateral")},
+            {"modulos": [modulo], "sistema": sistema},
         )
-        self.assertIn("{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list", content)
+        self.assertIn("gestao_de_pessoas:funcionario_list", content)
         self.assertIn("request.resolver_match.app_name", content)
         self.assertIn("perms.", content)
 

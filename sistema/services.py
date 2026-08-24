@@ -29,12 +29,7 @@ class GeradorService:
 
     @staticmethod
     def _class_name(value, fallback="Modelo"):
-        """Converte o nome exibido em um identificador de classe Python válido.
-
-        A normalização passa obrigatoriamente por _python_identifier, que usa
-        slugify(allow_unicode=False) para remover acentos. Assim, por exemplo,
-        "Funcionário" vira "Funcionario" e nunca "FuncionRio".
-        """
+        """Converte o nome exibido em um identificador de classe Python válido."""
         normalized = GeradorService._python_identifier(value, fallback=fallback)
         parts = [part for part in normalized.split("_") if part]
         name = "".join(part[:1].upper() + part[1:] for part in parts) or fallback
@@ -117,7 +112,11 @@ class GeradorService:
     def _preparar_entidade(self, entidade):
         entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade")
         entidade.classe_nome = self._class_name(entidade.nome)
-        for campo in entidade.campos.all():
+        # Materializa os campos uma única vez. Isso evita depender da avaliação
+        # de RelatedManager dentro dos templates e garante que models/forms/views
+        # recebam exatamente o mesmo conjunto de campos durante uma geração.
+        entidade.campos_geracao = list(entidade.campos.all())
+        for campo in entidade.campos_geracao:
             campo.codigo_nome = self._python_identifier(campo.nome, "campo")
             campo.verbose_nome = campo.verbose_name or campo.nome
             campo.default_python = self._python_default(campo.default_value)
@@ -131,10 +130,11 @@ class GeradorService:
         app_name = self._python_identifier(modulo.nome, "app")
         modulo.app_name = app_name
         entidades = list(modulo.entidades.all())
+        modulo.entidades_geracao = entidades
         imports_por_app = {}
         for entidade in entidades:
             self._preparar_entidade(entidade)
-            for campo in entidade.campos.all():
+            for campo in entidade.campos_geracao:
                 if campo.eh_relacional and campo.entidade_relacionada:
                     app_pai = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     if app_pai != app_name:
@@ -170,6 +170,9 @@ class GeradorService:
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
+            modulo.entidades_geracao = list(modulo.entidades.all())
+            for entidade in modulo.entidades_geracao:
+                self._preparar_entidade(entidade)
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
         for path, template in [
             ("manage.py", "manage.txt"),
@@ -188,7 +191,8 @@ class GeradorService:
         modulos = list(self.sistema.modulos.prefetch_related("entidades"))
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
-            for entidade in modulo.entidades.all():
+            modulo.entidades_geracao = list(modulo.entidades.all())
+            for entidade in modulo.entidades_geracao:
                 self._preparar_entidade(entidade)
         ctx = {"sistema": self.sistema, "modulos": modulos}
         self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)

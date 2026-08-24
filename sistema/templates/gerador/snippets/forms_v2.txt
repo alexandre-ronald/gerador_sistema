@@ -2,18 +2,20 @@ from django import forms
 from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
 
 
-class BootstrapModelForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            if isinstance(field.widget, forms.CheckboxInput): field.widget.attrs.setdefault("class", "form-check-input")
-            elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)): field.widget.attrs.setdefault("class", "form-select")
-            else: field.widget.attrs.setdefault("class", "form-control")
-            if isinstance(field, forms.ModelChoiceField): field.empty_label = "--- Selecione uma opção ---"
+def configurar_widgets_bootstrap(form):
+    for field in form.fields.values():
+        if isinstance(field.widget, forms.CheckboxInput):
+            field.widget.attrs.setdefault("class", "form-check-input")
+        elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+            field.widget.attrs.setdefault("class", "form-select")
+        else:
+            field.widget.attrs.setdefault("class", "form-control")
+        if isinstance(field, forms.ModelChoiceField):
+            field.empty_label = "--- Selecione uma opção ---"
 
 {% with entidades_form=entidades_crud|default:entidades %}
 {% for entidade in entidades_form %}
-class {{ entidade.classe_nome }}Form(BootstrapModelForm):
+class {{ entidade.classe_nome }}Form(forms.ModelForm):
     class Meta:
         model = {{ entidade.classe_nome }}
         fields = [
@@ -22,6 +24,7 @@ class {{ entidade.classe_nome }}Form(BootstrapModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        configurar_widgets_bootstrap(self)
 {% for campo in entidade.campos_geracao %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
 {% if campo.help_text %}        self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
 {% endif %}{% endfor %}

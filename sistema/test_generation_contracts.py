@@ -24,6 +24,8 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         content = self._source("gerador/snippets/base_html.txt")
         self.assertIn("{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}", content)
         self.assertIn("request.resolver_match.app_name", content)
+        self.assertIn("perms.", content)
+        self.assertIn('data-permission="{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}"', content)
         self.assertIn("{% for modulo in modulos %}", content)
         self.assertIn("{% for entidade in modulo.entidades_geracao %}", content)
         self.assertNotIn("{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list", content)
@@ -33,9 +35,11 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("{% if sistema.tipo_menu == 'superior' %}", content)
         self.assertIn("{% for entidade in modulo.entidades_geracao %}", content)
         self.assertIn("request.resolver_match.app_name", content)
+        self.assertIn("perms.", content)
 
     def test_base_template_keeps_app_navigation_without_crud_entities(self):
         content = self._source("gerador/snippets/base_html.txt")
         self.assertIn("{% for modulo in modulos %}", content)
         self.assertIn("{{ modulo.nome }}", content)
         self.assertIn("{{ modulo.app_name }}", content)
+        self.assertIn("request.resolver_match.app_name", content)

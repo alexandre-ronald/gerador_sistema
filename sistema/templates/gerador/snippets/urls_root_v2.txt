@@ -8,6 +8,6 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('', login_required(TemplateView.as_view(template_name='index.html')), name='index'),
 {% for modulo in modulos %}
-    path('{{ modulo.app_name }}/', include('{{ modulo.app_name }}.urls')),
+    path('{{ modulo.app_name }}/', include(('{{ modulo.app_name }}.urls', '{{ modulo.app_name }}'), namespace='{{ modulo.app_name }}')),
 {% endfor %}
 ]

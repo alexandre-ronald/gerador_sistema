@@ -13,11 +13,11 @@ class _RelatedManagerStub:
 
 
 class GeneratedTemplateContractTests(SimpleTestCase):
-    def _module_context(self, tipo_menu="lateral"):
+    def _module_context(self, tipo_menu="lateral", gerar_crud_views=True):
         entidade = SimpleNamespace(
             nome="Funcionário",
             codigo_nome="funcionario",
-            gerar_crud_views=True,
+            gerar_crud_views=gerar_crud_views,
         )
         modulo = SimpleNamespace(
             nome="Gestão de Pessoas",
@@ -30,6 +30,12 @@ class GeneratedTemplateContractTests(SimpleTestCase):
             modulos=_RelatedManagerStub([modulo]),
         )
         return modulo, entidade, sistema
+
+    def _render_base(self, sistema):
+        return render_to_string(
+            "gerador/snippets/base_html.txt",
+            {"modulos": list(sistema.modulos.all()), "sistema": sistema},
+        )
 
     def test_form_template_preserves_runtime_form_tags(self):
         content = render_to_string(
@@ -54,23 +60,24 @@ class GeneratedTemplateContractTests(SimpleTestCase):
 
     def test_base_template_uses_python_safe_namespace(self):
         _, _, sistema = self._module_context()
-        content = render_to_string(
-            "gerador/snippets/base_html.txt",
-            {"modulos": list(sistema.modulos.all()), "sistema": sistema},
-        )
+        content = self._render_base(sistema)
         self.assertIn("gestao_de_pessoas:funcionario_list", content)
         self.assertIn("request.resolver_match.app_name", content)
         self.assertIn("perms.", content)
 
     def test_base_template_preserves_navigation_contract_for_superior_menu(self):
         _, _, sistema = self._module_context(tipo_menu="superior")
-        content = render_to_string(
-            "gerador/snippets/base_html.txt",
-            {"modulos": list(sistema.modulos.all()), "sistema": sistema},
-        )
+        content = self._render_base(sistema)
         self.assertIn("gestao_de_pessoas:funcionario_list", content)
         self.assertIn("request.resolver_match.app_name", content)
         self.assertIn("perms.", content)
+
+    def test_base_template_keeps_app_navigation_without_crud_entities(self):
+        _, _, sistema = self._module_context(gerar_crud_views=False)
+        content = self._render_base(sistema)
+        self.assertIn("request.resolver_match.app_name", content)
+        self.assertIn("gestao_de_pessoas", content)
+        self.assertIn("Gestão de Pessoas", content)
 
     def test_form_snippet_is_not_evaluated_by_generator(self):
         content = render_to_string(

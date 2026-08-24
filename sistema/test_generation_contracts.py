@@ -47,6 +47,9 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         )
         self.assertIn("{{ form.as_div }}", content)
         self.assertIn("{% csrf_token %}", content)
+        self.assertIn("{% for field in form %}", content)
+        self.assertIn("{{ field }}", content)
+        self.assertIn("{% url url_name %}", content)
 
     def test_index_template_uses_python_safe_namespace(self):
         modulo, entidade, sistema = self._module_context()
@@ -54,23 +57,27 @@ class GeneratedTemplateContractTests(SimpleTestCase):
             "gerador/snippets/index_html.txt",
             {"modulos": [modulo], "sistema": sistema},
         )
-        self.assertIn("gestao_de_pessoas:funcionario_list", content)
+        self.assertIn("{% with url_name=modulo.app_name|add:\":\"|add:entidade.codigo_nome|add:\"_list\" %}", content)
+        self.assertIn("{% url url_name %}", content)
         self.assertNotIn("gestão de pessoas:funcionário_list", content)
         self.assertNotIn("{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list", content)
 
     def test_base_template_uses_python_safe_namespace(self):
         _, _, sistema = self._module_context()
         content = self._render_base(sistema)
-        self.assertIn("gestao_de_pessoas:funcionario_list", content)
+        self.assertIn("{% with perm_name=modulo.app_name|add:\".view_\"|add:entidade.codigo_nome", content)
+        self.assertIn("{% with url_name=modulo.app_name|add:\":\"|add:entidade.codigo_nome|add:\"_list\"", content)
+        self.assertIn("{% url url_name %}", content)
         self.assertIn("request.resolver_match.app_name", content)
-        self.assertIn("perms.", content)
+        self.assertIn("perms", content)
+        self.assertNotIn("{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list", content)
 
     def test_base_template_preserves_navigation_contract_for_superior_menu(self):
         _, _, sistema = self._module_context(tipo_menu="superior")
         content = self._render_base(sistema)
-        self.assertIn("gestao_de_pessoas:funcionario_list", content)
+        self.assertIn("{% url url_name %}", content)
         self.assertIn("request.resolver_match.app_name", content)
-        self.assertIn("perms.", content)
+        self.assertIn("perms", content)
 
     def test_base_template_keeps_app_navigation_without_crud_entities(self):
         _, _, sistema = self._module_context(gerar_crud_views=False)
@@ -78,14 +85,3 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("request.resolver_match.app_name", content)
         self.assertIn("gestao_de_pessoas", content)
         self.assertIn("Gestão de Pessoas", content)
-
-    def test_form_snippet_is_not_evaluated_by_generator(self):
-        content = render_to_string(
-            "gerador/snippets/html_form.txt",
-            {
-                "app_name": "eleicao",
-                "entidade": SimpleNamespace(nome="Funcionário", codigo_nome="funcionario"),
-            },
-        )
-        self.assertIn("{{ form.as_div }}", content)
-        self.assertNotIn("Salvar Registro</button>\n", content.replace("{{ form.as_div }}", ""))

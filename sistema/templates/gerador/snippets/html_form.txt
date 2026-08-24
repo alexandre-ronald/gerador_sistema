@@ -15,7 +15,7 @@
                         <div class="alert alert-danger">{% templatetag openvariable %} form.non_field_errors {% templatetag closevariable %}</div>
                     {% templatetag openblock %} endif {% templatetag closeblock %}
 
-                    <!-- Runtime form contract: {{ form.as_div }} -->
+                    <!-- Runtime form contract: {% templatetag openvariable %} form.as_div {% templatetag closevariable %} -->
                     {% templatetag openblock %} for field in form {% templatetag closeblock %}
                     <div class="mb-3">
                         {% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}

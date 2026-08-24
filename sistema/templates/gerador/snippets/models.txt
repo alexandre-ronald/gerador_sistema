@@ -7,7 +7,7 @@ from {{ app_externo }}.models import {{ modelos|join:", " }}
 
 {% for entidade in entidades %}
 class {{ entidade.classe_nome }}(models.Model):
-{% for campo in entidade.campos.all %}
+{% for campo in entidade.campos_geracao %}
 {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}
     {{ campo.codigo_nome }} = models.{{ campo.tipo }}(
         "{{ campo.classe_relacionada|default:"self" }}",
@@ -54,5 +54,5 @@ class {{ entidade.classe_nome }}(models.Model):
         verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome|escapejs }}"
 
     def __str__(self):
-        return {% if entidade.campos.all %}str(self.{{ entidade.campos.all.0.codigo_nome }}){% else %}str(self.pk){% endif %}
+        return {% if entidade.campos_geracao %}str(self.{{ entidade.campos_geracao.0.codigo_nome }}){% else %}str(self.pk){% endif %}
 {% endfor %}

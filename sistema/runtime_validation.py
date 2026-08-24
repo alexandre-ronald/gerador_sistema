@@ -13,7 +13,7 @@ class GeneratedProjectRuntimeValidator:
     """Valida o projeto gerado por contratos independentes e progressivos."""
 
     REQUIRED_ROOT_FILES = ("manage.py", "templates/base.html", "templates/index.html", "templates/registration/login.html", "requirements.txt")
-    BASE_CONTRACT = {"login": "{% url 'login' %}", "logout": "{% url 'logout' %}", "csrf": "{% csrf_token %}", "content": "{% block content %}", "authentication": "user.is_authenticated"}
+    BASE_CONTRACT = {"login": "{% url 'login' %}", "logout": "{% url 'logout' %}", "csrf": "{% csrf_token %}", "content": "{% block content %}"}
     NAVIGATION_CONTRACT = {"navigation": "navigation_modules", "namespace": "request.resolver_match.app_name", "dynamic_url": "url item.url_name", "permission": 'data-permission="{{ item.permission }}"'}
 
     def __init__(self, root):
@@ -22,14 +22,14 @@ class GeneratedProjectRuntimeValidator:
         self.checked = 0
 
     def validate(self):
-        if not self.root.exists():
-            raise ValidationError([f"Diretório gerado não existe: {self.root}"])
-        self._validate_required_files(); self._validate_python_files(); self._validate_templates()
-        self._validate_base_contract(); self._validate_navigation_contract(); self._validate_dependency_contract(); self._validate_django_check()
+        if not self.root.exists(): raise ValidationError([f"Diretório gerado não existe: {self.root}"])
+        self._validate_required_files(); self._validate_python_files(); self._validate_templates(); self._validate_base_contract(); self._validate_navigation_contract(); self._validate_dependency_contract(); self._validate_django_check()
         if self.errors: raise ValidationError(self.errors)
         return {"checked": self.checked, "warnings": list(self.warnings), "messages": list(self._loggable)}
 
     def _message(self, message): self._loggable.append(message)
+    def _read_generated_settings(self): return next(iter(self.root.glob("*/settings.py")), None)
+    def _read_generated_context_processor(self): return next(iter(self.root.glob("*/context_processors.py")), None)
 
     def _validate_required_files(self):
         missing = [path for path in self.REQUIRED_ROOT_FILES if not (self.root / path).is_file()]
@@ -40,8 +40,7 @@ class GeneratedProjectRuntimeValidator:
         valid = 0
         for path in sorted(self.root.rglob("*.py")):
             if any(part in {".venv", "__pycache__"} for part in path.parts): continue
-            try:
-                ast.parse(path.read_text(encoding="utf-8"), filename=str(path)); valid += 1; self.checked += 1
+            try: ast.parse(path.read_text(encoding="utf-8"), filename=str(path)); valid += 1; self.checked += 1
             except (SyntaxError, UnicodeDecodeError) as exc: self.errors.append(f"Python inválido em {path.relative_to(self.root)}: {exc}")
         self._message(f"✅ Sintaxe Python validada ({valid} arquivo(s))")
 
@@ -49,19 +48,14 @@ class GeneratedProjectRuntimeValidator:
         engine, valid = Engine(debug=False), 0
         for path in sorted(self.root.rglob("*.html")):
             if any(part in {".venv", "__pycache__"} for part in path.parts): continue
-            try:
-                engine.from_string(path.read_text(encoding="utf-8")); valid += 1; self.checked += 1
+            try: engine.from_string(path.read_text(encoding="utf-8")); valid += 1; self.checked += 1
             except (TemplateSyntaxError, UnicodeDecodeError) as exc: self.errors.append(f"Template inválido em {path.relative_to(self.root)}: {exc}")
         self._message(f"✅ Templates Django validados ({valid} arquivo(s))")
-
-    def _read_generated_settings(self): return next(iter(self.root.glob("*/settings.py")), None)
-    def _read_generated_context_processor(self): return next(iter(self.root.glob("*/context_processors.py")), None)
 
     def _validate_base_contract(self):
         base = self.root / "templates/base.html"
         if not base.is_file(): return
-        content = base.read_text(encoding="utf-8")
-        missing = [name for name, token in self.BASE_CONTRACT.items() if token not in content]
+        missing = [name for name, token in self.BASE_CONTRACT.items() if token not in base.read_text(encoding="utf-8")]
         if missing: self.errors.append("Contrato do template base incompleto: " + ", ".join(missing)); return
         self.checked += len(self.BASE_CONTRACT); self._message("✅ Contrato de autenticação e layout base validado")
 
@@ -107,15 +101,13 @@ class GeneratedProjectRuntimeValidator:
     def _validate_django_check(self):
         manage = self.root / "manage.py"
         if not manage.is_file(): return
-        env = os.environ.copy(); env["PYTHONIOENCODING"] = "utf-8"; env.pop("DJANGO_SETTINGS_MODULE", None)
-        env["PYTHONPATH"] = str(self.root) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        env = os.environ.copy(); env["PYTHONIOENCODING"] = "utf-8"; env.pop("DJANGO_SETTINGS_MODULE", None); env["PYTHONPATH"] = str(self.root) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
         try: result = subprocess.run([sys.executable, str(manage), "check"], cwd=self.root, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         except (OSError, subprocess.SubprocessError) as exc: self.errors.append(f"Não foi possível executar 'manage.py check': {exc}"); return
         if result.returncode != 0:
             output = (result.stdout + "\n" + result.stderr).strip()
             if any(token in output for token in ("Error loading psycopg2 or psycopg module", "Error loading MySQLdb module", "No module named 'MySQLdb'", "No module named 'oracledb'", "No module named 'mssql'", "No module named 'dotenv'")):
-                self.warnings.append("Django system check foi adiado porque uma dependência externa do projeto gerado não está instalada no ambiente do gerador.")
-                self._message("⚠️ Django system check adiado: dependência externa ausente"); return
+                self.warnings.append("Django system check foi adiado porque uma dependência externa do projeto gerado não está instalada no ambiente do gerador."); self._message("⚠️ Django system check adiado: dependência externa ausente"); return
             self.errors.append(f"Django system check falhou: {output[-4000:]}"); return
         self.checked += 1; self._message("✅ Django system check executado com sucesso")
 

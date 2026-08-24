@@ -14,17 +14,18 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("{% templatetag openvariable %} field {% templatetag closevariable %}", content)
         self.assertIn("{% templatetag openblock %} for hidden in form.hidden_fields {% templatetag closeblock %}", content)
 
-    def test_forms_template_declares_explicit_model_fields(self):
+    def test_forms_template_is_self_contained_and_explicit(self):
         content = self._source("gerador/snippets/forms_v2.txt")
         self.assertIn("fields = [", content)
         self.assertIn('{{ campo.codigo_nome }}', content)
-        self.assertIn("class BootstrapModelForm", content)
+        self.assertIn("class {{ entidade.classe_nome }}Form(forms.ModelForm):", content)
+        self.assertIn("configurar_widgets_bootstrap(self)", content)
+        self.assertNotIn("class BootstrapModelForm", content)
 
     def test_navigation_is_centralized_and_python_safe(self):
         base = self._source("gerador/snippets/base_html.txt")
         index = self._source("gerador/snippets/index_html.txt")
         navigation = self._source("gerador/snippets/navigation_context.txt")
-
         self.assertIn("navigation_modules", base)
         self.assertIn("navigation_modules", index)
         self.assertIn("url item.url_name", base)

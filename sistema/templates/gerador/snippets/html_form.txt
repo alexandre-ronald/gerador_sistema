@@ -14,7 +14,29 @@
                     {% templatetag openblock %} if form.non_field_errors {% templatetag closeblock %}
                         <div class="alert alert-danger">{% templatetag openvariable %} form.non_field_errors {% templatetag closevariable %}</div>
                     {% templatetag openblock %} endif {% templatetag closeblock %}
-                    {% templatetag openvariable %} form.as_div {% templatetag closevariable %}
+
+                    {% templatetag openblock %} for field in form {% templatetag closeblock %}
+                    <div class="mb-3">
+                        {% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}
+                            <div class="form-check">
+                                {% templatetag openvariable %} field {% templatetag closevariable %}
+                                <label class="form-check-label" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label>
+                            </div>
+                        {% templatetag openblock %} else {% templatetag closeblock %}
+                            <label class="form-label fw-semibold" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label>
+                            {% templatetag openvariable %} field {% templatetag closevariable %}
+                        {% templatetag openblock %} endif {% templatetag closeblock %}
+                        {% templatetag openblock %} if field.help_text {% templatetag closeblock %}
+                            <div class="form-text">{% templatetag openvariable %} field.help_text {% templatetag closevariable %}</div>
+                        {% templatetag openblock %} endif {% templatetag closeblock %}
+                        {% templatetag openblock %} for error in field.errors {% templatetag closeblock %}
+                            <div class="invalid-feedback d-block">{% templatetag openvariable %} error {% templatetag closevariable %}</div>
+                        {% templatetag openblock %} endfor {% templatetag closeblock %}
+                    </div>
+                    {% templatetag openblock %} empty {% templatetag closeblock %}
+                        <div class="alert alert-warning">Nenhum campo disponível para este formulário.</div>
+                    {% templatetag openblock %} endfor {% templatetag closeblock %}
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg me-1"></i>Salvar Registro

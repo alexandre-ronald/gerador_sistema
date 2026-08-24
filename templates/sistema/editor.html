@@ -1,141 +1,60 @@
 {% extends "base.html" %}
-{% block title %}Editor de Sistema | DjangoForge{% endblock %}
+{% block title %}{{ sistema_id|yesno:'Editar sistema,Novo sistema' }}{% endblock %}
 {% block content %}
 <style>
-.editor-shell .stepper { display:flex; gap:10px; margin-bottom:1.5rem; }
-.editor-shell .step { flex:1; padding:12px 14px; border:1px solid var(--bs-border-color); border-radius:12px; background:var(--bs-body-bg); }
-.editor-shell .step.active { border-color:var(--bs-primary); box-shadow:0 4px 14px rgba(0,0,0,.06); }
-.editor-shell .step small { display:block; color:var(--bs-secondary-color); }
-.editor-shell .entity-card { border-left:4px solid var(--bs-info); }
-.editor-shell .field-table th { white-space:nowrap; font-size:.75rem; }
-.editor-shell .field-table td { vertical-align:middle; }
-.editor-shell .preview { background:#10141a; color:#d1fae5; min-height:520px; max-height:70vh; overflow:auto; font-size:12px; }
+.editor .step{border:1px solid var(--bs-border-color);border-radius:12px;padding:.8rem 1rem;background:var(--bs-body-bg)}
+.editor .step.active{border-color:var(--bs-primary);box-shadow:0 3px 12px rgba(0,0,0,.06)}
+.editor .entity{border-left:4px solid var(--bs-primary)}
+.editor .field-row{background:var(--bs-tertiary-bg);border-radius:10px;padding:10px}
 </style>
-
-<div class="editor-shell container-fluid py-2">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-    <div>
-      <h3 class="fw-bold mb-1"><i class="bi bi-cpu text-primary me-2"></i>Editor de Sistema</h3>
-      <p class="text-secondary mb-0">Uma única especificação alimenta o salvamento, a navegação, os CRUDs e a geração.</p>
-    </div>
-    <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+<div class="container-fluid py-3 editor">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div><h3 class="fw-bold mb-1"><i class="bi bi-cpu text-primary me-2"></i>Especificação do Sistema</h3><p class="text-secondary mb-0">Defina o projeto uma única vez. O mesmo modelo alimenta o gerador, os CRUDs, URLs e permissões.</p></div>
+    <a class="btn btn-outline-secondary" href="{% url 'sistema:lista' %}"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
   </div>
+  <div class="row g-2 mb-4"><div class="col-md-4"><div class="step active"><strong>1. Projeto</strong><small class="d-block text-secondary">Banco, layout e opções reais</small></div></div><div class="col-md-4"><div class="step"><strong>2. Módulos</strong><small class="d-block text-secondary">Apps e organização</small></div></div><div class="col-md-4"><div class="step"><strong>3. Modelagem</strong><small class="d-block text-secondary">Entidades e campos</small></div></div></div>
 
-  <div class="stepper">
-    <div class="step active" data-step-indicator="1"><strong>1. Projeto</strong><small>Banco, menu e recursos</small></div>
-    <div class="step" data-step-indicator="2"><strong>2. Módulos</strong><small>Apps Django</small></div>
-    <div class="step" data-step-indicator="3"><strong>3. Modelagem</strong><small>Entidades, CRUD e campos</small></div>
-  </div>
-
-  <div class="row g-4">
-    <div class="col-xl-8">
-      <section id="step-1" class="editor-step">
-        <div class="card shadow-sm"><div class="card-body p-4">
-          <h5 class="fw-bold mb-3">Configuração do projeto</h5>
-          <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Nome do sistema *</label><input id="sistema_nome" class="form-control" placeholder="Ex.: Gestão Hospitalar"></div>
-            <div class="col-md-6"><label class="form-label">Pasta de geração *</label><input id="caminho" class="form-control" placeholder="C:\\projetos\\gestao_hospitalar"></div>
-            <div class="col-12"><label class="form-label">Descrição</label><textarea id="descricao" class="form-control" rows="3"></textarea></div>
-            <div class="col-md-6"><label class="form-label">Banco de dados</label><select id="banco_dados" class="form-select"><option value="sqlite3">SQLite</option><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option></select></div>
-            <div class="col-md-6"><label class="form-label">Menu</label><select id="tipo_menu" class="form-select"><option value="lateral">Menu lateral</option><option value="superior">Menu superior</option></select></div>
-            <div class="col-12"><hr><h6 class="fw-bold">Recursos</h6></div>
-            <div class="col-md-6"><div class="form-check form-switch"><input id="usar_custom_user" class="form-check-input" type="checkbox" checked><label class="form-check-label" for="usar_custom_user">Custom User Model <span class="text-secondary small">(compatibilidade)</span></label></div></div>
-            <div class="col-md-6"><div class="form-check form-switch"><input id="usar_auditoria" class="form-check-input" type="checkbox"><label class="form-check-label" for="usar_auditoria">Auditoria de criação</label></div></div>
-            <div class="col-md-6"><div class="form-check form-switch"><input id="gerar_api_rest" class="form-check-input" type="checkbox"><label class="form-check-label" for="gerar_api_rest">Django REST Framework</label></div></div>
-            <div class="col-md-6"><div class="form-check form-switch"><input id="gerar_docker" class="form-check-input" type="checkbox"><label class="form-check-label" for="gerar_docker">Docker e Compose</label></div></div>
-          </div>
-        </div></div>
-      </section>
-
-      <section id="step-2" class="editor-step d-none">
-        <div class="card shadow-sm"><div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="fw-bold mb-1">Módulos</h5><p class="text-secondary small mb-0">Cada módulo vira um Django App com namespace Python seguro.</p></div><button class="btn btn-primary" onclick="addModulo()"><i class="bi bi-plus-lg me-1"></i>Adicionar módulo</button></div>
-          <div id="modulos-step2"></div>
-        </div></div>
-      </section>
-
-      <section id="step-3" class="editor-step d-none">
-        <div id="modulos-modelagem"></div>
-      </section>
-
-      <div class="d-flex justify-content-between mt-4">
-        <button id="btn-prev" class="btn btn-outline-secondary" onclick="changeStep(-1)" disabled><i class="bi bi-arrow-left me-1"></i>Anterior</button>
-        <div class="d-flex gap-2"><button id="btn-save" class="btn btn-primary" onclick="salvarSistema()"><i class="bi bi-save me-1"></i>Salvar especificação</button><button id="btn-next" class="btn btn-outline-primary" onclick="changeStep(1)">Próximo<i class="bi bi-arrow-right ms-1"></i></button></div>
-      </div>
+  <div class="card shadow-sm mb-4"><div class="card-body p-4">
+    <h5 class="fw-bold">Configuração do projeto</h5><p class="text-secondary small">Somente recursos efetivamente suportados pelo pipeline são apresentados.</p>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Nome *</label><input id="nome" class="form-control" required></div>
+      <div class="col-md-6"><label class="form-label">Pasta de geração *</label><input id="caminho" class="form-control" required placeholder="C:\projetos\meu_sistema"></div>
+      <div class="col-12"><label class="form-label">Descrição</label><textarea id="descricao" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-4"><label class="form-label">Banco</label><select id="banco" class="form-select"><option value="sqlite3">SQLite</option><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option></select></div>
+      <div class="col-md-4"><label class="form-label">Navegação</label><select id="menu" class="form-select"><option value="lateral">Menu lateral</option><option value="superior">Menu superior</option></select></div>
+      <div class="col-md-4"><label class="form-label">Recursos</label><div class="d-flex gap-3 flex-wrap pt-2"><label class="form-check form-switch"><input id="docker" class="form-check-input" type="checkbox"><span class="form-check-label">Docker</span></label><label class="form-check form-switch"><input id="auditoria" class="form-check-input" type="checkbox"><span class="form-check-label">Auditoria</span></label></div></div>
+      <div class="col-12"><div class="alert alert-light border mb-0"><i class="bi bi-info-circle me-1"></i><strong>API REST e Custom User</strong> não aparecem como opções de geração nesta versão porque ainda não fazem parte do pipeline completo. Assim o gerador não promete recursos que não entrega.</div></div>
     </div>
+  </div></div>
 
-    <div class="col-xl-4">
-      <div class="card shadow-sm sticky-top" style="top:80px"><div class="card-header fw-bold"><i class="bi bi-code-slash me-1"></i>Preview da modelagem</div><div class="card-body p-0"><pre id="preview" class="preview p-3 mb-0"></pre></div></div>
-    </div>
-  </div>
+  <div class="card shadow-sm mb-4"><div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="fw-bold mb-1">Módulos</h5><p class="small text-secondary mb-0">Cada módulo vira um Django App.</p></div><button class="btn btn-primary" onclick="addModule()"><i class="bi bi-plus-lg me-1"></i>Módulo</button></div>
+    <div id="modules"></div>
+  </div></div>
+
+  <div class="d-flex justify-content-between"><a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary">Cancelar</a><button id="save" class="btn btn-primary px-4" onclick="saveSpec()"><i class="bi bi-check2-circle me-1"></i>Salvar especificação</button></div>
 </div>
-
-<script id="estrutura-data" type="application/json">{{ estrutura_json|safe }}</script>
+<script id="data" type="application/json">{{ estrutura_json|safe }}</script>
 <script>
-let sistemaId = {{ sistema_id|default:"null" }};
-let currentStep = 1;
-let estrutura = JSON.parse(document.getElementById('estrutura-data').textContent || '{}');
-estrutura.sistema = estrutura.sistema || {};
-estrutura.modulos = estrutura.modulos || [];
-
-const FIELD_TYPES = ['CharField','TextField','IntegerField','FloatField','DecimalField','BooleanField','DateField','DateTimeField','TimeField','EmailField','URLField','FileField','ImageField','ForeignKey','ManyToManyField','OneToOneField'];
-const ON_DELETE = [['models.CASCADE','CASCADE'],['models.PROTECT','PROTECT'],['models.SET_NULL','SET_NULL'],['models.RESTRICT','RESTRICT']];
-
-function esc(value) { return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function el(id) { return document.getElementById(id); }
-function val(id) { return el(id).value.trim(); }
-function syncProject() {
-  estrutura.sistema = {nome:val('sistema_nome'), descricao:val('descricao'), caminho:val('caminho'), banco_dados:el('banco_dados').value, tipo_menu:el('tipo_menu').value, usar_custom_user:el('usar_custom_user').checked, usar_auditoria:el('usar_auditoria').checked, gerar_api_rest:el('gerar_api_rest').checked, gerar_docker:el('gerar_docker').checked};
-}
-function defaultsEntity(index) { return {nome:`Entidade${index+1}`, nome_plural:'', descricao:'', gerar_admin:true, gerar_crud_views:true, gerar_endpoints_api:false, campos:[]}; }
-function defaultsField(index) { return {nome:`campo_${index+1}`, tipo:'CharField', max_length:255, max_digits:10, decimal_places:2, null:false, blank:false, unique:false, default_value:'', upload_to:'', rel:'', related_name:'', on_delete:'models.CASCADE', verbose_name:'', help_text:''}; }
-
-function addModulo() { estrutura.modulos.push({nome:'NovoModulo', descricao:'', entidades:[]}); renderAll(); }
-function addEntidade(m) { estrutura.modulos[m].entidades.push(defaultsEntity(estrutura.modulos[m].entidades.length)); renderAll(); }
-function addCampo(m,e) { estrutura.modulos[m].entidades[e].campos.push(defaultsField(estrutura.modulos[m].entidades[e].campos.length)); renderAll(); }
-function removeModulo(m) { if(confirm('Excluir este módulo e todas as suas entidades?')) { estrutura.modulos.splice(m,1); renderAll(); } }
-function removeEntidade(m,e) { if(confirm('Excluir esta entidade?')) { estrutura.modulos[m].entidades.splice(e,1); renderAll(); } }
-function removeCampo(m,e,c) { estrutura.modulos[m].entidades[e].campos.splice(c,1); renderAll(); }
-function update(path, value) { let ref=estrutura; for(let i=0;i<path.length-1;i++) ref=ref[path[i]]; ref[path[path.length-1]]=value; updatePreview(); }
-function mudarTipo(m,e,c,tipo) { const old=estrutura.modulos[m].entidades[e].campos[c]; estrutura.modulos[m].entidades[e].campos[c]={...defaultsField(c), nome:old.nome, tipo}; renderAll(); }
-
-function renderStep2() {
-  const box=el('modulos-step2');
-  if(!estrutura.modulos.length){ box.innerHTML='<div class="alert alert-info">Nenhum módulo. Adicione o primeiro módulo para começar.</div>'; return; }
-  box.innerHTML=estrutura.modulos.map((m,i)=>`<div class="card mb-2"><div class="card-body d-flex gap-2 align-items-center"><i class="bi bi-box text-primary"></i><input class="form-control" value="${esc(m.nome)}" onchange="update(['modulos',${i},'nome'],this.value)"><input class="form-control" value="${esc(m.descricao)}" placeholder="Descrição" onchange="update(['modulos',${i},'descricao'],this.value)"><button class="btn btn-outline-danger" onclick="removeModulo(${i})"><i class="bi bi-trash"></i></button></div></div>`).join('');
-}
-
-function entityOptions(selected) { return estrutura.modulos.flatMap(m=>m.entidades.map(e=>`<option value="${esc(e.nome)}" ${e.nome===selected?'selected':''}>${esc(e.nome)}</option>`)).join(''); }
-function renderField(m,e,c,f) {
-  const config=[];
-  if(['CharField','EmailField','URLField'].includes(f.tipo)) config.push(`<input class="form-control form-control-sm" type="number" min="1" value="${f.max_length||255}" title="Max length" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'max_length'],this.value)">`);
-  if(f.tipo==='DecimalField') config.push(`<div class="d-flex gap-1"><input class="form-control form-control-sm" type="number" min="1" value="${f.max_digits||10}" title="Max digits" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'max_digits'],this.value)"><input class="form-control form-control-sm" type="number" min="0" value="${f.decimal_places??2}" title="Decimal places" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'decimal_places'],this.value)"></div>`);
-  if(['ForeignKey','ManyToManyField','OneToOneField'].includes(f.tipo)) config.push(`<select class="form-select form-select-sm" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'rel'],this.value)"><option value="">Destino...</option>${entityOptions(f.rel)}</select>`);
-  if(['FileField','ImageField'].includes(f.tipo)) config.push(`<input class="form-control form-control-sm" value="${esc(f.upload_to)}" placeholder="uploads/" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'upload_to'],this.value)">`);
-  if(['ForeignKey','OneToOneField'].includes(f.tipo)) config.push(`<select class="form-select form-select-sm" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'on_delete'],this.value)">${ON_DELETE.map(x=>`<option value="${x[0]}" ${f.on_delete===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>`);
-  return `<tr><td><input class="form-control form-control-sm" value="${esc(f.nome)}" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'nome'],this.value)"></td><td><select class="form-select form-select-sm" onchange="mudarTipo(${m},${e},${c},this.value)">${FIELD_TYPES.map(t=>`<option ${f.tipo===t?'selected':''}>${t}</option>`).join('')}</select></td><td>${config.join('<div class="mt-1"></div>')}</td><td><input class="form-control form-control-sm mb-1" value="${esc(f.verbose_name)}" placeholder="Rótulo" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'verbose_name'],this.value)"><input class="form-control form-control-sm" value="${esc(f.default_value)}" placeholder="Valor padrão" onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'default_value'],this.value)"></td><td><div class="d-flex flex-wrap gap-2"><label class="small"><input type="checkbox" ${f.null?'checked':''} onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'null'],this.checked)"> null</label><label class="small"><input type="checkbox" ${f.blank?'checked':''} onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'blank'],this.checked)"> blank</label><label class="small"><input type="checkbox" ${f.unique?'checked':''} onchange="update(['modulos',${m},'entidades',${e},'campos',${c},'unique'],this.checked)"> unique</label></div></td><td><button class="btn btn-sm btn-outline-danger" onclick="removeCampo(${m},${e},${c})"><i class="bi bi-x"></i></button></td></tr>`;
-}
-
-function renderModelagem() {
-  const box=el('modulos-modelagem');
-  if(!estrutura.modulos.length){ box.innerHTML='<div class="alert alert-info">Crie pelo menos um módulo.</div>'; return; }
-  box.innerHTML=estrutura.modulos.map((m,mi)=>`<div class="card shadow-sm mb-4"><div class="card-header d-flex justify-content-between align-items-center"><div><strong>${esc(m.nome)}</strong><span class="text-secondary small ms-2">${esc(m.descricao)}</span></div><button class="btn btn-sm btn-primary" onclick="addEntidade(${mi})"><i class="bi bi-plus"></i> Entidade</button></div><div class="card-body">${m.entidades.length?m.entidades.map((ent,ei)=>`<div class="card entity-card mb-4"><div class="card-body"><div class="row g-2 mb-3"><div class="col-md-4"><label class="form-label small">Entidade</label><input class="form-control" value="${esc(ent.nome)}" onchange="update(['modulos',${mi},'entidades',${ei},'nome'],this.value)"></div><div class="col-md-4"><label class="form-label small">Nome plural</label><input class="form-control" value="${esc(ent.nome_plural)}" placeholder="Ex.: Funcionários" onchange="update(['modulos',${mi},'entidades',${ei},'nome_plural'],this.value)"></div><div class="col-md-4 d-flex align-items-end justify-content-end gap-2"><div class="form-check"><input class="form-check-input" type="checkbox" ${ent.gerar_crud_views?'checked':''} onchange="update(['modulos',${mi},'entidades',${ei},'gerar_crud_views'],this.checked)"><label class="form-check-label small">Gerar CRUD</label></div><div class="form-check"><input class="form-check-input" type="checkbox" ${ent.gerar_admin?'checked':''} onchange="update(['modulos',${mi},'entidades',${ei},'gerar_admin'],this.checked)"><label class="form-check-label small">Admin</label></div><div class="form-check"><input class="form-check-input" type="checkbox" ${ent.gerar_endpoints_api?'checked':''} ${estrutura.sistema.gerar_api_rest?'':'disabled'} onchange="update(['modulos',${mi},'entidades',${ei},'gerar_endpoints_api'],this.checked)"><label class="form-check-label small">API</label></div><button class="btn btn-sm btn-outline-danger" onclick="removeEntidade(${mi},${ei})"><i class="bi bi-trash"></i></button></div></div><div class="table-responsive"><table class="table table-sm field-table"><thead><tr><th>Campo</th><th>Tipo</th><th>Configuração</th><th>Rótulo/Padrão</th><th>Flags</th><th></th></tr></thead><tbody>${ent.campos.map((f,ci)=>renderField(mi,ei,ci,f)).join('')}</tbody></table></div><button class="btn btn-sm btn-outline-primary" onclick="addCampo(${mi},${ei})"><i class="bi bi-plus"></i> Campo</button></div></div>`).join(''):'<div class="text-secondary small">Nenhuma entidade cadastrada.</div>'}</div></div>`).join('');
-}
-
-function updatePreview() {
-  let code='from django.db import models\\n\\n';
-  estrutura.modulos.forEach(m=>m.entidades.forEach(ent=>{code+=`class ${ent.nome||'Entidade'}(models.Model):\\n`; if(!ent.campos.length) code+='    pass\\n'; ent.campos.forEach(f=>code+=`    ${f.nome||'campo'} = models.${f.tipo}()\\n`); code+='\\n';}));
-  el('preview').textContent=code;
-}
-function renderAll(){ renderStep2(); renderModelagem(); updatePreview(); }
-
-function changeStep(delta){ syncProject(); const next=currentStep+delta; if(next<1||next>3)return; el(`step-${currentStep}`).classList.add('d-none'); el(`step-${next}`).classList.remove('d-none'); document.querySelectorAll('[data-step-indicator]').forEach(x=>x.classList.toggle('active',Number(x.dataset.stepIndicator)===next)); currentStep=next; el('btn-prev').disabled=currentStep===1; el('btn-next').classList.toggle('d-none',currentStep===3); if(currentStep===2)renderStep2(); if(currentStep===3)renderModelagem(); }
-
-function validate(){ syncProject(); if(!estrutura.sistema.nome)return 'Informe o nome do sistema.'; if(!estrutura.sistema.caminho)return 'Informe a pasta de geração.'; if(!estrutura.modulos.length)return 'Adicione pelo menos um módulo.'; for(const m of estrutura.modulos){ if(!m.nome.trim())return 'Todo módulo precisa de um nome.'; for(const e of m.entidades){ if(!e.nome.trim())return 'Toda entidade precisa de um nome.'; if(e.gerar_crud_views && !e.campos.length)return `A entidade ${e.nome} está com CRUD ativo, mas não possui campos.`; for(const f of e.campos){if(!f.nome.trim())return `Existe um campo sem nome em ${e.nome}.`; if(['ForeignKey','ManyToManyField','OneToOneField'].includes(f.tipo)&&!f.rel)return `O campo ${f.nome} precisa de uma entidade relacionada.`;}}} return null; }
-
-async function salvarSistema(){ const error=validate(); if(error){alert(error);return;} const btn=el('btn-save'); btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Salvando...'; estrutura.sistema_id=sistemaId; try{const response=await fetch("{% url 'sistema:salvar_modelo' %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(estrutura)}); const data=await response.json(); if(!response.ok)throw new Error(data.mensagem||'Erro ao salvar.'); sistemaId=data.sistema_id; alert('Especificação salva com sucesso.'); window.location.href="{% url 'sistema:lista' %}";}catch(error){alert(error.message);btn.disabled=false;btn.innerHTML='<i class="bi bi-save me-1"></i>Salvar especificação';}}
-
-function init(){ el('sistema_nome').value=estrutura.sistema.nome||''; el('descricao').value=estrutura.sistema.descricao||''; el('caminho').value=estrutura.sistema.caminho||''; el('banco_dados').value=estrutura.sistema.banco_dados||'sqlite3'; el('tipo_menu').value=estrutura.sistema.tipo_menu||'lateral'; el('usar_custom_user').checked=estrutura.sistema.usar_custom_user??true; el('usar_auditoria').checked=estrutura.sistema.usar_auditoria??false; el('gerar_api_rest').checked=estrutura.sistema.gerar_api_rest??false; el('gerar_docker').checked=estrutura.sistema.gerar_docker??false; renderAll(); }
-document.addEventListener('DOMContentLoaded',init);
+const sistemaId={{ sistema_id|default:'null' }};
+const types=['CharField','TextField','IntegerField','FloatField','DecimalField','BooleanField','DateField','DateTimeField','TimeField','EmailField','URLField','FileField','ImageField','ForeignKey','ManyToManyField','OneToOneField'];
+const deletes=[['models.CASCADE','CASCADE'],['models.PROTECT','PROTECT'],['models.SET_NULL','SET_NULL'],['models.RESTRICT','RESTRICT']];
+let data=JSON.parse(document.getElementById('data').textContent||'{}'); data.sistema=data.sistema||{}; data.modulos=data.modulos||[];
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function field(){return {nome:'campo_1',tipo:'CharField',max_length:255,max_digits:10,decimal_places:2,null:false,blank:false,unique:false,default_value:'',upload_to:'',rel:'',related_name:'',on_delete:'models.CASCADE',verbose_name:'',help_text:''}}
+function entity(){return {nome:'Entidade',nome_plural:'',descricao:'',gerar_admin:true,gerar_crud_views:true,gerar_endpoints_api:false,campos:[field()]}}
+function module(){return {nome:'novo_modulo',descricao:'',entidades:[entity()]}}
+function set(path,value){let r=data;path.slice(0,-1).forEach(k=>r=r[k]);r[path.at(-1)]=value;render()}
+function addModule(){data.modulos.push(module());render()}
+function addEntity(m){data.modulos[m].entidades.push(entity());render()}
+function addField(m,e){data.modulos[m].entidades[e].campos.push(field());render()}
+function delModule(m){data.modulos.splice(m,1);render()}
+function delEntity(m,e){data.modulos[m].entidades.splice(e,1);render()}
+function delField(m,e,c){data.modulos[m].entidades[e].campos.splice(c,1);render()}
+function entityOptions(selected){return data.modulos.flatMap(m=>m.entidades.map(e=>`<option value="${esc(e.nome)}" ${e.nome===selected?'selected':''}>${esc(e.nome)}</option>`)).join('')}
+function fieldHtml(m,e,c,f){let extra='';if(['CharField','EmailField','URLField'].includes(f.tipo))extra=`<input class="form-control form-control-sm" type="number" min="1" value="${f.max_length||255}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'max_length'],this.value)" title="Tamanho máximo">`;if(f.tipo==='DecimalField')extra=`<div class="d-flex gap-1"><input class="form-control form-control-sm" type="number" min="1" value="${f.max_digits||10}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'max_digits'],this.value)" title="Dígitos"><input class="form-control form-control-sm" type="number" min="0" value="${f.decimal_places??2}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'decimal_places'],this.value)" title="Casas"></div>`;if(['ForeignKey','ManyToManyField','OneToOneField'].includes(f.tipo))extra=`<select class="form-select form-select-sm" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'rel'],this.value)"><option value="">Destino...</option>${entityOptions(f.rel)}</select>`;if(['FileField','ImageField'].includes(f.tipo))extra=`<input class="form-control form-control-sm" value="${esc(f.upload_to)}" placeholder="uploads/" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'upload_to'],this.value)">`;return `<div class="field-row mb-2"><div class="row g-2 align-items-end"><div class="col-lg-2"><label class="small">Nome</label><input class="form-control form-control-sm" value="${esc(f.nome)}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'nome'],this.value)"></div><div class="col-lg-2"><label class="small">Tipo</label><select class="form-select form-select-sm" onchange="let x=this.value;data.modulos[${m}].entidades[${e}].campos[${c}].tipo=x;render()">${types.map(t=>`<option ${t===f.tipo?'selected':''}>${t}</option>`).join('')}</select></div><div class="col-lg-2">${extra}</div><div class="col-lg-2"><label class="small">Rótulo</label><input class="form-control form-control-sm" value="${esc(f.verbose_name)}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'verbose_name'],this.value)"></div><div class="col-lg-2"><label class="small">Padrão</label><input class="form-control form-control-sm" value="${esc(f.default_value)}" onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'default_value'],this.value)"></div><div class="col-lg-1"><label class="small d-block">Opções</label><label class="small me-1"><input type="checkbox" ${f.null?'checked':''} onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'null'],this.checked)"> null</label><label class="small"><input type="checkbox" ${f.blank?'checked':''} onchange="set(['modulos',${m},'entidades',${e},'campos',${c},'blank'],this.checked)"> blank</label></div><div class="col-lg-1 text-end"><button class="btn btn-sm btn-outline-danger" onclick="delField(${m},${e},${c})"><i class="bi bi-trash"></i></button></div></div></div>`}
+function render(){const box=document.getElementById('modules');box.innerHTML=data.modulos.length?data.modulos.map((m,mi)=>`<div class="card mb-3"><div class="card-header d-flex gap-2 align-items-center"><input class="form-control" value="${esc(m.nome)}" onchange="set(['modulos',${mi},'nome'],this.value)"><input class="form-control" value="${esc(m.descricao)}" placeholder="Descrição" onchange="set(['modulos',${mi},'descricao'],this.value)"><button class="btn btn-outline-danger" onclick="delModule(${mi})"><i class="bi bi-trash"></i></button></div><div class="card-body">${m.entidades.map((x,ei)=>`<div class="card entity mb-3"><div class="card-body"><div class="d-flex gap-2 mb-3"><input class="form-control" value="${esc(x.nome)}" onchange="set(['modulos',${mi},'entidades',${ei},'nome'],this.value)"><input class="form-control" value="${esc(x.nome_plural)}" placeholder="Plural" onchange="set(['modulos',${mi},'entidades',${ei},'nome_plural'],this.value)"><button class="btn btn-outline-danger" onclick="delEntity(${mi},${ei})"><i class="bi bi-trash"></i></button></div><div class="d-flex gap-3 mb-3"><label class="form-check"><input class="form-check-input" type="checkbox" ${x.gerar_admin?'checked':''} onchange="set(['modulos',${mi},'entidades',${ei},'gerar_admin'],this.checked)"><span class="form-check-label">Admin</span></label><label class="form-check"><input class="form-check-input" type="checkbox" ${x.gerar_crud_views?'checked':''} onchange="set(['modulos',${mi},'entidades',${ei},'gerar_crud_views'],this.checked)"><span class="form-check-label">CRUD</span></label></div>${x.campos.map((f,ci)=>fieldHtml(mi,ei,ci,f)).join('')}<button class="btn btn-sm btn-outline-primary" onclick="addField(${mi},${ei})"><i class="bi bi-plus"></i> Campo</button></div></div>`).join('')}<button class="btn btn-sm btn-primary" onclick="addEntity(${mi})"><i class="bi bi-plus"></i> Entidade</button></div></div>`).join(''):'<div class="alert alert-info">Adicione o primeiro módulo.</div>';document.getElementById('nome').value=data.sistema.nome||'';document.getElementById('descricao').value=data.sistema.descricao||'';document.getElementById('caminho').value=data.sistema.caminho||'';document.getElementById('banco').value=data.sistema.banco_dados||'sqlite3';document.getElementById('menu').value=data.sistema.tipo_menu||'lateral';document.getElementById('docker').checked=!!data.sistema.gerar_docker;document.getElementById('auditoria').checked=!!data.sistema.usar_auditoria}
+async function saveSpec(){data.sistema={...data.sistema,nome:document.getElementById('nome').value.trim(),descricao:document.getElementById('descricao').value.trim(),caminho:document.getElementById('caminho').value.trim(),banco_dados:document.getElementById('banco').value,tipo_menu:document.getElementById('menu').value,gerar_docker:document.getElementById('docker').checked,usar_auditoria:document.getElementById('auditoria').checked,gerar_api_rest:false,usar_custom_user:false};if(!data.sistema.nome||!data.sistema.caminho){alert('Informe o nome e a pasta de geração.');return}const url=sistemaId?`{% url 'sistema:atualizar_sistema' 0 %}`.replace('/0/','/'+sistemaId+'/'): `{% url 'sistema:salvar_modelo' %}`;const body=JSON.stringify({...data,sistema_id:sistemaId});const r=await fetch(url,{method:sistemaId?'PUT':'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body});const j=await r.json();if(!r.ok){alert(j.mensagem||'Não foi possível salvar.');return}window.location.href=`{% url 'sistema:gerar_sistema' 0 %}`.replace('/0/','/'+j.sistema_id+'/')}
+render();
 </script>
 {% endblock %}

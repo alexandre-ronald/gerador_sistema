@@ -13,7 +13,7 @@ class _RelatedManagerStub:
 
 
 class GeneratedTemplateContractTests(SimpleTestCase):
-    def _module_context(self):
+    def _module_context(self, tipo_menu="lateral"):
         entidade = SimpleNamespace(
             nome="Funcionário",
             codigo_nome="funcionario",
@@ -26,7 +26,7 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         )
         sistema = SimpleNamespace(
             nome="Teste",
-            tipo_menu="lateral",
+            tipo_menu=tipo_menu,
             modulos=_RelatedManagerStub([modulo]),
         )
         return modulo, entidade, sistema
@@ -53,10 +53,20 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertNotIn("{{ modulo.nome|lower }}:{{ entidade.nome|lower }}_list", content)
 
     def test_base_template_uses_python_safe_namespace(self):
-        modulo, entidade, sistema = self._module_context()
+        _, _, sistema = self._module_context()
         content = render_to_string(
             "gerador/snippets/base_html.txt",
-            {"modulos": [modulo], "sistema": sistema},
+            {"modulos": list(sistema.modulos.all()), "sistema": sistema},
+        )
+        self.assertIn("gestao_de_pessoas:funcionario_list", content)
+        self.assertIn("request.resolver_match.app_name", content)
+        self.assertIn("perms.", content)
+
+    def test_base_template_preserves_navigation_contract_for_superior_menu(self):
+        _, _, sistema = self._module_context(tipo_menu="superior")
+        content = render_to_string(
+            "gerador/snippets/base_html.txt",
+            {"modulos": list(sistema.modulos.all()), "sistema": sistema},
         )
         self.assertIn("gestao_de_pessoas:funcionario_list", content)
         self.assertIn("request.resolver_match.app_name", content)

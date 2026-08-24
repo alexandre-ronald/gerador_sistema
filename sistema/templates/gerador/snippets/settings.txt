@@ -46,9 +46,7 @@ TEMPLATES = [{
     ]},
 }]
 
-{% if sistema.banco_dados == 'sqlite3' %}
-DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': str(BASE_DIR / 'db.sqlite3')}}
-{% elif sistema.banco_dados == 'postgresql' %}
+{% if sistema.banco_dados == 'postgresql' %}
 DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': os.environ.get('POSTGRES_DB', '{{ nome_projeto }}_db'), 'USER': os.environ.get('POSTGRES_USER', 'postgres'), 'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'), 'HOST': os.environ.get('POSTGRES_HOST', 'localhost'), 'PORT': os.environ.get('POSTGRES_PORT', '5432')}}
 {% elif sistema.banco_dados == 'mysql' %}
 DATABASES = {'default': {'ENGINE': 'django.db.backends.mysql', 'NAME': os.environ.get('MYSQL_DATABASE', '{{ nome_projeto }}_db'), 'USER': os.environ.get('MYSQL_USER', 'root'), 'PASSWORD': os.environ.get('MYSQL_PASSWORD', ''), 'HOST': os.environ.get('MYSQL_HOST', 'localhost'), 'PORT': os.environ.get('MYSQL_PORT', '3306'), 'OPTIONS': {'charset': 'utf8mb4'}}}
@@ -56,6 +54,8 @@ DATABASES = {'default': {'ENGINE': 'django.db.backends.mysql', 'NAME': os.enviro
 DATABASES = {'default': {'ENGINE': 'mssql', 'NAME': os.environ.get('MSSQL_DATABASE', '{{ nome_projeto }}_db'), 'USER': os.environ.get('MSSQL_USER', 'sa'), 'PASSWORD': os.environ.get('MSSQL_PASSWORD', ''), 'HOST': os.environ.get('MSSQL_HOST', 'localhost'), 'PORT': os.environ.get('MSSQL_PORT', '1433'), 'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'}}}
 {% elif sistema.banco_dados == 'oracle' %}
 DATABASES = {'default': {'ENGINE': 'django.db.backends.oracle', 'NAME': os.environ.get('ORACLE_NAME', '{{ nome_projeto }}_db'), 'USER': os.environ.get('ORACLE_USER', 'system'), 'PASSWORD': os.environ.get('ORACLE_PASSWORD', ''), 'HOST': os.environ.get('ORACLE_HOST', 'localhost'), 'PORT': os.environ.get('ORACLE_PORT', '1521')}}
+{% else %}
+DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': str(BASE_DIR / 'db.sqlite3')}}
 {% endif %}
 
 LOGIN_REDIRECT_URL = '/'

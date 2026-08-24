@@ -1,5 +1,5 @@
 from django import forms
-from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% if entidades %}from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}# Este módulo ainda não possui entidades.{% endif %}
 
 
 def configurar_widgets_bootstrap(form):

@@ -24,7 +24,7 @@
 
     <h5 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
     <div class="row g-4 mb-5">
-        {% for modulo in sistema.modulos.all %}
+        {% for modulo in modulos %}
         <div class="col-md-6 col-lg-3">
             <div class="card dashboard-card p-4">
                 <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="bi bi-folder2-open text-primary fs-4"></i></div>
@@ -32,6 +32,8 @@
                 <p class="text-muted small mb-0">{{ modulo.entidades.all|length }} Tabelas registradas</p>
             </div>
         </div>
+        {% empty %}
+        <div class="col-12"><div class="alert alert-info">Nenhum módulo cadastrado.</div></div>
         {% endfor %}
     </div>
 
@@ -56,8 +58,23 @@
                     </a>
                 </div>
                 {% templatetag openblock %} endwith {% templatetag closeblock %}
+                {% else %}
+                <div class="col-md-4 col-lg-3">
+                    <div class="entity-card border shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="entity-icon-wrapper"><i class="bi bi-table"></i></div>
+                            <div>
+                                <div class="module-badge text-primary">{{ modulo.nome }}</div>
+                                <div class="fw-bold fs-6">{{ entidade.nome|title }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
+            {% empty %}
             {% endfor %}
+        {% empty %}
+        <div class="col-12"><div class="alert alert-info">Nenhuma entidade cadastrada.</div></div>
         {% endfor %}
     </div>
 </div>

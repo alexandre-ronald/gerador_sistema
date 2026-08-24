@@ -42,7 +42,7 @@
         <li id="modulo-{{ modulo.app_name }}" class="nav-item">
             <div class="small text-uppercase px-4 mt-2 mb-1 text-white-50 fw-semibold">{{ modulo.nome }}</div>
         </li>
-        {% for entidade in modulo.entidades.all %}
+        {% for entidade in modulo.entidades_geracao %}
         {% if entidade.gerar_crud_views %}
         {% templatetag openblock %} with perm_name=modulo.app_name|add:".view_"|add:entidade.codigo_nome url_name=modulo.app_name|add:":"|add:entidade.codigo_nome|add:"_list" {% templatetag closeblock %}
         <li class="nav-item">
@@ -65,7 +65,7 @@
             <a href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">Dashboard</a>
             {% for modulo in modulos %}
                 <a href="#modulo-{{ modulo.app_name }}" class="btn btn-sm btn-outline-secondary top-module-link">{{ modulo.nome }}</a>
-                {% for entidade in modulo.entidades.all %}
+                {% for entidade in modulo.entidades_geracao %}
                     {% if entidade.gerar_crud_views %}
                     {% templatetag openblock %} with perm_name=modulo.app_name|add:".view_"|add:entidade.codigo_nome url_name=modulo.app_name|add:":"|add:entidade.codigo_nome|add:"_list" {% templatetag closeblock %}
                     <a href="{% templatetag openblock %} url url_name {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link" data-permission="{% templatetag openvariable %} perm_name {% templatetag closevariable %}">{{ entidade.nome }}</a>

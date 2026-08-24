@@ -20,7 +20,7 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
         query = self.request.GET.get('q', '').strip()
         if query:
             search_filter = Q()
-{% for campo in entidade.campos.all %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
+{% for campo in entidade.campos_geracao %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
             search_filter |= Q({{ campo.codigo_nome }}__icontains=query)
 {% endif %}{% endfor %}
             queryset = queryset.filter(search_filter)

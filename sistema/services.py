@@ -45,17 +45,29 @@ class GeradorService:
 
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos"))
+        app_names = {}
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
+            if modulo.app_name in app_names:
+                raise ValueError(f"Módulos '{app_names[modulo.app_name]}' e '{modulo.nome}' geram o mesmo app Python '{modulo.app_name}'. Renomeie um deles.")
+            app_names[modulo.app_name] = modulo.nome
             modulo.entidades_geracao = list(modulo.entidades.all())
             modulo.entidades_crud = []
+            class_names = {}
             for entidade in modulo.entidades_geracao:
                 entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade")
                 entidade.classe_nome = self._class_name(entidade.nome)
+                if entidade.classe_nome in class_names:
+                    raise ValueError(f"Entidades '{class_names[entidade.classe_nome]}' e '{entidade.nome}' no módulo '{modulo.nome}' geram a mesma classe '{entidade.classe_nome}'.")
+                class_names[entidade.classe_nome] = entidade.nome
                 entidade.campos_geracao = list(entidade.campos.all())
                 if entidade.gerar_crud_views: modulo.entidades_crud.append(entidade)
+                field_names = {}
                 for campo in entidade.campos_geracao:
                     campo.codigo_nome = self._python_identifier(campo.nome, "campo")
+                    if campo.codigo_nome in field_names:
+                        raise ValueError(f"Campos '{field_names[campo.codigo_nome]}' e '{campo.nome}' em '{entidade.nome}' geram o mesmo identificador '{campo.codigo_nome}'.")
+                    field_names[campo.codigo_nome] = campo.nome
                     campo.verbose_nome = campo.verbose_name or campo.nome
                     campo.default_python = self._python_default(campo.default_value)
                     campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome) if campo.eh_relacional and campo.entidade_relacionada else ""
@@ -100,18 +112,9 @@ class GeradorService:
         self.log("Arquivo criado: requirements.txt")
 
     def _gerar_core(self, ctx):
-        files = [
-            ("manage.py", "manage.txt"),
-            (f"{self.nome_projeto}/__init__.py", "init.txt"),
-            (f"{self.nome_projeto}/settings.py", "settings.txt"),
-            (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"),
-            (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"),
-            (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"),
-        ]
+        files = [("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt")]
         for path, template in files: self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
-        self._gerar_requirements()
-        os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True)
-        os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True)
+        self._gerar_requirements(); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True)
         self.log("✅ Diretórios static/ e media/ preparados")
 
     def _gerar_modulo(self, modulo, ctx):
@@ -123,15 +126,10 @@ class GeradorService:
                     app_pai = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     if app_pai != app_name: imports_por_app.setdefault(app_pai, set()).add(campo.classe_relacionada)
         local_ctx = {**ctx, "app_name": app_name, "entidades": entidades, "entidades_crud": modulo.entidades_crud, "imports_por_app": {k: sorted(v) for k, v in imports_por_app.items()}}
-        files = [
-            (f"{app_name}/__init__.py", "init.txt"), (f"{app_name}/models.py", "models.txt"),
-            (f"{app_name}/migrations/__init__.py", "init.txt"), (f"{app_name}/forms.py", "forms_v2.txt"),
-            (f"{app_name}/views.py", "views.txt"), (f"{app_name}/urls.py", "urls_app_v2.txt"),
-            (f"{app_name}/admin.py", "admin_v2.txt"), (f"{app_name}/apps.py", "apps_config.txt"),
-        ]
+        files = [(f"{app_name}/__init__.py", "init.txt"), (f"{app_name}/models.py", "models.txt"), (f"{app_name}/migrations/__init__.py", "init.txt"), (f"{app_name}/forms.py", "forms_v2.txt"), (f"{app_name}/views.py", "views.txt"), (f"{app_name}/urls.py", "urls_app_v2.txt"), (f"{app_name}/admin.py", "admin_v2.txt"), (f"{app_name}/apps.py", "apps_config.txt")]
         for path, template in files: self._escrever_arquivo(path, f"gerador/snippets/{template}", local_ctx)
         for entidade in modulo.entidades_crud:
-            ent_ctx = {**local_ctx, "entidade": entidade, "entidade_nome_lower": entidade.codigo_nome}
+            ent_ctx = {**local_ctx, "entidade": entidade}
             base_t = f"{app_name}/templates/{app_name}"
             for suffix, template in (("list", "html_list.txt"), ("form", "html_form.txt"), ("confirm_delete", "html_delete.txt")):
                 self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)

@@ -36,11 +36,13 @@
         </li>
         {% for entidade in modulo.entidades_geracao %}
         {% if entidade.gerar_crud_views %}
+        {% if perms %}
         <li class="nav-item">
-            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == modulo.app_name {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">
+            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == modulo.app_name {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}" data-permission="{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}">
                 <i class="bi bi-grid me-2"></i>{{ entidade.nome }}
             </a>
         </li>
+        {% endif %}
         {% endif %}
         {% endfor %}
         {% endfor %}
@@ -58,7 +60,9 @@
             {% for modulo in modulos %}
                 {% for entidade in modulo.entidades_geracao %}
                     {% if entidade.gerar_crud_views %}
-                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">{{ modulo.nome }} / {{ entidade.nome }}</a>
+                    {% if perms %}
+                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link" data-permission="{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}">{{ modulo.nome }} / {{ entidade.nome }}</a>
+                    {% endif %}
                     {% endif %}
                 {% endfor %}
             {% endfor %}

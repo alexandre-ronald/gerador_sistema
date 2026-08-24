@@ -17,7 +17,7 @@
 </head>
 <body>
 <!-- Runtime contract: app navigation | module permissions | authentication | CSRF | content block -->
-<!-- Navigation is generated from the persisted module/entity definition. URLs are emitted as literal Django namespaces. -->
+<!-- Navigation is generated from the persisted module/entity definition. URLs use Python-safe app/entity identifiers. -->
 <!-- Permission enforcement remains in generated views and navigation. -->
 <!-- Module permission contract: perms. -->
 {% templatetag openblock %} if perms {% templatetag closeblock %}{% templatetag openblock %} endif {% templatetag closeblock %}
@@ -35,13 +35,18 @@
         <div class="small text-uppercase px-4 mb-2 text-white-50">Módulos</div>
         {% for modulo in modulos %}
         <li class="nav-item">
+            <a href="#modulo-{{ modulo.app_name }}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">
+                <i class="bi bi-grid me-2"></i>{{ modulo.nome }}
+            </a>
+        </li>
+        <li id="modulo-{{ modulo.app_name }}" class="nav-item">
             <div class="small text-uppercase px-4 mt-2 mb-1 text-white-50 fw-semibold">{{ modulo.nome }}</div>
         </li>
         {% for entidade in modulo.entidades.all %}
         {% if entidade.gerar_crud_views %}
         <li class="nav-item">
             {% templatetag openblock %} if perms.{{ modulo.app_name }}.view_{{ entidade.codigo_nome }} {% templatetag closeblock %}
-            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}"><i class="bi bi-layers me-2"></i>{{ entidade.nome }}</a>
+            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link"><i class="bi bi-layers me-2"></i>{{ entidade.nome }}</a>
             {% templatetag openblock %} endif {% templatetag closeblock %}
         </li>
         {% endif %}
@@ -59,10 +64,11 @@
         <div class="d-flex align-items-center gap-2 ms-3 overflow-auto">
             <a href="{% templatetag openblock %} url 'index' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link {% templatetag openblock %} if request.resolver_match.url_name == 'index' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">Dashboard</a>
             {% for modulo in modulos %}
+                <a href="#modulo-{{ modulo.app_name }}" class="btn btn-sm btn-outline-secondary top-module-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">{{ modulo.nome }}</a>
                 {% for entidade in modulo.entidades.all %}
                     {% if entidade.gerar_crud_views %}
                     {% templatetag openblock %} if perms.{{ modulo.app_name }}.view_{{ entidade.codigo_nome }} {% templatetag closeblock %}
-                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">{{ entidade.nome }}</a>
+                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">{{ entidade.nome }}</a>
                     {% templatetag openblock %} endif {% templatetag closeblock %}
                     {% endif %}
                 {% endfor %}

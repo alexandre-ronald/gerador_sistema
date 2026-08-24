@@ -17,8 +17,8 @@
 </head>
 <body>
 <!-- Runtime contract: app navigation | module permissions | authentication | CSRF | content block -->
-<!-- Navigation is generated from the persisted module/entity definition. URLs use Python-safe app/entity identifiers. -->
-<!-- Permission enforcement remains in generated views and navigation. -->
+<!-- Navigation is generated from persisted module/entity definitions. App/entity names are Python-safe identifiers. -->
+<!-- Permission enforcement remains in generated views; navigation hides links when the user lacks the model permission. -->
 <!-- Module permission contract: perms. -->
 {% templatetag openblock %} if perms {% templatetag closeblock %}{% templatetag openblock %} endif {% templatetag closeblock %}
 <div class="{% if sistema.tipo_menu == 'lateral' %}d-flex{% endif %}">
@@ -44,11 +44,13 @@
         </li>
         {% for entidade in modulo.entidades.all %}
         {% if entidade.gerar_crud_views %}
+        {% templatetag openblock %} with perm_name=modulo.app_name|add:".view_"|add:entidade.codigo_nome url_name=modulo.app_name|add:":"|add:entidade.codigo_nome|add:"_list" {% templatetag closeblock %}
         <li class="nav-item">
-            {% templatetag openblock %} if perms.{{ modulo.app_name }}.view_{{ entidade.codigo_nome }} {% templatetag closeblock %}
-            <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="nav-link"><i class="bi bi-layers me-2"></i>{{ entidade.nome }}</a>
+            {% templatetag openblock %} if perm_name in perms {% templatetag closeblock %}
+            <a href="{% templatetag openblock %} url url_name {% templatetag closeblock %}" class="nav-link"><i class="bi bi-layers me-2"></i>{{ entidade.nome }}</a>
             {% templatetag openblock %} endif {% templatetag closeblock %}
         </li>
+        {% templatetag openblock %} endwith {% templatetag closeblock %}
         {% endif %}
         {% endfor %}
         {% endfor %}
@@ -67,9 +69,11 @@
                 <a href="#modulo-{{ modulo.app_name }}" class="btn btn-sm btn-outline-secondary top-module-link {% templatetag openblock %} if request.resolver_match.app_name == '{{ modulo.app_name }}' {% templatetag closeblock %}active{% templatetag openblock %} endif {% templatetag closeblock %}">{{ modulo.nome }}</a>
                 {% for entidade in modulo.entidades.all %}
                     {% if entidade.gerar_crud_views %}
-                    {% templatetag openblock %} if perms.{{ modulo.app_name }}.view_{{ entidade.codigo_nome }} {% templatetag closeblock %}
-                    <a href="{% templatetag openblock %} url '{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">{{ entidade.nome }}</a>
+                    {% templatetag openblock %} with perm_name=modulo.app_name|add:".view_"|add:entidade.codigo_nome url_name=modulo.app_name|add:":"|add:entidade.codigo_nome|add:"_list" {% templatetag closeblock %}
+                    {% templatetag openblock %} if perm_name in perms {% templatetag closeblock %}
+                    <a href="{% templatetag openblock %} url url_name {% templatetag closeblock %}" class="btn btn-sm btn-outline-secondary top-module-link">{{ entidade.nome }}</a>
                     {% templatetag openblock %} endif {% templatetag closeblock %}
+                    {% templatetag openblock %} endwith {% templatetag closeblock %}
                     {% endif %}
                 {% endfor %}
             {% endfor %}

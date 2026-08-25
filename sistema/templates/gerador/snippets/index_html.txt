@@ -1,58 +1,8 @@
 {% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
 {% templatetag openblock %} block content {% templatetag closeblock %}
-<style>
-    .dashboard-card { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color-translucent); border-radius: 1.25rem; transition: all .3s ease; height: 100%; }
-    .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,.08); border-color: var(--bs-primary); }
-    .welcome-header { display: inline-flex; align-items: center; gap: 15px; color: var(--bs-emphasis-color); }
-    .rocket-icon { font-size: 2.8rem; color: #0dcaf0; filter: drop-shadow(0 4px 8px rgba(13,202,240,.3)); animation: float 3s ease-in-out infinite; }
-    @keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
-    .entity-card { display:block; text-decoration:none; color:inherit; background:var(--bs-secondary-bg); border-left:4px solid var(--bs-info); border-radius:10px; padding:1.25rem; transition:all .25s ease; position:relative; overflow:hidden; }
-    .entity-card:hover { background:var(--bs-tertiary-bg); transform:translateX(8px); border-left-color:var(--bs-primary); box-shadow:-5px 5px 15px rgba(0,0,0,.05); color:inherit; }
-    .entity-icon-wrapper { width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:var(--bs-info-bg-subtle); border-radius:8px; color:var(--bs-info); }
-    .module-badge { font-size:.65rem; text-transform:uppercase; letter-spacing:.5px; font-weight:700; opacity:.7; }
-</style>
-<div class="container-fluid py-4">
-    <div class="row mb-5">
-        <div class="col-12 text-center text-md-start">
-            <h1 class="welcome-header fw-bold">Bem-vindo ao {{ sistema.nome }} <i class="bi bi-rocket-takeoff-fill rocket-icon"></i></h1>
-            <p class="text-muted fs-5">Gestão simplificada. O que vamos acessar agora?</p>
-        </div>
-    </div>
-
-    <h5 class="fw-bold mb-4"><i class="bi bi-grid-fill text-primary"></i> Módulos Ativos</h5>
-    <div class="row g-4 mb-5">
-        {% for modulo in navigation_modules %}
-        <div class="col-md-6 col-lg-3">
-            <div class="card dashboard-card p-4 h-100">
-                <div class="rounded-circle bg-primary bg-opacity-10 p-3 mb-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="bi bi-folder2-open text-primary fs-4"></i></div>
-                <h4 class="fw-bold mb-1">{{ modulo.label }}</h4>
-                <p class="text-muted small mb-0">{{ modulo.items|length }} opção(ões) disponível(is)</p>
-            </div>
-        </div>
-        {% empty %}
-        <div class="col-12"><div class="alert alert-info">Nenhum módulo disponível para este usuário.</div></div>
-        {% endfor %}
-    </div>
-
-    <h5 class="fw-bold mb-4"><i class="bi bi-layers-half text-info"></i> Entidades do Sistema</h5>
-    <div class="row g-3">
-        {% for modulo in navigation_modules %}
-            {% for item in modulo.items %}
-            <div class="col-md-4 col-lg-3">
-                <a href="{% templatetag openblock %} url item.url_name {% templatetag closeblock %}" class="entity-card border shadow-sm" data-permission="{{ item.permission }}">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="entity-icon-wrapper"><i class="bi bi-table"></i></div>
-                            <div><div class="module-badge text-primary">{{ modulo.label }}</div><div class="fw-bold fs-6">{{ item.label }}</div></div>
-                        </div>
-                        <i class="bi bi-arrow-right-short fs-4 opacity-50"></i>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        {% empty %}
-        <div class="col-12"><div class="alert alert-info">Nenhuma entidade disponível para este usuário.</div></div>
-        {% endfor %}
-    </div>
-</div>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+<div><div class="text-uppercase small fw-bold text-primary mb-1">Visão geral</div><h1 class="h3 fw-bold mb-1">Bem-vindo ao {% templatetag openvariable %} sistema.nome {% templatetag closevariable %}</h1><p class="text-secondary mb-0">Tudo o que você precisa para trabalhar está organizado abaixo.</p></div>
+<div class="small text-secondary"><i class="bi bi-shield-check me-1"></i>Acesso personalizado por permissão</div></div>
+<div class="row g-3 mb-4">{% templatetag openblock %} for modulo in navigation_modules {% templatetag closeblock %}<div class="col-sm-6 col-xl-3"><div class="app-card h-100 p-4 app-card-hover"><div class="d-flex align-items-center justify-content-between mb-4"><div class="app-icon bg-primary-subtle text-primary"><i class="bi bi-grid"></i></div><span class="badge rounded-pill text-bg-light">{% templatetag openvariable %} modulo.items|length {% templatetag closevariable %}</span></div><div class="fw-bold fs-6">{% templatetag openvariable %} modulo.label {% templatetag closevariable %}</div><div class="small text-secondary mt-1">funcionalidade(s) disponível(is)</div></div></div>{% templatetag openblock %} empty {% templatetag closeblock %}<div class="col-12"><div class="app-card p-5 text-center"><div class="app-empty-icon mb-3"><i class="bi bi-grid-3x3-gap"></i></div><h5 class="fw-bold">Nenhum módulo disponível</h5><p class="text-secondary mb-0">Seu usuário não possui módulos liberados neste momento.</p></div></div>{% templatetag openblock %} endfor {% templatetag closeblock %}</div>
+<div class="app-card overflow-hidden"><div class="p-4 border-bottom d-flex justify-content-between align-items-center gap-3"><div><h5 class="fw-bold mb-1">Acesso rápido</h5><p class="text-secondary small mb-0">Abra diretamente uma funcionalidade disponível para seu perfil.</p></div><span class="badge rounded-pill bg-primary-subtle text-primary">{% templatetag openvariable %} navigation_modules|length {% templatetag closevariable %} módulo(s)</span></div><div class="p-4"><div class="row g-3">{% templatetag openblock %} for modulo in navigation_modules {% templatetag closeblock %}{% templatetag openblock %} for item in modulo.items {% templatetag closeblock %}<div class="col-md-6 col-xl-4"><a href="{% templatetag openblock %} url item.url_name {% templatetag closeblock %}" class="app-quick-link"><span class="app-icon bg-primary-subtle text-primary"><i class="bi bi-arrow-up-right"></i></span><span class="min-w-0"><small class="text-secondary d-block text-truncate">{% templatetag openvariable %} modulo.label {% templatetag closevariable %}</small><strong class="text-body d-block text-truncate">{% templatetag openvariable %} item.label {% templatetag closevariable %}</strong></span><i class="bi bi-chevron-right ms-auto text-secondary"></i></a></div>{% templatetag openblock %} endfor {% templatetag closeblock %}{% templatetag openblock %} empty {% templatetag closeblock %}<div class="col-12 text-center py-4 text-secondary">Nenhuma funcionalidade disponível.</div>{% templatetag openblock %} endfor {% templatetag closeblock %}</div></div></div>
 {% templatetag openblock %} endblock {% templatetag closeblock %}

@@ -1,55 +1,8 @@
 {% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
 {% templatetag openblock %} block content {% templatetag closeblock %}
-<div class="row justify-content-center">
-    <div class="col-lg-8 col-xl-9">
-        <div class="card shadow-sm">
-            <div class="card-header bg-body-tertiary py-3">
-                <h4 class="fw-bold mb-0">
-                    {% templatetag openblock %} if object {% templatetag closeblock %}Editar{% templatetag openblock %} else {% templatetag closeblock %}Cadastrar{% templatetag openblock %} endif {% templatetag closeblock %} {{ entidade.nome }}
-                </h4>
-            </div>
-            <div class="card-body p-4">
-                <form method="post" enctype="multipart/form-data" novalidate>
-                    {% templatetag openblock %} csrf_token {% templatetag closeblock %}
-                    {% templatetag openblock %} if form.non_field_errors {% templatetag closeblock %}
-                        <div class="alert alert-danger">{% templatetag openvariable %} form.non_field_errors {% templatetag closevariable %}</div>
-                    {% templatetag openblock %} endif {% templatetag closeblock %}
-
-                    {% templatetag openblock %} for hidden in form.hidden_fields {% templatetag closeblock %}
-                        {% templatetag openvariable %} hidden {% templatetag closevariable %}
-                    {% templatetag openblock %} endfor {% templatetag closeblock %}
-
-                    <div class="row g-3">
-                    {% templatetag openblock %} for field in form.visible_fields {% templatetag closeblock %}
-                        <div class="col-12 {% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}col-md-6{% templatetag openblock %} endif {% templatetag closeblock %}">
-                            {% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}
-                                <div class="form-check mt-2">
-                                    {% templatetag openvariable %} field {% templatetag closevariable %}
-                                    <label class="form-check-label fw-semibold" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label>
-                                </div>
-                            {% templatetag openblock %} else {% templatetag closeblock %}
-                                <label class="form-label fw-semibold" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label>
-                                {% templatetag openvariable %} field {% templatetag closevariable %}
-                            {% templatetag openblock %} endif {% templatetag closeblock %}
-                            {% templatetag openblock %} if field.help_text {% templatetag closeblock %}
-                                <div class="form-text">{% templatetag openvariable %} field.help_text {% templatetag closevariable %}</div>
-                            {% templatetag openblock %} endif {% templatetag closeblock %}
-                            {% templatetag openblock %} for error in field.errors {% templatetag closeblock %}
-                                <div class="invalid-feedback d-block">{% templatetag openvariable %} error {% templatetag closevariable %}</div>
-                            {% templatetag openblock %} endfor {% templatetag closeblock %}
-                        </div>
-                    {% templatetag openblock %} empty {% templatetag closeblock %}
-                        <div class="col-12"><div class="alert alert-warning mb-0">Nenhum campo configurado para esta entidade.</div></div>
-                    {% templatetag openblock %} endfor {% templatetag closeblock %}
-                    </div>
-
-                    <div class="mt-4 pt-3 border-top">
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar Registro</button>
-                        <a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light ms-2">Voltar</a>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="d-flex align-items-end justify-content-between gap-3 mb-4"><div><div class="text-uppercase small fw-bold text-primary mb-1">{% templatetag openblock %} if object {% templatetag closeblock %}Edição{% templatetag openblock %} else {% templatetag closeblock %}Cadastro{% templatetag openblock %} endif {% templatetag closeblock %}</div><h1 class="h3 fw-bold mb-1">{% templatetag openblock %} if object {% templatetag closeblock %}Editar{% templatetag openblock %} else {% templatetag closeblock %}Novo{% templatetag openblock %} endif {% templatetag closeblock %} {{ entidade.nome }}</h1><p class="text-secondary mb-0">Preencha os dados abaixo para {% templatetag openblock %} if object {% templatetag closeblock %}atualizar{% templatetag openblock %} else {% templatetag closeblock %}cadastrar{% templatetag openblock %} endif {% templatetag closeblock %} o registro.</p></div><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light"><i class="bi bi-arrow-left me-1"></i>Voltar</a></div>
+<div class="app-card"><div class="p-4 p-lg-5"><form method="post" enctype="multipart/form-data" novalidate>{% templatetag openblock %} csrf_token {% templatetag closeblock %}{% templatetag openblock %} if form.non_field_errors {% templatetag closeblock %}<div class="alert alert-danger">{% templatetag openvariable %} form.non_field_errors {% templatetag closevariable %}</div>{% templatetag openblock %} endif {% templatetag closeblock %}{% templatetag openblock %} for hidden in form.hidden_fields {% templatetag closeblock %}{% templatetag openvariable %} hidden {% templatetag closevariable %}{% templatetag openblock %} endfor {% templatetag closeblock %}
+<div class="row g-4">{% templatetag openblock %} for field in form.visible_fields {% templatetag closeblock %}<div class="col-12 {% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}col-md-6{% templatetag openblock %} endif {% templatetag closeblock %}">{% templatetag openblock %} if field.field.widget.input_type == 'checkbox' {% templatetag closeblock %}<div class="form-check form-switch p-3 rounded-3 bg-body-tertiary border"><span>{% templatetag openvariable %} field {% templatetag closevariable %}</span><label class="form-check-label fw-semibold ms-2" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label></div>{% templatetag openblock %} else {% templatetag closeblock %}<label class="form-label fw-semibold" for="{% templatetag openvariable %} field.id_for_label {% templatetag closevariable %}">{% templatetag openvariable %} field.label {% templatetag closevariable %}</label>{% templatetag openvariable %} field {% templatetag closevariable %}{% templatetag openblock %} endif {% templatetag closeblock %}{% templatetag openblock %} if field.help_text {% templatetag closeblock %}<div class="form-text">{% templatetag openvariable %} field.help_text {% templatetag closevariable %}</div>{% templatetag openblock %} endif {% templatetag closeblock %}{% templatetag openblock %} for error in field.errors {% templatetag closeblock %}<div class="invalid-feedback d-block">{% templatetag openvariable %} error {% templatetag closevariable %}</div>{% templatetag openblock %} endfor {% templatetag closeblock %}</div>{% templatetag openblock %} empty {% templatetag closeblock %}<div class="col-12"><div class="text-center py-5 text-secondary"><i class="bi bi-input-cursor-text fs-1 d-block mb-3"></i><p class="mb-0">Nenhum campo configurado para esta entidade.</p></div></div>{% templatetag openblock %} endfor {% templatetag closeblock %}</div>
+<div class="d-flex justify-content-end gap-2 mt-5 pt-4 border-top"><a href="{% templatetag openblock %} url '{{ app_name }}:{{ entidade.codigo_nome }}_list' {% templatetag closeblock %}" class="btn btn-light">Cancelar</a><button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Salvar registro</button></div>
+</form></div></div>
 {% templatetag openblock %} endblock {% templatetag closeblock %}

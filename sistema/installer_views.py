@@ -14,6 +14,11 @@ from .services import GeradorService
 from .structure_service import serialize_system_structure
 
 
+def _estrutura_snapshot(sistema):
+    """Snapshot único da especificação persistida para preview/versionamento."""
+    return serialize_system_structure(sistema)
+
+
 def _bat_display_name(value):
     import unicodedata
     return unicodedata.normalize("NFKD", str(value or "Sistema")).encode("ascii", "ignore").decode("ascii")
@@ -44,17 +49,17 @@ echo.
 
 def _bat_database_prompt(db_type):
     defaults = {
-        "postgresql": [("POSTGRES_DB", "sistema_db"), ("POSTGRES_USER", "postgres"), ("POSTGRES_PASSWORD", ""), ("POSTGRES_HOST", "localhost"), ("POSTGRES_PORT", "5432")],
-        "mysql": [("MYSQL_DATABASE", "sistema_db"), ("MYSQL_USER", "root"), ("MYSQL_PASSWORD", ""), ("MYSQL_HOST", "localhost"), ("MYSQL_PORT", "3306")],
-        "sqlserver": [("MSSQL_DATABASE", "sistema_db"), ("MSSQL_USER", "sa"), ("MSSQL_PASSWORD", ""), ("MSSQL_HOST", "localhost"), ("MSSQL_PORT", "1433")],
-        "oracle": [("ORACLE_NAME", "sistema_db"), ("ORACLE_USER", "system"), ("ORACLE_PASSWORD", ""), ("ORACLE_HOST", "localhost"), ("ORACLE_PORT", "1521")],
+        "postgresql": [("POSTGRES_DB", "Nome do banco", "sistema_db"), ("POSTGRES_USER", "Usuario", "postgres"), ("POSTGRES_PASSWORD", "Senha", ""), ("POSTGRES_HOST", "Host", "localhost"), ("POSTGRES_PORT", "Porta", "5432")],
+        "mysql": [("MYSQL_DATABASE", "Nome do banco", "sistema_db"), ("MYSQL_USER", "Usuario", "root"), ("MYSQL_PASSWORD", "Senha", ""), ("MYSQL_HOST", "Host", "localhost"), ("MYSQL_PORT", "Porta", "3306")],
+        "sqlserver": [("MSSQL_DATABASE", "Nome do banco", "sistema_db"), ("MSSQL_USER", "Usuario", "sa"), ("MSSQL_PASSWORD", "Senha", ""), ("MSSQL_HOST", "Host", "localhost"), ("MSSQL_PORT", "Porta", "1433")],
+        "oracle": [("ORACLE_NAME", "Nome do banco", "sistema_db"), ("ORACLE_USER", "Usuario", "system"), ("ORACLE_PASSWORD", "Senha", ""), ("ORACLE_HOST", "Host", "localhost"), ("ORACLE_PORT", "Porta", "1521")],
     }
     if db_type not in defaults:
         return "echo [OK] Banco SQLite selecionado.\necho.\n"
     lines = ["echo.", f"echo CONFIGURACAO DO BANCO {db_type.upper()}", "echo."]
-    for key, default in defaults[db_type]:
+    for key, label, default in defaults[db_type]:
         lines.append(f'set "{key}="')
-        lines.append(f'set /p "{key}={key} [{default}]: "')
+        lines.append(f'set /p "{key}={label} [{default}]: "')
         if default:
             lines.append(f'if not defined {key} set "{key}={default}"')
     lines.append("")
@@ -134,9 +139,7 @@ def processar_geracao_ajax(request, pk):
         sistema.arquivo_zip = f"downloads_sistemas/{nome_zip}"
         sistema.save(update_fields=["arquivo_zip", "atualizado_em"])
         numero = (sistema.versoes.order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
-        versao = VersaoGeracao.objects.create(
-            sistema=sistema, numero=numero, descricao=f"Geração {timestamp}", estrutura_json=serialize_system_structure(sistema)
-        )
+        versao = VersaoGeracao.objects.create(sistema=sistema, numero=numero, descricao=f"Geração {timestamp}", estrutura_json=_estrutura_snapshot(sistema))
         with open(zip_path, "rb") as zip_file:
             versao.arquivo_zip.save(nome_zip, zip_file, save=True)
 

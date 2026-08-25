@@ -35,10 +35,10 @@ def save_system_structure(*, user, payload, sistema_id=None):
             sistema = Sistema.objects.filter(pk=sistema_id, usuario=user).first()
             if not sistema: raise ValidationError("Sistema não encontrado ou sem permissão.")
         else: sistema = Sistema(usuario=user)
-        # System Builder uses "caminho_geracao" as the canonical UI field.
-        # Keep "caminho" as a backward-compatible payload alias.
+        # caminho_geracao é o campo canônico; caminho permanece aceito por compatibilidade.
         caminho = data.get("caminho_geracao", data.get("caminho", ""))
         sistema.nome, sistema.descricao, sistema.caminho_geracao = nome, _text(data.get("descricao")), _text(caminho)
+        if not sistema.caminho_geracao: raise ValidationError("Informe a pasta de geração.")
         sistema.tipo_menu, sistema.banco_dados = tipo_menu, banco
         sistema.usar_custom_user = False
         sistema.gerar_api_rest = False
@@ -81,4 +81,6 @@ def save_system_structure(*, user, payload, sistema_id=None):
         return sistema
 
 def serialize_system_structure(sistema):
-    return {"sistema": {"nome": sistema.nome, "descricao": sistema.descricao, "caminho": sistema.caminho_geracao, "tipo_menu": sistema.tipo_menu, "banco_dados": sistema.banco_dados, "usar_custom_user": sistema.usar_custom_user, "gerar_api_rest": sistema.gerar_api_rest, "gerar_docker": sistema.gerar_docker, "usar_auditoria": sistema.usar_auditoria}, "modulos": [{"nome": m.nome, "descricao": m.descricao, "entidades": [{"nome": e.nome, "nome_plural": e.nome_plural, "descricao": e.descricao, "gerar_admin": e.gerar_admin, "gerar_crud_views": e.gerar_crud_views, "gerar_endpoints_api": e.gerar_endpoints_api, "campos": [{"nome": c.nome, "tipo": c.tipo, "max_length": c.max_length, "max_digits": c.max_digits, "decimal_places": c.decimal_places, "rel": c.entidade_relacionada.nome if c.entidade_relacionada else None, "null": c.null, "blank": c.blank, "unique": c.unique, "default_value": c.default_value, "upload_to": c.upload_to, "related_name": c.related_name_str, "on_delete": c.on_delete, "verbose_name": c.verbose_name, "help_text": c.help_text} for c in e.campos.all()]} for e in m.entidades.all()]} for m in sistema.modulos.all()]}
+    # Expose both names during the transition so older editors remain compatible.
+    caminho = sistema.caminho_geracao
+    return {"sistema": {"nome": sistema.nome, "descricao": sistema.descricao, "caminho": caminho, "caminho_geracao": caminho, "tipo_menu": sistema.tipo_menu, "banco_dados": sistema.banco_dados, "usar_custom_user": sistema.usar_custom_user, "gerar_api_rest": sistema.gerar_api_rest, "gerar_docker": sistema.gerar_docker, "usar_auditoria": sistema.usar_auditoria}, "modulos": [{"nome": m.nome, "descricao": m.descricao, "entidades": [{"nome": e.nome, "nome_plural": e.nome_plural, "descricao": e.descricao, "gerar_admin": e.gerar_admin, "gerar_crud_views": e.gerar_crud_views, "gerar_endpoints_api": e.gerar_endpoints_api, "campos": [{"nome": c.nome, "tipo": c.tipo, "max_length": c.max_length, "max_digits": c.max_digits, "decimal_places": c.decimal_places, "rel": c.entidade_relacionada.nome if c.entidade_relacionada else None, "null": c.null, "blank": c.blank, "unique": c.unique, "default_value": c.default_value, "upload_to": c.upload_to, "related_name": c.related_name_str, "on_delete": c.on_delete, "verbose_name": c.verbose_name, "help_text": c.help_text} for c in e.campos.all()]} for e in m.entidades.all()]}

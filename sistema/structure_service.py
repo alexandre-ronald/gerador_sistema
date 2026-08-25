@@ -35,7 +35,10 @@ def save_system_structure(*, user, payload, sistema_id=None):
             sistema = Sistema.objects.filter(pk=sistema_id, usuario=user).first()
             if not sistema: raise ValidationError("Sistema não encontrado ou sem permissão.")
         else: sistema = Sistema(usuario=user)
-        sistema.nome, sistema.descricao, sistema.caminho_geracao = nome, _text(data.get("descricao")), _text(data.get("caminho"))
+        # System Builder uses "caminho_geracao" as the canonical UI field.
+        # Keep "caminho" as a backward-compatible payload alias.
+        caminho = data.get("caminho_geracao", data.get("caminho", ""))
+        sistema.nome, sistema.descricao, sistema.caminho_geracao = nome, _text(data.get("descricao")), _text(caminho)
         sistema.tipo_menu, sistema.banco_dados = tipo_menu, banco
         sistema.usar_custom_user = False
         sistema.gerar_api_rest = False

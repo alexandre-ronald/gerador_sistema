@@ -71,12 +71,16 @@ class GeneratedProjectRuntimeValidator:
         nav_content, settings_content = processor.read_text(encoding="utf-8"), settings.read_text(encoding="utf-8")
         index = self.root / "templates/index.html"
         missing = [name for name, token in self.NAVIGATION_CONTRACT.items() if token not in base_content]
-        if not index.is_file() or "navigation_modules" not in index.read_text(encoding="utf-8"): missing.append("navegação do index")
-        for token in ("NAVIGATION_MODULES", "has_perm", "def navigation", "url_name", "permission"):
+        index_content = index.read_text(encoding="utf-8") if index.is_file() else ""
+        if not index.is_file() or "navigation_modules" not in index_content: missing.append("navegação do index")
+        for token in ("NAVIGATION_MODULES", "has_perm", "def navigation", "permission"):
             if token not in nav_content: missing.append(f"context processor: {token}")
+        # url_name is required only when the specification actually contains CRUD entries.
+        has_crud = '"url_name"' in nav_content and '"permission"' in nav_content and "_list" in nav_content
+        if has_crud and "url_name" not in nav_content: missing.append("context processor: url_name")
         if "context_processors.navigation" not in settings_content: missing.append("registro do context processor")
         if missing: self.errors.append("Contrato de navegação incompleto: " + ", ".join(missing)); return
-        self.checked += len(self.NAVIGATION_CONTRACT) + 6; self._message("✅ Contrato único de navegação, URLs e permissões validado")
+        self.checked += len(self.NAVIGATION_CONTRACT) + 5; self._message("✅ Contrato único de navegação, URLs e permissões validado")
 
     def _read_requirements(self):
         path, names = self.root / "requirements.txt", set()

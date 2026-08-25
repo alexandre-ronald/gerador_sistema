@@ -1,7 +1,9 @@
 import json
 import os
+from pathlib import Path
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
@@ -63,7 +65,8 @@ def lista_sistemas(request):
 
 @login_required
 def criar_sistema(request):
-    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps({"sistema": {}, "modulos": []}, ensure_ascii=False), "sistema_id": None})
+    default_path = str(Path(getattr(settings, "BASE_DIR", Path.cwd())) / "projetos_gerados")
+    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps({"sistema": {"caminho": default_path}, "modulos": []}, ensure_ascii=False), "sistema_id": None})
 
 
 @login_required
@@ -78,7 +81,7 @@ def salvar_modelo(request):
     try:
         payload = json.loads(request.body or "{}")
         sistema = save_system_structure(user=request.user, payload=payload, sistema_id=payload.get("sistema_id"))
-        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id})
+        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id, "caminho_geracao": sistema.caminho_geracao})
     except Exception as exc:
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 
@@ -89,7 +92,7 @@ def atualizar_sistema(request, sistema_id):
     try:
         payload = json.loads(request.body or "{}")
         sistema = save_system_structure(user=request.user, payload=payload, sistema_id=sistema_id)
-        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id})
+        return JsonResponse({"status": "sucesso", "sistema_id": sistema.id, "caminho_geracao": sistema.caminho_geracao})
     except Exception as exc:
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 

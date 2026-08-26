@@ -7,8 +7,9 @@ import shutil
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 
-from .models import Sistema
+from .models import Sistema, VersaoGeracao
 from .runtime_validation import validate_generated_runtime
+from .structure_service import serialize_system_structure
 
 
 class GeradorService:
@@ -18,6 +19,7 @@ class GeradorService:
         self.nome_projeto = self._python_identifier(self.sistema.nome, fallback="projeto")
         self.diretorio_base = self.sistema.caminho_geracao
         self.logs = []
+        self.versao_gerada = None
 
     @staticmethod
     def _python_identifier(value, fallback="item"):
@@ -63,6 +65,18 @@ class GeradorService:
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
         return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
 
+    def _registrar_versao(self):
+        ultimo = self.sistema.versoes.order_by("-numero").first()
+        numero = (ultimo.numero if ultimo else 0) + 1
+        estrutura = serialize_system_structure(self.sistema)
+        self.versao_gerada = VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=numero,
+            descricao=f"Geração automática v{numero}",
+            estrutura_json=estrutura,
+        )
+        self.log(f"🗂️ Versão de geração v{numero} registrada")
+
     def gerar_projeto_completo(self):
         if not self.diretorio_base: raise ValueError("Defina a pasta de destino antes de gerar o sistema.")
         try:
@@ -76,6 +90,7 @@ class GeradorService:
             for aviso in resultado.get("warnings", []): self.log(f"⚠️ {aviso}")
             self.log(f"✅ Validação concluída: {resultado.get('checked', 0)} itens verificados")
             if self.sistema.gerar_docker: self._gerar_docker()
+            self._registrar_versao()
             self.log("✅ Geração concluída com sucesso!"); return self.logs
         except Exception as exc: self.log(f"❌ ERRO FATAL: {exc}"); raise
 

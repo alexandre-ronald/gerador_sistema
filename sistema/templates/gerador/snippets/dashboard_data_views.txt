@@ -1,0 +1,61 @@
+from django.apps import apps
+from django.contrib.auth.decorators import login_required
+from django.db.models import Avg, Count, Max, Min, Sum
+from django.http import JsonResponse
+
+
+def _model(entity_name):
+    for model in apps.get_models():
+        if model.__name__ == entity_name or str(model._meta.verbose_name) == entity_name or str(model._meta.verbose_name_plural) == entity_name:
+            return model
+    return None
+
+
+def _field(model, name):
+    try:
+        return model._meta.get_field(name)
+    except Exception:
+        return None
+
+
+def _serialize(value):
+    return value.isoformat() if hasattr(value, 'isoformat') else value
+
+
+@login_required
+def dashboard_data(request):
+    widgets = {{ dashboard_json }}
+    result = []
+    for widget in widgets:
+        model = _model(widget.get('entity', ''))
+        item = {'id': widget.get('id'), 'type': widget.get('type'), 'title': widget.get('title'), 'value': None, 'labels': [], 'values': [], 'columns': [], 'rows': [], 'error': None}
+        if model is None:
+            item['error'] = 'Entidade não encontrada'
+            result.append(item)
+            continue
+        qs = model.objects.all()
+        config = widget.get('config') or {}
+        operation = str(config.get('operation', 'count')).lower()
+        field_name = config.get('field') or 'id'
+        field = _field(model, field_name)
+        if widget.get('type') == 'metric':
+            if operation == 'sum' and field: item['value'] = qs.aggregate(v=Sum(field_name))['v'] or 0
+            elif operation == 'avg' and field: item['value'] = qs.aggregate(v=Avg(field_name))['v'] or 0
+            elif operation == 'min' and field: item['value'] = qs.aggregate(v=Min(field_name))['v']
+            elif operation == 'max' and field: item['value'] = qs.aggregate(v=Max(field_name))['v']
+            else: item['value'] = qs.count()
+        elif widget.get('type') == 'table':
+            fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]
+            fields = [f for f in fields if _field(model, f)][:8]
+            item['columns'] = fields
+            for obj in qs[:100]: item['rows'].append([_serialize(getattr(obj, f, None)) for f in fields])
+        else:
+            group_by = config.get('group_by') or None
+            if group_by and _field(model, group_by):
+                rows = qs.values(group_by).annotate(total=Count('pk')).order_by('-total')[:20]
+                item['labels'] = [str(row[group_by] or 'Sem valor') for row in rows]
+                item['values'] = [row['total'] for row in rows]
+            else:
+                item['labels'], item['values'] = ['Total'], [qs.count()]
+        result.append(item)
+    return JsonResponse({'widgets': result})

@@ -1,4 +1,5 @@
 import ast
+import json
 import keyword
 import os
 import re
@@ -54,6 +55,7 @@ class GeradorService:
 
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}
+        dashboard = self._dashboard_config()
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
             if modulo.app_name in app_names: raise ValueError(f"Módulos '{app_names[modulo.app_name]}' e '{modulo.nome}' geram o mesmo app Python '{modulo.app_name}'. Renomeie um deles.")
@@ -66,13 +68,13 @@ class GeradorService:
                 field_names = {}
                 for campo in entidade.campos_geracao:
                     campo.codigo_nome = self._python_identifier(campo.nome, "campo")
-                    if campo.codigo_nome in field_names: raise ValueError(f"Campos '{field_names[campo.codigo_nome]}' e '{campo.nome}' em '{entidade.nome}' geram o mesmo identificador '{campo.codigo_nome}'.")
+                    if campo.codigo_nome in field_names: raise ValueError(f"Campos '{field_names[campo.codigo_nome]}' e '{campo.nome}' em '{entidade.nome}' geram o mesmo identificador '{campo.codigo_nome}'. Renomeie um deles.")
                     field_names[campo.codigo_nome] = campo.nome; campo.verbose_nome = campo.verbose_name or campo.nome; campo.default_python = self._python_default(campo.default_value)
                     if campo.eh_relacional and campo.entidade_relacionada:
                         campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome)
                         campo.app_relacionada = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": self._dashboard_config()}
+        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False)}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first()
@@ -113,7 +115,7 @@ class GeradorService:
         self.log("Arquivo criado: requirements.txt")
 
     def _gerar_core(self, ctx):
-        for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt")):
+        for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"), (f"{self.nome_projeto}/dashboard_data.py", "dashboard_data_views.txt")):
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         self._gerar_requirements(); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True)
         self.log("✅ Diretórios static/ e media/ preparados")

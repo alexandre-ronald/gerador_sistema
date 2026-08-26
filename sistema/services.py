@@ -43,6 +43,15 @@ class GeradorService:
 
     def log(self, mensagem): self.logs.append(mensagem)
 
+    def _dashboard_config(self):
+        versao = self.sistema.versoes.filter(numero=0).first()
+        if versao and isinstance(versao.estrutura_json, dict):
+            dashboard = versao.estrutura_json.get("dashboard")
+            if isinstance(dashboard, dict):
+                from .builder_contracts import normalize_dashboard_config
+                return normalize_dashboard_config(dashboard)
+        return {"enabled": False, "title": "Dashboard", "layout": "12-column", "refresh_seconds": 0, "widgets": []}
+
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}
         for modulo in modulos:
@@ -63,18 +72,13 @@ class GeradorService:
                         campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome)
                         campo.app_relacionada = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos}
+        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": self._dashboard_config()}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first()
         numero = (ultimo.numero if ultimo else 0) + 1
         estrutura = serialize_system_structure(self.sistema)
-        self.versao_gerada = VersaoGeracao.objects.create(
-            sistema=self.sistema,
-            numero=numero,
-            descricao=f"Geração automática v{numero}",
-            estrutura_json=estrutura,
-        )
+        self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura)
         self.log(f"🗂️ Versão de geração v{numero} registrada")
 
     def gerar_projeto_completo(self):
@@ -124,7 +128,10 @@ class GeradorService:
                 self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
-        self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx); self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx); self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
+        self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)
+        self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)
+        self._escrever_arquivo("templates/dashboard.html", "gerador/snippets/dashboard_html.txt", ctx)
+        self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
 
     def _gerar_docker(self):
         ctx = {"sistema": self.sistema, "nome_projeto": self.nome_projeto}

@@ -4,7 +4,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from sistema.models import Entidade, Modulo, Sistema
+from sistema.models import Entidade, Modulo, Sistema, VersaoGeracao
 from sistema.services import GeradorService
 
 
@@ -40,3 +40,32 @@ class GenerationStabilityTests(TestCase):
         base = Path(root, "templates", "base.html").read_text(encoding="utf-8")
         self.assertIn("navigation_modules", base)
         self.assertIn("data-permission", base)
+
+    def test_successful_generation_creates_version_snapshot(self):
+        root = tempfile.mkdtemp(prefix="gen_version_")
+        sistema = Sistema.objects.create(usuario=self.user, nome="Sistema Versionado", caminho_geracao=root)
+        modulo = Modulo.objects.create(sistema=sistema, nome="Cadastro")
+        entidade = Entidade.objects.create(modulo=modulo, nome="Cliente")
+        from sistema.models import Campo
+        Campo.objects.create(entidade=entidade, nome="nome", tipo="CharField", max_length=120, verbose_name="Nome completo", help_text="Nome do cliente")
+
+        GeradorService(sistema.pk).gerar_projeto_completo()
+        GeradorService(sistema.pk).gerar_projeto_completo()
+
+        versoes = list(VersaoGeracao.objects.filter(sistema=sistema).order_by("numero"))
+        self.assertEqual([v.numero for v in versoes], [1, 2])
+        self.assertEqual(versoes[0].estrutura_json["sistema"]["caminho_geracao"], root)
+        campo = versoes[0].estrutura_json["modulos"][0]["entidades"][0]["campos"][0]
+        self.assertEqual(campo["verbose_name"], "Nome completo")
+        self.assertEqual(campo["help_text"], "Nome do cliente")
+
+    def test_failed_generation_does_not_create_version(self):
+        root = tempfile.mkdtemp(prefix="gen_failed_version_")
+        sistema = Sistema.objects.create(usuario=self.user, nome="Sistema Inválido", caminho_geracao=root)
+        Modulo.objects.create(sistema=sistema, nome="Gestão")
+        Modulo.objects.create(sistema=sistema, nome="Gestao")
+
+        with self.assertRaises(ValueError):
+            GeradorService(sistema.pk).gerar_projeto_completo()
+
+        self.assertFalse(VersaoGeracao.objects.filter(sistema=sistema).exists())

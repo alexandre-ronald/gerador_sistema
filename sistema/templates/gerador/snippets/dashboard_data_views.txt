@@ -24,7 +24,7 @@ def _serialize(value):
 
 @login_required
 def dashboard_data(request):
-    widgets = {{ dashboard_json }}
+    widgets = {{ dashboard_json|safe }}
     result = []
     for widget in widgets:
         model = _model(widget.get('entity', ''))

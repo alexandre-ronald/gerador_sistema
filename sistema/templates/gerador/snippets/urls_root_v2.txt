@@ -2,12 +2,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django.contrib.auth.decorators import login_required
+from .dashboard_data import dashboard_data
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', login_required(TemplateView.as_view(template_name='index.html')), name='index'),
     path('dashboard/', login_required(TemplateView.as_view(template_name='dashboard.html')), name='dashboard'),
+    path('dashboard/data/', dashboard_data, name='dashboard_data'),
 {% for modulo in modulos %}
     path('{{ modulo.app_name }}/', include(('{{ modulo.app_name }}.urls', '{{ modulo.app_name }}'), namespace='{{ modulo.app_name }}')),
 {% endfor %}

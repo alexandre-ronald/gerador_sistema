@@ -5,6 +5,7 @@ import json
 CRUD_ACTIONS = ("list", "detail", "create", "update", "delete")
 MENU_STYLES = ("lateral", "superior")
 DENSITIES = ("compact", "comfortable", "spacious")
+WIDGET_TYPES = ("metric", "table", "bar", "line", "area", "pie", "donut")
 
 
 def default_crud_config():
@@ -42,19 +43,51 @@ def normalize_theme_config(value=None):
 
 
 def canonicalize_spec(spec):
-    """Return a deterministic JSON-safe snapshot used to decide what changed."""
     if not isinstance(spec, dict): return {}
     return json.loads(json.dumps(spec, ensure_ascii=False, sort_keys=True, default=str))
 
 
 def spec_fingerprint(spec):
-    canonical = canonicalize_spec(spec)
-    raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    raw = json.dumps(canonicalize_spec(spec), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def diff_top_level(previous, current):
-    """Small deterministic diff; deeper generators can consume the changed sections."""
     before, after = canonicalize_spec(previous), canonicalize_spec(current)
-    keys = sorted(set(before) | set(after))
-    return [key for key in keys if before.get(key) != after.get(key)]
+    return [key for key in sorted(set(before) | set(after)) if before.get(key) != after.get(key)]
+
+
+def default_dashboard_config():
+    return {
+        "enabled": True,
+        "title": "Dashboard",
+        "layout": "12-column",
+        "refresh_seconds": 0,
+        "widgets": [],
+    }
+
+
+def normalize_widget(widget):
+    widget = widget if isinstance(widget, dict) else {}
+    kind = widget.get("type", "metric")
+    if kind not in WIDGET_TYPES: kind = "metric"
+    return {
+        "id": str(widget.get("id") or "widget"),
+        "type": kind,
+        "title": str(widget.get("title") or "Sem título"),
+        "entity": str(widget.get("entity") or ""),
+        "x": max(0, min(11, int(widget.get("x", 0)))),
+        "y": max(0, int(widget.get("y", 0))),
+        "w": max(1, min(12, int(widget.get("w", 4)))),
+        "h": max(1, min(12, int(widget.get("h", 3)))),
+        "config": widget.get("config") if isinstance(widget.get("config"), dict) else {},
+    }
+
+
+def normalize_dashboard_config(value=None):
+    config = default_dashboard_config()
+    if isinstance(value, dict): config.update({k: v for k, v in value.items() if k in config})
+    try: config["refresh_seconds"] = max(0, int(config["refresh_seconds"]))
+    except (TypeError, ValueError): config["refresh_seconds"] = 0
+    config["widgets"] = [normalize_widget(w) for w in (config["widgets"] or [])]
+    return config

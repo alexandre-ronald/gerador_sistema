@@ -1,0 +1,13 @@
+"""Configuração de consulta gerada para widgets de dashboard."""
+DASHBOARD_OPERATIONS = ("count", "sum", "avg", "min", "max")
+
+DEFAULT_WIDGET_QUERY = {
+    "operation": "count",
+    "field": "id",
+    "group_by": "",
+    "group_by_related": "",
+    "related_label": "__str__",
+    "fields": [],
+    "limit": 100,
+    "ordering": "-id",
+}

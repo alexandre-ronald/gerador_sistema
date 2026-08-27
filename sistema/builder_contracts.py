@@ -6,6 +6,7 @@ CRUD_ACTIONS = ("list", "detail", "create", "update", "delete")
 MENU_STYLES = ("lateral", "superior")
 DENSITIES = ("compact", "comfortable", "spacious")
 WIDGET_TYPES = ("metric", "table", "bar", "line", "area", "pie", "donut")
+DASHBOARD_OPERATIONS = ("count", "sum", "avg", "min", "max")
 
 
 def default_crud_config():
@@ -58,30 +59,33 @@ def diff_top_level(previous, current):
 
 
 def default_dashboard_config():
-    return {
-        "enabled": True,
-        "title": "Dashboard",
-        "layout": "12-column",
-        "refresh_seconds": 0,
-        "widgets": [],
-    }
+    return {"enabled": True, "title": "Dashboard", "layout": "12-column", "refresh_seconds": 0, "widgets": []}
+
+
+def default_widget_query():
+    return {"operation": "count", "field": "id", "group_by": "", "group_by_related": "", "related_label": "__str__", "fields": [], "limit": 100, "ordering": "-id"}
+
+
+def normalize_widget_query(value=None):
+    config = default_widget_query()
+    if isinstance(value, dict): config.update({k: v for k, v in value.items() if k in config})
+    if config["operation"] not in DASHBOARD_OPERATIONS: config["operation"] = "count"
+    config["field"] = str(config["field"] or "id")
+    config["group_by"] = str(config["group_by"] or "")
+    config["group_by_related"] = str(config["group_by_related"] or "")
+    config["related_label"] = str(config["related_label"] or "__str__")
+    config["fields"] = list(dict.fromkeys(config["fields"] or [])) if isinstance(config["fields"], (list, tuple)) else []
+    try: config["limit"] = max(1, min(500, int(config["limit"])))
+    except (TypeError, ValueError): config["limit"] = 100
+    config["ordering"] = str(config["ordering"] or "-id")
+    return config
 
 
 def normalize_widget(widget):
     widget = widget if isinstance(widget, dict) else {}
     kind = widget.get("type", "metric")
     if kind not in WIDGET_TYPES: kind = "metric"
-    return {
-        "id": str(widget.get("id") or "widget"),
-        "type": kind,
-        "title": str(widget.get("title") or "Sem título"),
-        "entity": str(widget.get("entity") or ""),
-        "x": max(0, min(11, int(widget.get("x", 0)))),
-        "y": max(0, int(widget.get("y", 0))),
-        "w": max(1, min(12, int(widget.get("w", 4)))),
-        "h": max(1, min(12, int(widget.get("h", 3)))),
-        "config": widget.get("config") if isinstance(widget.get("config"), dict) else {},
-    }
+    return {"id": str(widget.get("id") or "widget"), "type": kind, "title": str(widget.get("title") or "Sem título"), "entity": str(widget.get("entity") or ""), "x": max(0, min(11, int(widget.get("x", 0)))), "y": max(0, int(widget.get("y", 0))), "w": max(1, min(12, int(widget.get("w", 4)))), "h": max(1, min(12, int(widget.get("h", 3)))), "config": normalize_widget_query(widget.get("config"))}
 
 
 def normalize_dashboard_config(value=None):

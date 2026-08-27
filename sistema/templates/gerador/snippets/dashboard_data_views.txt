@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 from django.apps import apps
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import FieldError
 from django.db import models
 from django.db.models import Avg, Count, Max, Min, Sum
 from django.http import JsonResponse
@@ -71,7 +72,7 @@ def dashboard_data(request):
                 item['columns'] = fields
                 limit = max(1, min(500, int(config.get('limit', 100))))
                 ordering = str(config.get('ordering') or '-id')
-                if ordering.lstrip('-').replace('_', '') in {f.name.replace('_', '') for f in model._meta.fields}:
+                if ordering.lstrip('-') in {f.name for f in model._meta.fields}:
                     qs = qs.order_by(ordering)
                 for obj in qs[:limit]:
                     item['rows'].append([_serialize(getattr(obj, f, None)) for f in fields])
@@ -79,10 +80,14 @@ def dashboard_data(request):
                 group_by = config.get('group_by') or None
                 group_by_related = config.get('group_by_related') or None
                 group_field = group_by_related or group_by
-                if group_field and _field(model, group_field.split('__')[0]):
-                    rows = qs.values(group_field).annotate(total=Count('pk')).order_by('-total')[:20]
-                    item['labels'] = [_related_label(row.get(group_field)) for row in rows]
-                    item['values'] = [_serialize(row['total']) for row in rows]
+                if group_field:
+                    root_field = group_field.split('__')[0]
+                    if _field(model, root_field):
+                        rows = qs.values(group_field).annotate(total=Count('pk')).order_by('-total')[:20]
+                        item['labels'] = [_related_label(row.get(group_field)) for row in rows]
+                        item['values'] = [_serialize(row['total']) for row in rows]
+                    else:
+                        item['labels'], item['values'] = ['Total'], [qs.count()]
                 else:
                     item['labels'], item['values'] = ['Total'], [qs.count()]
         except (TypeError, ValueError, KeyError, FieldError) as exc:

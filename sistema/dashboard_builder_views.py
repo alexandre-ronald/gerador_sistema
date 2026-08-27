@@ -25,7 +25,12 @@ def _entity_fields(entities):
         fields = []
         for campo in entity.campos.select_related("entidade_relacionada").all().order_by("nome"):
             related = campo.entidade_relacionada.nome if campo.entidade_relacionada else ""
-            fields.append({"name": campo.nome, "label": campo.rotulo or campo.nome, "type": campo.tipo, "related": related})
+            fields.append({
+                "name": campo.nome,
+                "label": campo.verbose_name or campo.nome,
+                "type": campo.tipo,
+                "related": related,
+            })
         result[entity.nome] = fields
     return result
 

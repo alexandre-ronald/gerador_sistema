@@ -1,5 +1,10 @@
+from datetime import date, datetime, time
+from decimal import Decimal
+from uuid import UUID
+
 from django.apps import apps
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.db.models import Avg, Count, Max, Min, Sum
 from django.http import JsonResponse
 
@@ -19,7 +24,19 @@ def _field(model, name):
 
 
 def _serialize(value):
-    return value.isoformat() if hasattr(value, 'isoformat') else value
+    if value is None:
+        return ""
+    if isinstance(value, models.Model):
+        return str(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, (Decimal, UUID)):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _serialize(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_serialize(item) for item in value]
+    return value
 
 
 @login_required
@@ -44,18 +61,20 @@ def dashboard_data(request):
             elif operation == 'min' and field: item['value'] = qs.aggregate(v=Min(field_name))['v']
             elif operation == 'max' and field: item['value'] = qs.aggregate(v=Max(field_name))['v']
             else: item['value'] = qs.count()
+            item['value'] = _serialize(item['value'])
         elif widget.get('type') == 'table':
             fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]
             fields = [f for f in fields if _field(model, f)][:8]
             item['columns'] = fields
-            for obj in qs[:100]: item['rows'].append([_serialize(getattr(obj, f, None)) for f in fields])
+            for obj in qs[:100]:
+                item['rows'].append([_serialize(getattr(obj, f, None)) for f in fields])
         else:
             group_by = config.get('group_by') or None
             if group_by and _field(model, group_by):
                 rows = qs.values(group_by).annotate(total=Count('pk')).order_by('-total')[:20]
-                item['labels'] = [str(row[group_by] or 'Sem valor') for row in rows]
-                item['values'] = [row['total'] for row in rows]
+                item['labels'] = [_serialize(row[group_by]) or 'Sem valor' for row in rows]
+                item['values'] = [_serialize(row['total']) for row in rows]
             else:
                 item['labels'], item['values'] = ['Total'], [qs.count()]
         result.append(item)
-    return JsonResponse({'widgets': result})
+    return JsonResponse({'widgets': _serialize(result)})

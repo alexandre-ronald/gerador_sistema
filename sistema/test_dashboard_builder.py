@@ -25,6 +25,16 @@ class DashboardBuilderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Dashboard Builder")
 
+    def test_builder_exposes_widget_palette_and_canvas_runtime(self):
+        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="canvas"')
+        self.assertContains(response, 'class="widget-add"')
+        self.assertContains(response, 'data-widget-type="metric"')
+        self.assertContains(response, "function addWidget(type)")
+        self.assertContains(response, "config.widgets.push(newWidget(type))")
+        self.assertContains(response, "canvas-empty")
+
     def test_save_dashboard_creates_draft_version_zero(self):
         payload = {"title": "Indicadores", "refresh_seconds": 30, "widgets": [{"id": "kpi-1", "type": "metric", "title": "Total", "entity": "", "x": 0, "y": 0, "w": 4, "h": 3}]}
         response = self.client.post(reverse("sistema:salvar_dashboard", args=[self.sistema.pk]), data=json.dumps(payload), content_type="application/json")

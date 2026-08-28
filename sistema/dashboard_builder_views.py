@@ -26,16 +26,50 @@ def _draft(sistema):
     return normalize_dashboard_config()
 
 
+def _field_metadata(field):
+    related = field.entidade_relacionada
+    return {
+        "name": field.nome,
+        "label": field.verbose_name or field.nome.replace("_", " ").title(),
+        "type": field.tipo,
+        "nullable": bool(field.null),
+        "relational": field.eh_relacional,
+        "related_entity": related.nome if related else "",
+        "related_label": field.related_name_str or "__str__",
+        "numeric": field.tipo in {"IntegerField", "FloatField", "DecimalField"},
+        "decimal": field.tipo == "DecimalField",
+    }
+
+
+def _entity_metadata(entities):
+    return {
+        entity.nome: {
+            "name": entity.nome,
+            "label": entity.nome,
+            "module": entity.modulo.nome,
+            "fields": [_field_metadata(field) for field in entity.campos.all()],
+        }
+        for entity in entities
+    }
+
+
 @login_required
 def dashboard_builder(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    entities = Entidade.objects.filter(modulo__sistema=sistema).select_related("modulo").order_by("nome")
+    entities = list(
+        Entidade.objects.filter(modulo__sistema=sistema)
+        .select_related("modulo")
+        .prefetch_related("campos__entidade_relacionada")
+        .order_by("nome")
+    )
     config = _draft(sistema)
+    metadata = _entity_metadata(entities)
     return render(request, "sistema/dashboard_builder.html", {
         "sistema": sistema,
         "entities": entities,
         "config": config,
         "config_json": json.dumps(config, ensure_ascii=False),
+        "entity_metadata_json": json.dumps(metadata, ensure_ascii=False),
         "widget_types": WIDGET_TYPES,
     })
 

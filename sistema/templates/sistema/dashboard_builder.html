@@ -2,103 +2,488 @@
 {% block title %}Dashboard Builder | DjangoForge{% endblock %}
 {% block content %}
 <style>
-.db-wrap{max-width:1500px;margin:auto}.db-hero,.db-card{border:1px solid var(--bs-border-color);background:var(--bs-body-bg);border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.05)}.db-hero{padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}.canvas{min-height:620px;position:relative;background:var(--bs-tertiary-bg);border-radius:16px;padding:16px;background-image:linear-gradient(to right,rgba(128,128,128,.09) 1px,transparent 1px),linear-gradient(to bottom,rgba(128,128,128,.09) 1px,transparent 1px);background-size:8.333% 80px}.widget{position:absolute;border:1px solid var(--bs-border-color);background:var(--bs-body-bg);border-radius:14px;padding:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.06)}.widget .handle{cursor:move}.mini-chart{height:55px;display:flex;align-items:end;gap:5px}.mini-chart i{display:block;flex:1;background:var(--bs-primary);opacity:.55;border-radius:3px 3px 0 0}.palette button{width:100%;text-align:left}.prop{border-top:1px solid var(--bs-border-color);padding-top:1rem;margin-top:1rem}.grid-preview{display:grid;grid-template-columns:repeat(12,1fr);gap:4px}.grid-preview span{height:7px;background:var(--bs-primary-bg-subtle);border-radius:3px}.grid-preview span.active{background:var(--bs-primary)}
+.db-wrap{max-width:1500px;margin:auto}
+.db-hero,.db-card{border:1px solid var(--bs-border-color);background:var(--bs-body-bg);border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.05)}
+.db-hero{padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}
+.canvas{min-height:620px;position:relative;background:var(--bs-tertiary-bg);border-radius:16px;padding:16px;background-image:linear-gradient(to right,rgba(128,128,128,.09) 1px,transparent 1px),linear-gradient(to bottom,rgba(128,128,128,.09) 1px,transparent 1px);background-size:8.333333% 80px;overflow:auto}
+.widget{position:absolute;border:1px solid var(--bs-border-color);background:var(--bs-body-bg);border-radius:14px;padding:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.06);box-sizing:border-box;transition:left .15s ease,top .15s ease,width .15s ease,height .15s ease}
+.widget.border-primary{border:2px solid var(--bs-primary)!important}
+.widget .handle{cursor:pointer}
+.mini-chart{height:55px;display:flex;align-items:end;gap:5px}
+.mini-chart i{display:block;flex:1;background:var(--bs-primary);opacity:.55;border-radius:3px 3px 0 0}
+.palette button{width:100%;text-align:left}.prop{border-top:1px solid var(--bs-border-color);padding-top:1rem;margin-top:1rem}
 </style>
+
 <div class="db-wrap">
-<div class="db-hero mb-4 d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center"><div><div class="small text-uppercase fw-bold text-primary">System Builder · GEN-030</div><h2 class="fw-bold mb-1"><i class="bi bi-grid-1x2 me-2"></i>Dashboard Builder</h2><p class="text-secondary mb-0">Monte dashboards visualmente a partir das entidades e dados do sistema.</p></div><a href="{% url 'sistema:editar_sistema' sistema.id %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Voltar ao Builder</a></div>
-<div class="db-card p-3 mb-4"><div class="row g-3 align-items-end"><div class="col-lg-5"><label class="form-label fw-semibold">Título</label><input id="title" class="form-control" value="{{ config.title|default:'Dashboard' }}"></div><div class="col-lg-3"><label class="form-label fw-semibold">Atualização automática</label><select id="refresh" class="form-select"><option value="0">Desativada</option><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="60">1 minuto</option><option value="300">5 minutos</option></select></div><div class="col-lg-4 text-lg-end"><button type="button" class="btn btn-primary" onclick="saveDashboard()"><i class="bi bi-check2-circle me-1"></i>Salvar dashboard</button></div></div></div>
-<div class="row g-4"><aside class="col-lg-2"><div class="db-card p-3 palette"><h6 class="fw-bold">Widgets</h6><p class="small text-secondary">Arraste a ideia para o canvas ou clique para adicionar.</p>{% for t,label,icon in widget_types %}<button type="button" class="btn btn-outline-secondary btn-sm mb-2 widget-palette-button" data-widget-type="{{ t }}" onclick="addWidget('{{ t }}'); return false;"><i class="{{ icon }} me-2"></i>{{ label }}</button>{% endfor %}<div class="prop"><label class="form-label small fw-semibold">Layout</label><select id="layout" class="form-select form-select-sm"><option value="12-column">12 colunas</option></select></div></div></aside>
-<main class="col-lg-7"><div class="db-card p-3"><div class="d-flex justify-content-between align-items-center mb-3"><strong>Canvas</strong><span class="small text-secondary" id="widgetCount"></span></div><div id="canvas" class="canvas"></div></div></main>
-<aside class="col-lg-3"><div class="db-card p-3"><h6 class="fw-bold">Propriedades</h6><div id="properties" class="small text-secondary">Selecione um widget para editar.</div></div><div class="db-card p-3 mt-3"><h6 class="fw-bold">Fontes disponíveis</h6><div class="small">{% for entity in entities %}<div class="d-flex justify-content-between border-bottom py-2"><span>{{ entity.nome }}</span><span class="badge text-bg-light">{{ entity.modulo.nome }}</span></div>{% empty %}<span>Nenhuma entidade cadastrada.</span>{% endfor %}</div></aside></div></div>
+    <div class="db-hero mb-4 d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+        <div>
+            <div class="small text-uppercase fw-bold text-primary">System Builder · GEN-037</div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-grid-1x2 me-2"></i>Dashboard Builder</h2>
+            <p class="text-secondary mb-0">Monte dashboards visualmente a partir das entidades e dados do sistema.</p>
+        </div>
+        <a href="{% url 'sistema:editar_sistema' sistema.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Voltar ao Builder
+        </a>
+    </div>
+
+    <div class="db-card p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-5">
+                <label class="form-label fw-semibold">Título</label>
+                <input id="title" class="form-control" value="{{ config.title|default:'Dashboard' }}">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-semibold">Atualização automática</label>
+                <select id="refresh" class="form-select">
+                    <option value="0">Desativada</option>
+                    <option value="15">15 segundos</option>
+                    <option value="30">30 segundos</option>
+                    <option value="60">1 minuto</option>
+                    <option value="300">5 minutos</option>
+                </select>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <button type="button" id="saveDashboardButton" class="btn btn-primary">
+                    <i class="bi bi-check2-circle me-1"></i>Salvar dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <aside class="col-lg-2">
+            <div class="db-card p-3 palette">
+                <h6 class="fw-bold">Widgets</h6>
+                <p class="small text-secondary">Clique para adicionar ao canvas.</p>
+                {% for t,label,icon in widget_types %}
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm mb-2 widget-palette-button"
+                            data-widget-type="{{ t }}">
+                        <i class="{{ icon }} me-2"></i>{{ label }}
+                    </button>
+                {% endfor %}
+                <div class="prop">
+                    <label class="form-label small fw-semibold">Layout</label>
+                    <select id="layout" class="form-select form-select-sm">
+                        <option value="12-column">12 colunas</option>
+                    </select>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-lg-7">
+            <div class="db-card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <strong>Canvas</strong>
+                    <span class="small text-secondary" id="widgetCount"></span>
+                </div>
+                <div id="canvas" class="canvas"></div>
+            </div>
+        </main>
+
+        <aside class="col-lg-3">
+            <div class="db-card p-3">
+                <h6 class="fw-bold">Propriedades</h6>
+                <div id="properties" class="small text-secondary">Selecione um widget para editar.</div>
+            </div>
+            <div class="db-card p-3 mt-3">
+                <h6 class="fw-bold">Fontes disponíveis</h6>
+                <div class="small">
+                    {% for entity in entities %}
+                        <div class="d-flex justify-content-between border-bottom py-2">
+                            <span>{{ entity.nome }}</span>
+                            <span class="badge text-bg-light">{{ entity.modulo.nome }}</span>
+                        </div>
+                    {% empty %}
+                        <span>Nenhuma entidade cadastrada.</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
 <script id="dashboard-data" type="application/json">{{ config_json|safe }}</script>
 <script>
-const csrf='{{ csrf_token }}';
-let config=JSON.parse(document.getElementById('dashboard-data').textContent||'{}');
-config.widgets=Array.isArray(config.widgets)?config.widgets:[];
-let selected=null;
-const entities=[{% for entity in entities %}'{{ entity.nome|escapejs }}',{% endfor %}];
+(function () {
+    'use strict';
 
-function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
+    const dataElement = document.getElementById('dashboard-data');
+    const canvas = document.getElementById('canvas');
+    const properties = document.getElementById('properties');
+    const widgetCount = document.getElementById('widgetCount');
+    const titleInput = document.getElementById('title');
+    const refreshInput = document.getElementById('refresh');
+    const layoutInput = document.getElementById('layout');
+    const saveButton = document.getElementById('saveDashboardButton');
 
-function addWidget(type){
-    if(!type)return;
-    const n=config.widgets.length;
-    const widget={
-        id:'widget-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
-        type:type,
-        title:type==='metric'?'Indicador':'Novo gráfico',
-        entity:entities[0]||'',
-        x:(n%3)*4,
-        y:Math.floor(n/3)*3,
-        w:4,
-        h:3,
-        config:{}
-    };
-    config.widgets.push(widget);
-    selected=config.widgets.length-1;
-    render();
-}
-
-function removeWidget(i){
-    if(i<0||i>=config.widgets.length)return;
-    config.widgets.splice(i,1);
-    selected=null;
-    render();
-}
-
-function selectWidget(i){
-    selected=i;
-    renderProperties();
-}
-
-function setWidget(k,v){
-    if(selected===null||!config.widgets[selected])return;
-    config.widgets[selected][k]=v;
-    render();
-}
-
-function render(){
-    document.getElementById('title').value=config.title||'Dashboard';
-    document.getElementById('refresh').value=String(config.refresh_seconds||0);
-    document.getElementById('layout').value=config.layout||'12-column';
-    document.getElementById('widgetCount').textContent=config.widgets.length+' widget(s)';
-
-    const c=document.getElementById('canvas');
-    c.innerHTML=config.widgets.map((w,i)=>{
-        const left=w.x/12*100;
-        const top=w.y*80+16;
-        const width=w.w/12*100-1;
-        const height=w.h*80-8;
-        return `<div class="widget ${selected===i?'border-primary':''}" data-widget-index="${i}" style="left:${left}%;top:${top}px;width:${width}%;height:${height}px" onclick="selectWidget(${i})"><div class="d-flex justify-content-between"><strong class="handle">${esc(w.title)}</strong><button type="button" class="btn btn-sm btn-link text-danger p-0" aria-label="Excluir widget" onclick="event.stopPropagation();removeWidget(${i}); return false;"><i class="bi bi-x-lg"></i></button></div><div class="small text-secondary mt-1">${esc(w.type)} · ${esc(w.entity||'Sem fonte')}</div>${w.type==='metric'?'<div class="fs-3 fw-bold mt-2">1.234</div>':'<div class="mini-chart mt-2">'+[30,55,40,75,60,90,50].map(x=>`<i style="height:${x}%"></i>`).join('')+'</div>'}</div>`
-    }).join('');
-    renderProperties();
-}
-
-function renderProperties(){
-    const p=document.getElementById('properties');
-    if(selected===null||!config.widgets[selected]){
-        p.innerHTML='Selecione um widget para editar.';
-        return;
+    let config;
+    try {
+        config = JSON.parse(dataElement.textContent || '{}');
+    } catch (error) {
+        console.error('Erro ao ler configuração do dashboard:', error);
+        config = {};
     }
-    const w=config.widgets[selected];
-    p.innerHTML=`<label class="form-label">Título</label><input class="form-control form-control-sm mb-3" value="${esc(w.title)}" onchange="setWidget('title',this.value)"><label class="form-label">Tipo</label><select class="form-select form-select-sm mb-3" onchange="setWidget('type',this.value)">{% for t,label,icon in widget_types %}<option value="{{ t }}">{{ label }}</option>{% endfor %}</select><label class="form-label">Entidade</label><select class="form-select form-select-sm mb-3" onchange="setWidget('entity',this.value)">${entities.map(e=>`<option ${e===w.entity?'selected':''}>${esc(e)}</option>`).join('')}</select><div class="row g-2"><div class="col-6"><label class="form-label">Largura</label><input type="number" min="1" max="12" class="form-control form-control-sm" value="${w.w}" onchange="setWidget('w',+this.value)"></div><div class="col-6"><label class="form-label">Altura</label><input type="number" min="1" max="12" class="form-control form-control-sm" value="${w.h}" onchange="setWidget('h',+this.value)"></div></div>`;
-    p.querySelector('select').value=w.type;
-}
 
-document.getElementById('refresh').addEventListener('change',e=>config.refresh_seconds=+e.target.value);
-document.getElementById('title').addEventListener('input',e=>config.title=e.target.value);
-document.getElementById('layout').addEventListener('change',e=>config.layout=e.target.value);
+    config.widgets = Array.isArray(config.widgets) ? config.widgets : [];
+    let selected = null;
 
-render();
+    const entities = [
+        {% for entity in entities %}'{{ entity.nome|escapejs }}',{% endfor %}
+    ];
 
-async function saveDashboard(){
-    config.title=document.getElementById('title').value||'Dashboard';
-    config.refresh_seconds=+document.getElementById('refresh').value;
-    config.layout=document.getElementById('layout').value;
-    const r=await fetch('{% url 'sistema:salvar_dashboard' sistema.id %}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify(config)});
-    const d=await r.json();
-    if(!r.ok)alert(d.mensagem||'Não foi possível salvar.');
-    else{config=d.dashboard||config;render();alert('Dashboard salvo com sucesso.');}
-}
+    function esc(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function integer(value, fallback) {
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.trunc(number) : fallback;
+    }
+
+    function normalizeWidget(widget) {
+        widget.x = Math.max(0, Math.min(11, integer(widget.x, 0)));
+        widget.y = Math.max(0, integer(widget.y, 0));
+        widget.w = Math.max(1, Math.min(12, integer(widget.w, 4)));
+        widget.h = Math.max(1, integer(widget.h, 3));
+
+        if (widget.x + widget.w > 12) {
+            widget.x = Math.max(0, 12 - widget.w);
+        }
+
+        widget.type = widget.type || 'metric';
+        widget.title = widget.title || (widget.type === 'metric' ? 'Indicador' : 'Novo gráfico');
+        widget.entity = widget.entity || entities[0] || '';
+        widget.config = widget.config && typeof widget.config === 'object' ? widget.config : {};
+    }
+
+    /*
+     * Layout automático em uma grade de 12 colunas.
+     * Os widgets são processados na ordem em que aparecem na configuração.
+     * Cada widget ocupa x..x+w e y..y+h.
+     * Quando não cabe no espaço restante da linha, procura a próxima posição livre.
+     */
+    function overlaps(a, b) {
+        return !(
+            a.x + a.w <= b.x ||
+            b.x + b.w <= a.x ||
+            a.y + a.h <= b.y ||
+            b.y + b.h <= a.y
+        );
+    }
+
+    function canPlace(widget, x, y, placed) {
+        if (x < 0 || x + widget.w > 12 || y < 0) return false;
+
+        const candidate = {
+            x: x,
+            y: y,
+            w: widget.w,
+            h: widget.h
+        };
+
+        return !placed.some(other => overlaps(candidate, other));
+    }
+
+    function reflowWidgets() {
+        const placed = [];
+
+        config.widgets.forEach(widget => {
+            normalizeWidget(widget);
+
+            let found = false;
+
+            /* Primeiro tenta manter a posição atual quando ela continua válida. */
+            if (canPlace(widget, widget.x, widget.y, placed)) {
+                found = true;
+            }
+
+            /* Caso não caiba, procura da esquerda para a direita e de cima para baixo. */
+            if (!found) {
+                for (let y = 0; !found && y < 1000; y++) {
+                    for (let x = 0; x <= 12 - widget.w; x++) {
+                        if (canPlace(widget, x, y, placed)) {
+                            widget.x = x;
+                            widget.y = y;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            placed.push({
+                x: widget.x,
+                y: widget.y,
+                w: widget.w,
+                h: widget.h
+            });
+        });
+    }
+
+    function addWidget(type) {
+        if (!type) return;
+
+        const now = Date.now();
+        const widget = {
+            id: 'widget-' + now + '-' + Math.random().toString(36).slice(2, 8),
+            type: type,
+            title: type === 'metric' ? 'Indicador' : 'Novo gráfico',
+            entity: entities[0] || '',
+            x: 0,
+            y: 0,
+            w: 4,
+            h: 3,
+            config: {}
+        };
+
+        config.widgets.push(widget);
+        selected = config.widgets.length - 1;
+        reflowWidgets();
+        render();
+    }
+
+    function removeWidget(index) {
+        if (index < 0 || index >= config.widgets.length) return;
+
+        config.widgets.splice(index, 1);
+
+        if (selected === index) {
+            selected = null;
+        } else if (selected !== null && selected > index) {
+            selected--;
+        }
+
+        reflowWidgets();
+        render();
+    }
+
+    function selectWidget(index) {
+        if (index < 0 || index >= config.widgets.length) return;
+        selected = index;
+        render();
+    }
+
+    function setWidget(key, value) {
+        if (selected === null || !config.widgets[selected]) return;
+
+        const widget = config.widgets[selected];
+
+        if (key === 'w') {
+            widget.w = Math.max(1, Math.min(12, integer(value, widget.w)));
+        } else if (key === 'h') {
+            widget.h = Math.max(1, integer(value, widget.h));
+        } else {
+            widget[key] = value;
+        }
+
+        reflowWidgets();
+        render();
+    }
+
+    function widgetCard(widget, index) {
+        const left = (widget.x / 12) * 100;
+        const top = widget.y * 80 + 16;
+        const width = (widget.w / 12) * 100;
+        const height = widget.h * 80 - 8;
+        const selectedClass = selected === index ? 'border-primary' : '';
+
+        let content = '';
+
+        if (widget.type === 'metric') {
+            content = '<div class="fs-3 fw-bold mt-2">1.234</div>';
+        } else {
+            const values = [30, 55, 40, 75, 60, 90, 50];
+            content = '<div class="mini-chart mt-2">' + values.map(value => {
+                return '<i style="height:' + value + '%"></i>';
+            }).join('') + '</div>';
+        }
+
+        return '' +
+            '<div class="widget ' + selectedClass + '"' +
+            ' data-widget-index="' + index + '"' +
+            ' style="left:' + left + '%;top:' + top + 'px;width:' + width + '%;height:' + height + 'px">' +
+                '<div class="d-flex justify-content-between align-items-start">' +
+                    '<strong class="handle">' + esc(widget.title) + '</strong>' +
+                    '<button type="button" class="btn btn-sm btn-link text-danger p-0 widget-remove"' +
+                        ' data-widget-index="' + index + '" aria-label="Excluir widget">' +
+                        '<i class="bi bi-x-lg"></i>' +
+                    '</button>' +
+                '</div>' +
+                '<div class="small text-secondary mt-1">' +
+                    esc(widget.type) + ' · ' + esc(widget.entity || 'Sem fonte') +
+                '</div>' +
+                content +
+            '</div>';
+    }
+
+    function render() {
+        titleInput.value = config.title || 'Dashboard';
+        refreshInput.value = String(config.refresh_seconds || 0);
+        layoutInput.value = config.layout || '12-column';
+        widgetCount.textContent = config.widgets.length + ' widget(s)';
+
+        reflowWidgets();
+
+        let maxRow = 8;
+        config.widgets.forEach(widget => {
+            maxRow = Math.max(maxRow, widget.y + widget.h + 1);
+        });
+        canvas.style.minHeight = Math.max(620, maxRow * 80) + 'px';
+
+        canvas.innerHTML = config.widgets.map(widgetCard).join('');
+        renderProperties();
+    }
+
+    function renderProperties() {
+        if (selected === null || !config.widgets[selected]) {
+            properties.innerHTML = 'Selecione um widget para editar.';
+            return;
+        }
+
+        const widget = config.widgets[selected];
+
+        const typeOptions = [
+            {% for t,label,icon in widget_types %}
+                { value: '{{ t }}', label: '{{ label|escapejs }}' },
+            {% endfor %}
+        ];
+
+        const typeHtml = typeOptions.map(option => {
+            return '<option value="' + esc(option.value) + '"' +
+                (option.value === widget.type ? ' selected' : '') + '>' +
+                esc(option.label) + '</option>';
+        }).join('');
+
+        const entityHtml = entities.map(entity => {
+            return '<option value="' + esc(entity) + '"' +
+                (entity === widget.entity ? ' selected' : '') + '>' +
+                esc(entity) + '</option>';
+        }).join('');
+
+        properties.innerHTML =
+            '<label class="form-label">Título</label>' +
+            '<input id="propertyTitle" class="form-control form-control-sm mb-3" value="' + esc(widget.title) + '">' +
+            '<label class="form-label">Tipo</label>' +
+            '<select id="propertyType" class="form-select form-select-sm mb-3">' + typeHtml + '</select>' +
+            '<label class="form-label">Entidade</label>' +
+            '<select id="propertyEntity" class="form-select form-select-sm mb-3">' + entityHtml + '</select>' +
+            '<div class="row g-2">' +
+                '<div class="col-6">' +
+                    '<label class="form-label">Largura</label>' +
+                    '<input id="propertyWidth" type="number" min="1" max="12" class="form-control form-control-sm" value="' + widget.w + '">' +
+                '</div>' +
+                '<div class="col-6">' +
+                    '<label class="form-label">Altura</label>' +
+                    '<input id="propertyHeight" type="number" min="1" class="form-control form-control-sm" value="' + widget.h + '">' +
+                '</div>' +
+            '</div>' +
+            '<div class="mt-3 small text-secondary">Posição: coluna ' + (widget.x + 1) + ', linha ' + (widget.y + 1) + '</div>';
+
+        document.getElementById('propertyTitle').addEventListener('change', function () {
+            setWidget('title', this.value);
+        });
+        document.getElementById('propertyType').addEventListener('change', function () {
+            setWidget('type', this.value);
+        });
+        document.getElementById('propertyEntity').addEventListener('change', function () {
+            setWidget('entity', this.value);
+        });
+        document.getElementById('propertyWidth').addEventListener('change', function () {
+            setWidget('w', this.value);
+        });
+        document.getElementById('propertyHeight').addEventListener('change', function () {
+            setWidget('h', this.value);
+        });
+    }
+
+    /*
+     * Delegação de eventos: não dependemos de onclick inline.
+     * Isso garante que os botões da paleta funcionem mesmo depois de qualquer
+     * re-renderização do canvas.
+     */
+    document.querySelectorAll('.widget-palette-button').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            addWidget(this.dataset.widgetType);
+        });
+    });
+
+    canvas.addEventListener('click', function (event) {
+        const removeButton = event.target.closest('.widget-remove');
+        if (removeButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            removeWidget(integer(removeButton.dataset.widgetIndex, -1));
+            return;
+        }
+
+        const widgetElement = event.target.closest('.widget');
+        if (widgetElement) {
+            selectWidget(integer(widgetElement.dataset.widgetIndex, -1));
+        }
+    });
+
+    titleInput.addEventListener('input', function () {
+        config.title = this.value;
+    });
+
+    refreshInput.addEventListener('change', function () {
+        config.refresh_seconds = integer(this.value, 0);
+    });
+
+    layoutInput.addEventListener('change', function () {
+        config.layout = this.value;
+    });
+
+    saveButton.addEventListener('click', saveDashboard);
+
+    async function saveDashboard() {
+        config.title = titleInput.value || 'Dashboard';
+        config.refresh_seconds = integer(refreshInput.value, 0);
+        config.layout = layoutInput.value || '12-column';
+        reflowWidgets();
+
+        saveButton.disabled = true;
+
+        try {
+            const response = await fetch('{% url 'sistema:salvar_dashboard' sistema.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(config)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.mensagem || 'Não foi possível salvar.');
+            }
+
+            config = data.dashboard || config;
+            config.widgets = Array.isArray(config.widgets) ? config.widgets : [];
+            reflowWidgets();
+            render();
+            alert('Dashboard salvo com sucesso.');
+        } catch (error) {
+            console.error(error);
+            alert(error.message || 'Não foi possível salvar o dashboard.');
+        } finally {
+            saveButton.disabled = false;
+        }
+    }
+
+    /* Normaliza qualquer configuração antiga antes da primeira renderização. */
+    reflowWidgets();
+    render();
+})();
 </script>
 {% endblock %}

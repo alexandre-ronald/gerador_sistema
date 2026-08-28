@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .builder_contracts import normalize_dashboard_config
-from .models import Sistema, VersaoGeracao
+from .models import Campo, Entidade, Modulo, Sistema, VersaoGeracao
 
 
 class DashboardBuilderTests(TestCase):
@@ -24,6 +24,30 @@ class DashboardBuilderTests(TestCase):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Dashboard Builder")
+
+    def test_builder_exposes_entity_field_metadata_without_500(self):
+        modulo = Modulo.objects.create(sistema=self.sistema, nome="cadastro")
+        entidade = Entidade.objects.create(modulo=modulo, nome="Funcionario")
+        Campo.objects.create(
+            entidade=entidade,
+            nome="nome_completo",
+            tipo="CharField",
+            verbose_name="Nome completo",
+        )
+        Campo.objects.create(
+            entidade=entidade,
+            nome="salario",
+            tipo="DecimalField",
+            verbose_name="Salário",
+            max_digits=12,
+            decimal_places=2,
+        )
+        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nome completo")
+        self.assertContains(response, "Salário")
+        self.assertContains(response, "nome_completo")
+        self.assertContains(response, "DecimalField")
 
     def test_save_dashboard_creates_draft_version_zero(self):
         payload = {"title": "Indicadores", "refresh_seconds": 30, "widgets": [{"id": "kpi-1", "type": "metric", "title": "Total", "entity": "", "x": 0, "y": 0, "w": 4, "h": 3}]}

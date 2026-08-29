@@ -18,18 +18,20 @@ class DashboardBuilderTests(TestCase):
             caminho_geracao="/tmp/projetos",
         )
 
+    def test_builder_route_is_registered_and_renders_canvas(self):
+        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="canvas"')
+        self.assertContains(response, 'class="widget-palette-button"')
+        self.assertContains(response, 'id="saveDashboardButton"')
+
     def test_contract_normalizes_widgets(self):
         config = normalize_dashboard_config({"widgets": [{"type": "invalid", "w": 99, "h": 0}]})
         self.assertEqual(config["widgets"][0]["type"], "metric")
         self.assertEqual(config["widgets"][0]["w"], 12)
         self.assertEqual(config["widgets"][0]["h"], 1)
 
-    def test_builder_requires_system_owner(self):
-        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Dashboard Builder")
-
-    def test_save_dashboard_creates_draft_version_zero(self):
+    def test_save_dashboard_route_creates_draft_version_zero(self):
         payload = {
             "title": "Indicadores",
             "refresh_seconds": 30,
@@ -52,9 +54,13 @@ class DashboardBuilderTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "sucesso")
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
         self.assertEqual(draft.estrutura_json["dashboard"]["title"], "Indicadores")
         self.assertEqual(draft.estrutura_json["dashboard"]["refresh_seconds"], 30)
+        self.assertEqual(draft.estrutura_json["dashboard"]["widgets"][0]["w"], 4)
+        self.assertEqual(draft.estrutura_json["dashboard"]["widgets"][0]["h"], 3)
 
     def test_save_dashboard_rejects_unknown_entity(self):
         payload = {"widgets": [{"type": "table", "entity": "NaoExiste"}]}

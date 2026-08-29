@@ -8,7 +8,7 @@ User = get_user_model()
 class Sistema(models.Model):
     BD_CHOICES = [
         ("sqlite3", "SQLite"),
-        ("postgresql", "PostgreSQL"),  # Corrigido
+        ("postgresql", "PostgreSQL"),
         ("mysql", "MySQL"),
         ("sqlserver", "SQL Server"),
         ("oracle", "Oracle"),
@@ -21,32 +21,12 @@ class Sistema(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
-    caminho_geracao = models.CharField(
-        max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto"
-    )
-    banco_dados = models.CharField(
-        max_length=50,
-        choices=BD_CHOICES,
-        default="sqlite3",
-        verbose_name="Banco de dados",
-    )
-    tipo_menu = models.CharField(
-        max_length=20,
-        choices=MENU_CHOICES,
-        default="lateral",
-        verbose_name="Estilo do Menu",
-    )
-
-    # NOVOS: Configurações Globais do Gerador
-    usar_custom_user = models.BooleanField(
-        default=True, verbose_name="Gerar Custom User Model?"
-    )
-    gerar_api_rest = models.BooleanField(
-        default=False, verbose_name="Configurar Django Rest Framework?"
-    )
-    gerar_docker = models.BooleanField(
-        default=False, verbose_name="Gerar Dockerfile e docker-compose?"
-    )
+    caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
+    banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados")
+    tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu")
+    usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
+    gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
+    gerar_docker = models.BooleanField(default=False, verbose_name="Gerar Dockerfile e docker-compose?")
     usar_auditoria = models.BooleanField(default=False, verbose_name="Usar Auditoria?")
     slug = models.SlugField(max_length=100)
     arquivo_zip = models.FileField(upload_to="sistemas_zip/", null=True, blank=True)
@@ -66,9 +46,7 @@ class Sistema(models.Model):
 
 
 class Modulo(models.Model):
-    sistema = models.ForeignKey(
-        Sistema, on_delete=models.CASCADE, related_name="modulos"
-    )
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="modulos")
     nome = models.CharField(max_length=100, verbose_name="Nome do Módulo (App)")
     descricao = models.TextField(blank=True)
 
@@ -82,25 +60,13 @@ class Modulo(models.Model):
 
 
 class Entidade(models.Model):
-    modulo = models.ForeignKey(
-        Modulo, on_delete=models.CASCADE, related_name="entidades"
-    )
+    modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name="entidades")
     nome = models.CharField(max_length=100, verbose_name="Nome da Entidade (Model)")
-    nome_plural = models.CharField(
-        max_length=100, blank=True, verbose_name="Nome no Plural (Verbose Name Plural)"
-    )
+    nome_plural = models.CharField(max_length=100, blank=True, verbose_name="Nome no Plural (Verbose Name Plural)")
     descricao = models.TextField(blank=True)
-
-    # NOVOS: Flags para o Gerador
-    gerar_admin = models.BooleanField(
-        default=True, verbose_name="Registrar no admin.py?"
-    )
-    gerar_crud_views = models.BooleanField(
-        default=False, verbose_name="Gerar Views e Templates de CRUD?"
-    )
-    gerar_endpoints_api = models.BooleanField(
-        default=False, verbose_name="Gerar ViewSets e Serializers (API)?"
-    )
+    gerar_admin = models.BooleanField(default=True, verbose_name="Registrar no admin.py?")
+    gerar_crud_views = models.BooleanField(default=False, verbose_name="Gerar Views e Templates de CRUD?")
+    gerar_endpoints_api = models.BooleanField(default=False, verbose_name="Gerar ViewSets e Serializers (API)?")
 
     def __str__(self):
         return f"{self.modulo.nome} → {self.nome}"
@@ -124,67 +90,32 @@ class Campo(models.Model):
         ("TimeField", "TimeField"),
         ("EmailField", "EmailField"),
         ("URLField", "URLField"),
-        ("FileField", "FileField"),  # NOVO
-        ("ImageField", "ImageField"),  # NOVO
+        ("FileField", "FileField"),
+        ("ImageField", "ImageField"),
         ("ForeignKey", "ForeignKey"),
         ("ManyToManyField", "ManyToManyField"),
-        ("OneToOneField", "OneToOneField"),  # NOVO
+        ("OneToOneField", "OneToOneField"),
     ]
-
     ON_DELETE_CHOICES = [
         ("models.CASCADE", "CASCADE"),
         ("models.PROTECT", "PROTECT"),
         ("models.SET_NULL", "SET_NULL"),
         ("models.RESTRICT", "RESTRICT"),
     ]
-
-    entidade = models.ForeignKey(
-        Entidade, on_delete=models.CASCADE, related_name="campos"
-    )
+    entidade = models.ForeignKey(Entidade, on_delete=models.CASCADE, related_name="campos")
     nome = models.CharField(max_length=100, verbose_name="Nome do Campo")
-    tipo = models.CharField(
-        max_length=20, choices=TIPO_CAMPO_CHOICES, verbose_name="Tipo do Campo"
-    )
-
-    # Opções Comuns
+    tipo = models.CharField(max_length=20, choices=TIPO_CAMPO_CHOICES, verbose_name="Tipo do Campo")
     null = models.BooleanField(default=False)
     blank = models.BooleanField(default=False)
     unique = models.BooleanField(default=False)
-    default_value = models.CharField(
-        max_length=255, blank=True, help_text="Valor padrão (ex: 'Ativo', True, 0)"
-    )  # NOVO
-
-    # Atributos Específicos
-    max_length = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Max Length"
-    )
-    max_digits = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Dígitos Totais (Decimal)"
-    )
-    decimal_places = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="Casas Decimais (Decimal)"
-    )
-    upload_to = models.CharField(
-        max_length=255, blank=True, verbose_name="Pasta de Upload (File/Image)"
-    )  # NOVO
-
-    # Relacionamentos
-    entidade_relacionada = models.ForeignKey(
-        Entidade,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="campos_relacionados",
-        verbose_name="Entidade Relacionada",
-    )
-    on_delete = models.CharField(
-        max_length=50, choices=ON_DELETE_CHOICES, default="models.CASCADE", blank=True
-    )  # NOVO
-    related_name_str = models.CharField(
-        max_length=100, blank=True, verbose_name="Related Name"
-    )  # NOVO
-
-    # Metadados
+    default_value = models.CharField(max_length=255, blank=True, help_text="Valor padrão (ex: 'Ativo', True, 0)")
+    max_length = models.PositiveIntegerField(null=True, blank=True, verbose_name="Max Length")
+    max_digits = models.PositiveIntegerField(null=True, blank=True, verbose_name="Dígitos Totais (Decimal)")
+    decimal_places = models.PositiveIntegerField(null=True, blank=True, verbose_name="Casas Decimais (Decimal)")
+    upload_to = models.CharField(max_length=255, blank=True, verbose_name="Pasta de Upload (File/Image)")
+    entidade_relacionada = models.ForeignKey(Entidade, on_delete=models.SET_NULL, null=True, blank=True, related_name="campos_relacionados", verbose_name="Entidade Relacionada")
+    on_delete = models.CharField(max_length=50, choices=ON_DELETE_CHOICES, default="models.CASCADE", blank=True)
+    related_name_str = models.CharField(max_length=100, blank=True, verbose_name="Related Name")
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
 
@@ -195,3 +126,20 @@ class Campo(models.Model):
         verbose_name = "Campo"
         verbose_name_plural = "Campos"
         ordering = ["entidade", "nome"]
+
+
+class VersaoGeracao(models.Model):
+    numero = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+    descricao = models.CharField(max_length=255, blank=True)
+    estrutura_json = models.JSONField(default=dict)
+    arquivo_zip = models.FileField(upload_to="sistemas_versoes/", null=True, blank=True)
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="versoes")
+
+    class Meta:
+        verbose_name = "Versão de Geração"
+        verbose_name_plural = "Versões de Geração"
+        ordering = ["-numero"]
+        constraints = [
+            models.UniqueConstraint(fields=["sistema", "numero"], name="uniq_versao_sistema_numero")
+        ]

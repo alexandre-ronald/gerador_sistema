@@ -22,7 +22,8 @@ class DashboardBuilderTests(TestCase):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="canvas"')
-        self.assertContains(response, 'class="widget-palette-button"')
+        # Não exigir que a classe seja a única classe do atributo HTML.
+        self.assertContains(response, "widget-palette-button")
         self.assertContains(response, 'id="saveDashboardButton"')
 
     def test_contract_normalizes_widgets(self):

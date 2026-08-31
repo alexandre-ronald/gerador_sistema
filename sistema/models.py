@@ -21,32 +21,12 @@ class Sistema(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
-    caminho_geracao = models.CharField(
-        max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto"
-    )
-    banco_dados = models.CharField(
-        max_length=50,
-        choices=BD_CHOICES,
-        default="sqlite3",
-        verbose_name="Banco de dados",
-    )
-    tipo_menu = models.CharField(
-        max_length=20,
-        choices=MENU_CHOICES,
-        default="lateral",
-        verbose_name="Estilo do Menu",
-    )
-
-    # NOVOS: Configurações Globais do Gerador
-    usar_custom_user = models.BooleanField(
-        default=True, verbose_name="Gerar Custom User Model?"
-    )
-    gerar_api_rest = models.BooleanField(
-        default=False, verbose_name="Configurar Django Rest Framework?"
-    )
-    gerar_docker = models.BooleanField(
-        default=False, verbose_name="Gerar Dockerfile e docker-compose?"
-    )
+    caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
+    banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados")
+    tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu")
+    usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
+    gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
+    gerar_docker = models.BooleanField(default=False, verbose_name="Gerar Dockerfile e docker-compose?")
     usar_auditoria = models.BooleanField(default=False, verbose_name="Usar Auditoria?")
     slug = models.SlugField(max_length=100)
     arquivo_zip = models.FileField(upload_to="sistemas_zip/", null=True, blank=True)
@@ -91,7 +71,6 @@ class Entidade(models.Model):
     )
     descricao = models.TextField(blank=True)
 
-    # NOVOS: Flags para o Gerador
     gerar_admin = models.BooleanField(
         default=True, verbose_name="Registrar no admin.py?"
     )
@@ -124,11 +103,11 @@ class Campo(models.Model):
         ("TimeField", "TimeField"),
         ("EmailField", "EmailField"),
         ("URLField", "URLField"),
-        ("FileField", "FileField"),  # NOVO
-        ("ImageField", "ImageField"),  # NOVO
+        ("FileField", "FileField"),
+        ("ImageField", "ImageField"),
         ("ForeignKey", "ForeignKey"),
         ("ManyToManyField", "ManyToManyField"),
-        ("OneToOneField", "OneToOneField"),  # NOVO
+        ("OneToOneField", "OneToOneField"),
     ]
 
     ON_DELETE_CHOICES = [
@@ -146,15 +125,12 @@ class Campo(models.Model):
         max_length=20, choices=TIPO_CAMPO_CHOICES, verbose_name="Tipo do Campo"
     )
 
-    # Opções Comuns
     null = models.BooleanField(default=False)
     blank = models.BooleanField(default=False)
     unique = models.BooleanField(default=False)
     default_value = models.CharField(
         max_length=255, blank=True, help_text="Valor padrão (ex: 'Ativo', True, 0)"
-    )  # NOVO
-
-    # Atributos Específicos
+    )
     max_length = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Max Length"
     )
@@ -166,9 +142,8 @@ class Campo(models.Model):
     )
     upload_to = models.CharField(
         max_length=255, blank=True, verbose_name="Pasta de Upload (File/Image)"
-    )  # NOVO
+    )
 
-    # Relacionamentos
     entidade_relacionada = models.ForeignKey(
         Entidade,
         on_delete=models.SET_NULL,
@@ -179,12 +154,11 @@ class Campo(models.Model):
     )
     on_delete = models.CharField(
         max_length=50, choices=ON_DELETE_CHOICES, default="models.CASCADE", blank=True
-    )  # NOVO
+    )
     related_name_str = models.CharField(
         max_length=100, blank=True, verbose_name="Related Name"
-    )  # NOVO
+    )
 
-    # Metadados
     verbose_name = models.CharField(max_length=100, blank=True)
     help_text = models.TextField(blank=True)
 
@@ -195,3 +169,23 @@ class Campo(models.Model):
         verbose_name = "Campo"
         verbose_name_plural = "Campos"
         ordering = ["entidade", "nome"]
+
+
+class VersaoGeracao(models.Model):
+    numero = models.PositiveIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+    descricao = models.CharField(max_length=255, blank=True)
+    estrutura_json = models.JSONField(default=dict)
+    arquivo_zip = models.FileField(upload_to="sistemas_versoes/", null=True, blank=True)
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="versoes")
+
+    class Meta:
+        verbose_name = "Versão de Geração"
+        verbose_name_plural = "Versões de Geração"
+        ordering = ["-numero"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sistema", "numero"],
+                name="uniq_versao_sistema_numero",
+            )
+        ]

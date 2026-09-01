@@ -12,7 +12,10 @@
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),canvas=$('canvas'),props=$('properties'),title=$('title'),refresh=$('refresh'),layout=$('layout'),duplicate=$('duplicate'),organize=$('organize'),save=$('save'),count=$('count'),meta=JSON.parse($('entity-metadata').textContent||'{}'),entities=Object.keys(meta);let cfg={};try{cfg=JSON.parse($('dashboard-data').textContent||'{}')}catch(e){cfg={}}cfg.widgets=Array.isArray(cfg.widgets)?cfg.widgets:[];let selected=null,dragged=null;
-const types={% for t,label,icon in widget_types %}'{{ t|escapejs }}':'{{ label|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}},ops=[['count','Contagem'],['sum','Soma'],['avg','Média'],['min','Mínimo'],['max','Máximo']],presets={small:[3,2],medium:[4,3],wide:[6,3],full:[12,3],tall:[4,5]};
+const types={
+{% for t,label,icon in widget_types %}'{{ t|escapejs }}':'{{ label|escapejs }}'{% if not forloop.last %},{% endif %}
+{% endfor %}};
+const ops=[['count','Contagem'],['sum','Soma'],['avg','Média'],['min','Mínimo'],['max','Máximo']],presets={small:[3,2],medium:[4,3],wide:[6,3],full:[12,3],tall:[4,5]};
 const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');const num=(v,d)=>Number.isFinite(Number(v))?Math.trunc(Number(v)):d;
 function norm(w){w.x=Math.max(0,Math.min(11,num(w.x,0)));w.y=Math.max(0,num(w.y,0));w.w=Math.max(1,Math.min(12,num(w.w,4)));w.h=Math.max(1,Math.min(12,num(w.h,3)));if(w.x+w.w>12)w.x=12-w.w;w.type=types[w.type]?w.type:'metric';w.title=w.title||(w.type==='metric'?'Indicador':'Novo gráfico');w.entity=w.entity||entities[0]||'';w.config=w.config&&typeof w.config==='object'?w.config:{};const a=w.config.appearance&&typeof w.config.appearance==='object'?w.config.appearance:{};w.config.appearance={variant:['default','soft','minimal'].includes(a.variant)?a.variant:'default',show_header:a.show_header!==false,show_border:a.show_border!==false,compact:a.compact===true}}
 const overlap=(a,b)=>!(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y);const can=(w,x,y,p)=>x>=0&&x+w.w<=12&&y>=0&&!p.some(o=>overlap({x,y,w:w.w,h:w.h},o));

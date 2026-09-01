@@ -59,4 +59,4 @@ class FormDesignerUITests(SimpleTestCase):
         source = self.source()
         self.assertIn("JSON.stringify({forms})", source)
         self.assertIn("forms=data.forms", source)
-        self.assertIn("salvar_form_designer", source)
+        self.assertIn("/sistemas/1/form-designer/salvar/", source)

@@ -56,6 +56,9 @@ class GeradorService:
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}
         dashboard = self._dashboard_config()
+        for widget in dashboard.get("widgets", []):
+            widget["grid_column_start"] = int(widget.get("x", 0)) + 1
+            widget["grid_row_start"] = int(widget.get("y", 0)) + 1
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
             if modulo.app_name in app_names: raise ValueError(f"Módulos '{app_names[modulo.app_name]}' e '{modulo.nome}' geram o mesmo app Python '{modulo.app_name}'. Renomeie um deles.")

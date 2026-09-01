@@ -1,233 +1,92 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard | Gerador de Sistemas{% endblock %}
+{% block title %}Dashboard | DjangoForge{% endblock %}
 
 {% block content %}
-<!-- Cabeçalho -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-  <div>
-    <h3 class="fw-medium m-0 tracking-tight">Painel de Controle</h3>
-    <p class="text-secondary m-0 small">Acompanhe os sistemas, módulos e modelos cadastrados no gerador.</p>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-sm rounded-3 px-3 shadow-sm d-flex align-items-center gap-2">
-      <i class="bi bi-plus-circle"></i>
-      <span>Novo Sistema</span>
-    </a>
-  </div>
-</div>
+<style>
+.dashboard-shell{max-width:1560px;margin:auto}.dashboard-hero,.dashboard-card{border:1px solid var(--bs-border-color);background:var(--bs-body-bg);border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.05)}.dashboard-hero{padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}.metric-card{border:1px solid var(--bs-border-color);border-radius:16px;background:var(--bs-body-bg);padding:1.1rem;height:100%;box-shadow:0 5px 18px rgba(0,0,0,.04)}.metric-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex:none}.lifecycle-card{border:1px solid var(--bs-border-color);border-radius:14px;padding:1rem;background:var(--bs-body-bg);height:100%}.lifecycle-card .stage{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--bs-secondary-color)}.lifecycle-link{display:flex;align-items:center;gap:.65rem;padding:.62rem .72rem;border-radius:10px;text-decoration:none;color:var(--bs-body-color);border:1px solid transparent;transition:.15s}.lifecycle-link:hover{border-color:var(--django-emerald);background:var(--django-emerald-light);color:var(--django-green-medium)}.lifecycle-link i{color:var(--django-emerald)}.system-row{border-bottom:1px solid var(--bs-border-color);padding:1rem 0}.system-row:last-child{border-bottom:0}.system-badge{font-size:.68rem}.quick-card{border:1px solid var(--bs-border-color);border-radius:14px;padding:1rem;text-decoration:none;color:var(--bs-body-color);background:var(--bs-body-bg);display:block;height:100%;transition:.15s}.quick-card:hover{border-color:var(--django-emerald);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.05)}.quick-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--django-emerald-light);color:var(--django-emerald);font-size:1.1rem}.dashboard-section-title{font-size:1rem;font-weight:700}.empty-state{padding:3rem 1rem;text-align:center}.empty-icon{width:58px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;background:var(--django-emerald-light);color:var(--django-emerald);font-size:1.5rem}
+</style>
 
-<!-- Cards de Métricas Reais -->
-<div class="row g-3 mb-4">
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Sistemas Cadastrados</span>
-          <h3 class="fw-bold my-1">{{ sistemas.count|default:"0" }}</h3>
-          <span class="text-primary small fw-semibold"><i class="bi bi-layers me-1"></i>Projetos ativos</span>
-        </div>
-        <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-          <i class="bi bi-cpu"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Módulos (Apps)</span>
-          <h3 class="fw-bold my-1">{{ total_modulos|default:"0" }}</h3>
-          <span class="text-info small fw-semibold"><i class="bi bi-box-seam me-1"></i>Estruturas ativas</span>
-        </div>
-        <div class="stat-icon bg-info bg-opacity-10 text-info">
-          <i class="bi bi-grid-3x3-gap"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Entidades (Models)</span>
-          <h3 class="fw-bold my-1">{{ total_entidades|default:"0" }}</h3>
-          <span class="text-success small fw-semibold"><i class="bi bi-table me-1"></i>Tabelas mapeadas</span>
-        </div>
-        <div class="stat-icon bg-success bg-opacity-10 text-success">
-          <i class="bi bi-database-gear"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Arquivos Gerados</span>
-          <h3 class="fw-bold my-1">{{ total_zips|default:"0" }}</h3>
-          <span class="text-warning small fw-semibold"><i class="bi bi-file-earmark-zip me-1"></i>Pacotes ZIP</span>
-        </div>
-        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
-          <i class="bi bi-file-earmark-arrow-down"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Tabela de Sistemas Mapeados ao Model Sistema -->
-<div class="card card-modern p-4">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+<div class="dashboard-shell">
+  <div class="dashboard-hero mb-4 d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
     <div>
-      <h5 class="fw-medium m-0">Sistemas Mapeados</h5>
-      <p class="text-secondary m-0 small">Visão detalhada das flags de geração e arquitetura do projeto.</p>
+      <div class="small text-uppercase fw-bold text-success">DjangoForge Control Center</div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-grid-1x2 me-2"></i>Visão geral da plataforma</h2>
+      <p class="text-secondary mb-0">Acompanhe seus sistemas e acesse rapidamente as etapas de Design, Build e Run.</p>
     </div>
-    
-    <div class="d-flex gap-2">
-      <div class="search-box position-relative" style="max-width: 260px;">
-        <input type="text" class="form-control form-control-sm bg-body-tertiary border-0 ps-4" placeholder="Filtrar sistemas...">
-        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-secondary" style="font-size: 0.8rem;"></i>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary"><i class="bi bi-folder2-open me-1"></i>Meus sistemas</a>
+      <a href="{% url 'sistema:analytics' %}" class="btn btn-outline-secondary"><i class="bi bi-bar-chart-line me-1"></i>Relatórios</a>
+      <a href="{% url 'sistema:criar' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Novo sistema</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3"><div class="metric-card"><div class="d-flex justify-content-between gap-3"><div><div class="small text-secondary fw-semibold">Sistemas</div><div class="display-6 fw-bold mt-1">{{ sistemas.count|default:'0' }}</div><div class="small text-secondary">Projetos cadastrados</div></div><div class="metric-icon bg-primary-subtle text-primary"><i class="bi bi-window-stack"></i></div></div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="metric-card"><div class="d-flex justify-content-between gap-3"><div><div class="small text-secondary fw-semibold">Módulos</div><div class="display-6 fw-bold mt-1">{{ total_modulos|default:'0' }}</div><div class="small text-secondary">Apps modelados</div></div><div class="metric-icon bg-info-subtle text-info"><i class="bi bi-boxes"></i></div></div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="metric-card"><div class="d-flex justify-content-between gap-3"><div><div class="small text-secondary fw-semibold">Entidades</div><div class="display-6 fw-bold mt-1">{{ total_entidades|default:'0' }}</div><div class="small text-secondary">Models definidos</div></div><div class="metric-icon bg-success-subtle text-success"><i class="bi bi-database"></i></div></div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="metric-card"><div class="d-flex justify-content-between gap-3"><div><div class="small text-secondary fw-semibold">Builds disponíveis</div><div class="display-6 fw-bold mt-1">{{ total_zips|default:'0' }}</div><div class="small text-secondary">Pacotes ZIP gerados</div></div><div class="metric-icon bg-warning-subtle text-warning"><i class="bi bi-file-earmark-zip"></i></div></div></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-xl-8">
+      <div class="dashboard-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div><div class="dashboard-section-title">Fluxo da plataforma</div><div class="small text-secondary">Acesse as capacidades pelo ciclo de vida da aplicação.</div></div>
+          <span class="badge bg-success-subtle text-success">Design → Build → Run</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4"><div class="lifecycle-card"><div class="stage mb-2">Design</div><div class="fw-bold mb-2">Modele a aplicação</div><div class="small text-secondary mb-3">Estrutura, formulários e dashboards.</div><a class="lifecycle-link" href="{% url 'sistema:lista' %}"><i class="bi bi-diagram-3"></i><span>Abrir workspace</span></a></div></div>
+          <div class="col-md-4"><div class="lifecycle-card"><div class="stage mb-2">Build</div><div class="fw-bold mb-2">Valide e publique</div><div class="small text-secondary mb-3">Validation Center, releases e geração.</div><a class="lifecycle-link" href="{% url 'sistema:lista' %}"><i class="bi bi-check2-circle"></i><span>Ver sistemas</span></a></div></div>
+          <div class="col-md-4"><div class="lifecycle-card"><div class="stage mb-2">Run</div><div class="fw-bold mb-2">Acompanhe a execução</div><div class="small text-secondary mb-3">Ambientes e Health & Monitoring.</div><a class="lifecycle-link" href="{% url 'sistema:lista' %}"><i class="bi bi-heart-pulse"></i><span>Abrir operações</span></a></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="dashboard-card p-4 h-100">
+        <div class="dashboard-section-title mb-1">Acesso rápido</div><div class="small text-secondary mb-3">Áreas globais do DjangoForge.</div>
+        <div class="row g-2">
+          <div class="col-6"><a href="{% url 'sistema:lista' %}" class="quick-card"><div class="quick-icon mb-2"><i class="bi bi-folder2-open"></i></div><strong class="small">Meus sistemas</strong><div class="text-secondary mt-1" style="font-size:.72rem">Workspace</div></a></div>
+          <div class="col-6"><a href="{% url 'sistema:analytics' %}" class="quick-card"><div class="quick-icon mb-2"><i class="bi bi-bar-chart-line"></i></div><strong class="small">Relatórios</strong><div class="text-secondary mt-1" style="font-size:.72rem">Insights</div></a></div>
+          <div class="col-6"><a href="{% url 'sistema:settings' %}" class="quick-card"><div class="quick-icon mb-2"><i class="bi bi-gear"></i></div><strong class="small">Configurações</strong><div class="text-secondary mt-1" style="font-size:.72rem">Plataforma</div></a></div>
+          <div class="col-6"><a href="{% url 'sistema:criar' %}" class="quick-card"><div class="quick-icon mb-2"><i class="bi bi-plus-square"></i></div><strong class="small">Novo sistema</strong><div class="text-secondary mt-1" style="font-size:.72rem">Criar projeto</div></a></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table align-middle mb-0">
-      <thead>
-        <tr class="text-secondary small">
-          <th>SISTEMA / SLUG</th>
-          <th>BANCO DE DADOS</th>
-          <th>MENU</th>
-          <th>MÓDULOS</th>
-          <th>FLAGS DO GERADOR</th>
-          <th>DOWNLOAD ZIP</th>
-          <th class="text-end">AÇÕES</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sistema in sistemas %}
-        <tr>
-          <!-- Nome do Sistema e Slug -->
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="p-1 bg-primary bg-opacity-10 text-primary stat-icon">
-                <i class="bi bi-window-stack"></i>
-              </div>
-              <div>
-                <div class="fw-semibold text-body">{{ sistema.nome }}</div>
-                <small class="text-secondary text-truncate" style="font-size: 0.75rem;">{{ sistema.slug }}</small>
-              </div>
+  <div class="dashboard-card p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
+      <div><div class="dashboard-section-title">Sistemas recentes</div><div class="small text-secondary">Acesso direto aos projetos cadastrados e às principais ações.</div></div>
+      <a href="{% url 'sistema:lista' %}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+    </div>
+
+    {% for sistema in sistemas|slice:':6' %}
+      <div class="system-row d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
+        <div class="d-flex align-items-center gap-3 min-w-0">
+          <div class="quick-icon"><i class="bi bi-window-stack"></i></div>
+          <div class="min-w-0">
+            <div class="fw-bold text-truncate">{{ sistema.nome }}</div>
+            <div class="small text-secondary text-truncate">/{{ sistema.slug }} · atualizado em {{ sistema.atualizado_em|date:'d/m/Y H:i' }}</div>
+            <div class="d-flex gap-1 flex-wrap mt-2">
+              <span class="badge bg-secondary-subtle text-secondary-emphasis system-badge">{{ sistema.get_banco_dados_display }}</span>
+              <span class="badge bg-light text-body border system-badge">{{ sistema.modulos.count }} módulo(s)</span>
+              {% if sistema.gerar_docker %}<span class="badge bg-info-subtle text-info system-badge">Docker</span>{% endif %}
+              {% if sistema.usar_auditoria %}<span class="badge bg-warning-subtle text-warning system-badge">Auditoria</span>{% endif %}
+              {% if sistema.arquivo_zip %}<span class="badge bg-success-subtle text-success system-badge">Build disponível</span>{% endif %}
             </div>
-          </td>
-
-          <!-- Banco de Dados (BD_CHOICES) -->
-          <td>
-            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-2 p-2">
-              <i class="bi bi-database me-1"></i>{{ sistema.get_banco_dados_display }}
-            </span>
-          </td>
-
-          <!-- Estilo do Menu (MENU_CHOICES) -->
-          <td>
-            <span class="badge bg-light text-dark border rounded-2 small p-2">
-              {% if sistema.tipo_menu == 'lateral' %}
-                <i class="bi bi-layout-sidebar-inset me-1 text-primary"></i>
-              {% else %}
-                <i class="bi bi-layout-three-columns me-1 text-info"></i>
-              {% endif %}
-              {{ sistema.get_tipo_menu_display }}
-            </span>
-          </td>
-
-          <!-- Módulos Cadastrados (relacionamento) -->
-          <td>
-            <span class="fw-semibold text-body">{{ sistema.modulos.count }}</span>
-            <small class="text-secondary">módulo(s)</small>
-          </td>
-
-          <!-- Flags Globais do Gerador -->
-          <td>
-            <div class="d-flex flex-wrap gap-1">
-              {% if sistema.usar_custom_user %}
-                <span class="badge bg-success-subtle text-success rounded-1" title="Custom User Model" style="font-size: 0.7rem;">User</span>
-              {% endif %}
-              
-              {% if sistema.gerar_api_rest %}
-                <span class="badge bg-primary-subtle text-primary rounded-1" title="Django Rest Framework" style="font-size: 0.7rem;">DRF</span>
-              {% endif %}
-              
-              {% if sistema.gerar_docker %}
-                <span class="badge bg-info-subtle text-info rounded-1" title="Dockerfile e Compose" style="font-size: 0.7rem;">Docker</span>
-              {% endif %}
-
-              {% if sistema.usar_auditoria %}
-                <span class="badge bg-warning-subtle text-warning rounded-1" title="Sistema de Auditoria" style="font-size: 0.7rem;">Auditoria</span>
-              {% endif %}
-            </div>
-          </td>
-
-          <!-- Arquivo ZIP -->
-          <td>
-            {% if sistema.arquivo_zip %}
-              <a href="{{ sistema.arquivo_zip.url }}" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 text-decoration-none">
-                <i class="bi bi-download me-1"></i> Baixar ZIP
-              </a>
-            {% else %}
-              <span class="badge bg-body-tertiary text-secondary border rounded-pill px-2 py-1" style="font-size: 0.75rem;">
-                <i class="bi bi-clock me-1"></i> Não Gerado
-              </span>
-            {% endif %}
-          </td>
-
-          <!-- Ações -->
-          <td class="text-end">
-            <div class="dropdown">
-              <button class="btn btn-sm btn-icon btn-light border-0 rounded-circle text-secondary" type="button" data-bs-toggle="dropdown">
-                <i class="bi bi-three-dots-vertical"></i>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom">
-                <li>
-                  <a class="dropdown-item py-1.5 rounded-2 small" href="{% url 'sistema:editar_sistema' sistema.pk %}">
-                    <i class="bi bi-pencil me-2 text-primary"></i>Editar Sistema
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item py-1.5 rounded-2 small" href="{% url 'sistema:gerar_sistema' sistema.pk %}">
-                    <i class="bi bi-robot me-2 text-success"></i>Gerar
-                  </a>
-                </li>
-
-                <li><hr class="dropdown-divider my-1"></li>
-                <li>
-                    <a href="{% url 'sistema:excluir_sistema' sistema.pk %}" onclick="return confirm('Deseja excluir o sistema?');" 
-                        class="dropdown-item py-1.5 rounded-2 small text-danger">
-                        <i class="bi bi-trash3 me-2"></i> Excluir </a>
-                </li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="text-center py-5">
-            <div class="p-3 bg-body-tertiary d-inline-block rounded-circle mb-3">
-              <i class="bi bi-cpu fs-1 text-secondary"></i>
-            </div>
-            <h6 class="fw-bold">Nenhum sistema gerado ainda</h6>
-            <p class="text-secondary small mb-3">Cadastre seu primeiro sistema para configurar módulos, entidades e campos.</p>
-            <a href="{% url 'sistema:criar' %}" class="btn btn-primary btn-sm rounded-3 px-3">
-              <i class="bi bi-plus-lg me-1"></i> Criar Sistema
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{% url 'sistema:editar_sistema' sistema.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-diagram-3 me-1"></i>Modelos</a>
+          <a href="{% url 'sistema:form_designer' sistema.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-ui-checks-grid me-1"></i>Forms</a>
+          <a href="{% url 'sistema:dashboard_builder' sistema.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-grid-1x2 me-1"></i>Dashboard</a>
+          <a href="{% url 'sistema:gerar_sistema' sistema.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-cpu me-1"></i>Build</a>
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty-state"><div class="empty-icon"><i class="bi bi-plus-lg"></i></div><h5 class="fw-bold">Nenhum sistema cadastrado</h5><p class="text-secondary small">Crie o primeiro projeto para iniciar o fluxo de Design, Build e Run.</p><a href="{% url 'sistema:criar' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Criar primeiro sistema</a></div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

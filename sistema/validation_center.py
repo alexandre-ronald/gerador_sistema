@@ -1,18 +1,17 @@
 from django.utils import timezone
 
-from .models import VersaoGeracao
-
 
 class ValidationCenterService:
     """Consolida checks estruturais da definição sem modificar o sistema."""
 
     STATUSES = {"success", "warning", "error", "pending"}
 
-    def __init__(self, sistema):
+    def __init__(self, sistema, version=None):
         self.sistema = sistema
+        self.version = version
 
     def validate(self):
-        version = self.sistema.versoes.order_by("-numero").first()
+        version = self.version or self.sistema.versoes.order_by("-numero").first()
         checks = [
             self._definition_check(),
             self._relationships_check(),
@@ -109,5 +108,5 @@ class ValidationCenterService:
         return self._check("runtime", "Runtime", "success", "Artefato de geração disponível.", ["A validação profunda do conteúdo do artefato permanece sob responsabilidade de GeneratedProjectRuntimeValidator."])
 
 
-def validate_system(sistema):
-    return ValidationCenterService(sistema).validate()
+def validate_system(sistema, version=None):
+    return ValidationCenterService(sistema, version=version).validate()

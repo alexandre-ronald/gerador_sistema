@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <div class="text-uppercase small text-muted fw-semibold">Lifecycle · GEN-044</div>
+      <h2 class="mb-1">Environment Manager</h2>
+      <p class="text-muted mb-0">{{ sistema.nome }} · releases publicadas por ambiente</p>
+    </div>
+    <a href="{% url 'sistema:release_manager' sistema.id %}" class="btn btn-outline-secondary">Release Manager</a>
+  </div>
+
+  <div class="row g-3">
+    {% for ambiente in ambientes %}
+    <div class="col-xl-6">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <span class="badge bg-light text-dark">{{ ambiente.get_tipo_display }}</span>
+              <h5 class="mt-2 mb-0">{{ ambiente.nome }}</h5>
+            </div>
+            {% if ambiente.release_atual %}
+              <span class="badge bg-success">v{{ ambiente.release_atual.numero }}</span>
+            {% else %}
+              <span class="badge bg-secondary">sem release</span>
+            {% endif %}
+          </div>
+
+          <form method="post" action="{% url 'sistema:update_environment' sistema.id ambiente.id %}" class="mb-4">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-md-5"><input class="form-control" name="nome" value="{{ ambiente.nome }}" placeholder="Nome"></div>
+              <div class="col-md-7"><input class="form-control" name="url_base" value="{{ ambiente.url_base }}" placeholder="https://..."></div>
+              <div class="col-12 d-flex justify-content-between align-items-center mt-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="ativo" {% if ambiente.ativo %}checked{% endif %}>
+                  <label class="form-check-label">Ambiente ativo</label>
+                </div>
+                <button class="btn btn-sm btn-outline-primary">Salvar ambiente</button>
+              </div>
+            </div>
+          </form>
+
+          <form method="post" action="{% url 'sistema:promote_environment' sistema.id ambiente.id %}">
+            {% csrf_token %}
+            <label class="form-label fw-semibold">Promover release publicada</label>
+            <div class="input-group mb-2">
+              <select class="form-select" name="version_id" required>
+                <option value="">Selecione...</option>
+                {% for release in releases %}<option value="{{ release.id }}">v{{ release.numero }} · {{ release.descricao }}</option>{% endfor %}
+              </select>
+              <button class="btn btn-primary">Promover</button>
+            </div>
+            <input class="form-control form-control-sm" name="observacao" placeholder="Observação da promoção (opcional)">
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+      <h5>Histórico de promoções</h5>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Quando</th><th>Ambiente</th><th>Release</th><th>Observação</th></tr></thead>
+          <tbody>
+          {% for item in historico %}
+            <tr><td>{{ item.promovido_em|date:"d/m/Y H:i" }}</td><td>{{ item.ambiente.nome }}</td><td>v{{ item.versao.numero }}</td><td>{{ item.observacao|default:"—" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted">Nenhuma promoção registrada.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

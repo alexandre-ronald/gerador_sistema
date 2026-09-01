@@ -64,13 +64,15 @@ class GeradorService:
         return {}
 
     def _prepare_form_generation(self, entidade, forms_config):
+        saved_config = forms_config.get(entidade.nome)
+        has_saved_config = isinstance(saved_config, dict)
         metadata = {
             "name": entidade.nome,
             "label": entidade.nome,
             "fields": [
                 {
                     "name": campo.nome,
-                    "label": campo.verbose_name or campo.nome.replace("_", " ").title(),
+                    "label": campo.verbose_name or campo.nome,
                     "type": campo.tipo,
                     "help_text": campo.help_text or "",
                     "editable": True,
@@ -78,7 +80,7 @@ class GeradorService:
                 for campo in entidade.campos_geracao
             ],
         }
-        config = normalize_form_config(entidade.nome, metadata, forms_config.get(entidade.nome))
+        config = normalize_form_config(entidade.nome, metadata, saved_config)
         source_fields = {campo.nome: campo for campo in entidade.campos_geracao}
         generated_fields = []
         for item in config["fields"]:
@@ -90,7 +92,7 @@ class GeradorService:
             field.tipo = source.tipo
             generated_fields.append(field)
 
-        entidade.form_designer_ready = True
+        entidade.form_designer_ready = has_saved_config
         entidade.form_title = config["title"]
         entidade.form_fields_all = generated_fields
         entidade.form_fields = [field for field in generated_fields if field.visible]

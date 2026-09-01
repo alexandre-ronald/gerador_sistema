@@ -3,6 +3,7 @@ from . import views
 from . import installer_views
 from . import dashboard_builder_views
 from . import validation_center_views
+from . import release_manager_views
 
 app_name = 'sistema'
 
@@ -20,6 +21,9 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/dashboard-builder/', dashboard_builder_views.dashboard_builder, name='dashboard_builder'),
     path('sistemas/<int:sistema_id>/dashboard-builder/salvar/', dashboard_builder_views.salvar_dashboard, name='salvar_dashboard'),
     path('sistemas/<int:sistema_id>/validation-center/', validation_center_views.validation_center, name='validation_center'),
+    path('sistemas/<int:sistema_id>/releases/', release_manager_views.release_manager, name='release_manager'),
+    path('sistemas/<int:sistema_id>/releases/<int:version_id>/validar/', release_manager_views.validate_release, name='validate_release'),
+    path('sistemas/<int:sistema_id>/releases/<int:version_id>/publicar/', release_manager_views.publish_release, name='publish_release'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

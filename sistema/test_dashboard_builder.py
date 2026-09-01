@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from .builder_contracts import normalize_dashboard_config
 from .models import Campo, Entidade, Modulo, Sistema, VersaoGeracao
+from .services import GeradorService
 
 
 class DashboardBuilderTests(TestCase):
@@ -70,6 +71,26 @@ class DashboardBuilderTests(TestCase):
         self.assertContains(response, "Campo relacionado")
         self.assertContains(response, "Campos da tabela")
         self.assertContains(response, "Ordenação")
+
+    def test_generated_dashboard_uses_saved_canvas_coordinates(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={
+                "dashboard": {
+                    "enabled": True,
+                    "title": "Layout",
+                    "layout": "12-column",
+                    "widgets": [
+                        {"id": "a", "type": "metric", "title": "A", "entity": "", "x": 8, "y": 3, "w": 4, "h": 2},
+                    ],
+                }
+            },
+        )
+        ctx = GeradorService(self.sistema.pk)._prepare_context()
+        widget = ctx["dashboard"]["widgets"][0]
+        self.assertEqual(widget["grid_column_start"], 9)
+        self.assertEqual(widget["grid_row_start"], 4)
 
     def test_save_dashboard_creates_draft_version_zero(self):
         payload = {"title": "Indicadores", "refresh_seconds": 30, "widgets": [{"id": "kpi-1", "type": "metric", "title": "Total", "entity": "", "x": 0, "y": 0, "w": 4, "h": 3}]}

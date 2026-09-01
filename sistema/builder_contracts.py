@@ -6,6 +6,7 @@ CRUD_ACTIONS = ("list", "detail", "create", "update", "delete")
 MENU_STYLES = ("lateral", "superior")
 DENSITIES = ("compact", "comfortable", "spacious")
 WIDGET_TYPES = ("metric", "table", "bar", "line", "area", "pie", "donut")
+WIDGET_VARIANTS = ("default", "soft", "minimal")
 
 
 def default_crud_config():
@@ -67,10 +68,33 @@ def default_dashboard_config():
     }
 
 
+def default_widget_appearance():
+    return {
+        "variant": "default",
+        "show_header": True,
+        "show_border": True,
+        "compact": False,
+    }
+
+
+def normalize_widget_appearance(value=None):
+    appearance = default_widget_appearance()
+    if isinstance(value, dict):
+        appearance.update({key: value[key] for key in appearance if key in value})
+    if appearance["variant"] not in WIDGET_VARIANTS:
+        appearance["variant"] = "default"
+    for key in ("show_header", "show_border", "compact"):
+        appearance[key] = bool(appearance[key])
+    return appearance
+
+
 def normalize_widget(widget):
     widget = widget if isinstance(widget, dict) else {}
     kind = widget.get("type", "metric")
     if kind not in WIDGET_TYPES: kind = "metric"
+    raw_config = widget.get("config") if isinstance(widget.get("config"), dict) else {}
+    config = dict(raw_config)
+    config["appearance"] = normalize_widget_appearance(raw_config.get("appearance"))
     return {
         "id": str(widget.get("id") or "widget"),
         "type": kind,
@@ -80,7 +104,7 @@ def normalize_widget(widget):
         "y": max(0, int(widget.get("y", 0))),
         "w": max(1, min(12, int(widget.get("w", 4)))),
         "h": max(1, min(12, int(widget.get("h", 3)))),
-        "config": widget.get("config") if isinstance(widget.get("config"), dict) else {},
+        "config": config,
     }
 
 

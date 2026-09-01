@@ -4,10 +4,12 @@ import keyword
 import os
 import re
 import shutil
+from types import SimpleNamespace
 
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 
+from .form_designer import normalize_form_config
 from .models import Sistema, VersaoGeracao
 from .runtime_validation import validate_generated_runtime
 from .structure_service import serialize_system_structure
@@ -53,9 +55,60 @@ class GeradorService:
                 return normalize_dashboard_config(dashboard)
         return {"enabled": False, "title": "Dashboard", "layout": "12-column", "refresh_seconds": 0, "widgets": []}
 
+    def _forms_config(self):
+        versao = self.sistema.versoes.filter(numero=0).first()
+        if versao and isinstance(versao.estrutura_json, dict):
+            forms = versao.estrutura_json.get("forms")
+            if isinstance(forms, dict):
+                return forms
+        return {}
+
+    def _prepare_form_generation(self, entidade, forms_config):
+        metadata = {
+            "name": entidade.nome,
+            "label": entidade.nome,
+            "fields": [
+                {
+                    "name": campo.nome,
+                    "label": campo.verbose_name or campo.nome.replace("_", " ").title(),
+                    "type": campo.tipo,
+                    "help_text": campo.help_text or "",
+                    "editable": True,
+                }
+                for campo in entidade.campos_geracao
+            ],
+        }
+        config = normalize_form_config(entidade.nome, metadata, forms_config.get(entidade.nome))
+        source_fields = {campo.nome: campo for campo in entidade.campos_geracao}
+        generated_fields = []
+        for item in config["fields"]:
+            source = source_fields.get(item["name"])
+            if not source:
+                continue
+            field = SimpleNamespace(**item)
+            field.codigo_nome = source.codigo_nome
+            field.tipo = source.tipo
+            generated_fields.append(field)
+
+        entidade.form_designer_ready = True
+        entidade.form_title = config["title"]
+        entidade.form_fields_all = generated_fields
+        entidade.form_fields = [field for field in generated_fields if field.visible]
+
+        sections = []
+        general_fields = [field for field in entidade.form_fields if not field.section]
+        if general_fields:
+            sections.append(SimpleNamespace(id="", title="", description="", order=-1, fields=general_fields, is_general=True))
+        for item in config["sections"]:
+            section_fields = [field for field in entidade.form_fields if field.section == item["id"]]
+            if section_fields:
+                sections.append(SimpleNamespace(**item, fields=section_fields, is_general=False))
+        entidade.form_sections = sections
+
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}
         dashboard = self._dashboard_config()
+        forms_config = self._forms_config()
         for widget in dashboard.get("widgets", []):
             widget["grid_column_start"] = int(widget.get("x", 0)) + 1
             widget["grid_row_start"] = int(widget.get("y", 0)) + 1
@@ -77,7 +130,8 @@ class GeradorService:
                         campo.classe_relacionada = self._class_name(campo.entidade_relacionada.nome)
                         campo.app_relacionada = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False)}
+                self._prepare_form_generation(entidade, forms_config)
+        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first()

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 
+from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
 from .models import Sistema, VersaoGeracao
 from .runtime_validation import validate_generated_runtime
@@ -63,6 +64,14 @@ class GeradorService:
                 return forms
         return {}
 
+    def _cruds_config(self):
+        versao = self.sistema.versoes.filter(numero=0).first()
+        if versao and isinstance(versao.estrutura_json, dict):
+            cruds = versao.estrutura_json.get("cruds")
+            if isinstance(cruds, dict):
+                return cruds
+        return {}
+
     def _prepare_form_generation(self, entidade, forms_config):
         saved_config = forms_config.get(entidade.nome)
         has_saved_config = isinstance(saved_config, dict)
@@ -107,10 +116,79 @@ class GeradorService:
                 sections.append(SimpleNamespace(**item, fields=section_fields, is_general=False))
         entidade.form_sections = sections
 
+    def _prepare_crud_generation(self, entidade, cruds_config):
+        saved_config = cruds_config.get(entidade.nome)
+        has_saved_config = isinstance(saved_config, dict)
+        metadata = {
+            "name": entidade.nome,
+            "label": entidade.nome,
+            "verbose_name_plural": entidade.nome_plural or entidade.nome,
+            "fields": [
+                {
+                    "name": campo.nome,
+                    "label": campo.verbose_name or campo.nome,
+                    "type": campo.tipo,
+                }
+                for campo in entidade.campos_geracao
+            ],
+        }
+        config = normalize_crud_config(entidade.nome, metadata, saved_config)
+        source_fields = {campo.nome: campo for campo in entidade.campos_geracao}
+
+        columns = []
+        for item in config["columns"]:
+            source = source_fields.get(item["field"])
+            if not source:
+                continue
+            column = SimpleNamespace(**item)
+            column.codigo_nome = source.codigo_nome
+            column.tipo = source.tipo
+            columns.append(column)
+
+        search_fields = []
+        for field_name in config["search"]["fields"]:
+            source = source_fields.get(field_name)
+            if source:
+                search_fields.append(source.codigo_nome)
+
+        filters = []
+        for item in config["filters"]:
+            source = source_fields.get(item["field"])
+            if not source:
+                continue
+            filter_item = SimpleNamespace(**item)
+            filter_item.codigo_nome = source.codigo_nome
+            filter_item.param = f"filter_{source.codigo_nome}"
+            filter_item.tipo_campo = source.tipo
+            filters.append(filter_item)
+
+        default_order = config["default_order"]
+        generated_default_order = ""
+        if default_order:
+            descending = default_order.startswith("-")
+            original_name = default_order[1:] if descending else default_order
+            source = source_fields.get(original_name)
+            if source:
+                generated_default_order = f"-{source.codigo_nome}" if descending else source.codigo_nome
+
+        entidade.crud_designer_ready = has_saved_config
+        entidade.crud_title = config["title"]
+        entidade.crud_page_size = config["page_size"]
+        entidade.crud_default_order = generated_default_order
+        entidade.crud_columns = columns
+        entidade.crud_visible_columns = [column for column in columns if column.visible]
+        entidade.crud_sortable_fields = [column.codigo_nome for column in columns if column.sortable]
+        entidade.crud_search_enabled = config["search"]["enabled"]
+        entidade.crud_search_fields = search_fields
+        entidade.crud_search_placeholder = config["search"]["placeholder"]
+        entidade.crud_filters = filters
+        entidade.crud_actions = SimpleNamespace(**config["actions"])
+
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}
         dashboard = self._dashboard_config()
         forms_config = self._forms_config()
+        cruds_config = self._cruds_config()
         for widget in dashboard.get("widgets", []):
             widget["grid_column_start"] = int(widget.get("x", 0)) + 1
             widget["grid_row_start"] = int(widget.get("y", 0)) + 1
@@ -133,7 +211,8 @@ class GeradorService:
                         campo.app_relacionada = self._python_identifier(campo.entidade_relacionada.modulo.nome, "app")
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
                 self._prepare_form_generation(entidade, forms_config)
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config}
+                self._prepare_crud_generation(entidade, cruds_config)
+        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config, "cruds": cruds_config}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first()
@@ -187,6 +266,8 @@ class GeradorService:
             ent_ctx = {**local_ctx, "entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
             for suffix, template in (("list", "html_list.txt"), ("form", "html_form.txt"), ("confirm_delete", "html_delete.txt")):
                 self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
+            if entidade.crud_designer_ready and entidade.crud_actions.view:
+                self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_detail.html", "gerador/snippets/html_detail.txt", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
         self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)

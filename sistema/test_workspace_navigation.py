@@ -20,7 +20,8 @@ class WorkspaceNavigationTemplateTests(SimpleTestCase):
     def test_system_workspace_exposes_lifecycle_areas(self):
         source = render_to_string("sistema/lista.html", {"sistemas": []})
         self.assertIn("DjangoForge Workspace", source)
-        self.assertIn("Design", source)
-        self.assertIn("Build", source)
-        self.assertIn("Run", source)
-        self.assertIn("Design → Build → Run → Govern", source)
+        self.assertIn("Projete, valide, publique e acompanhe", source)
+        self.assertIn("Design, Build e Run", source)
+        self.assertIn("Relatórios", source)
+        self.assertIn("Configurações", source)
+        self.assertIn("Novo sistema", source)

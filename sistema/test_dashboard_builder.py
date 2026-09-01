@@ -52,10 +52,14 @@ class DashboardBuilderTests(TestCase):
     def test_builder_supports_drag_and_drop_repositioning(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         html = response.content.decode()
-        self.assertIn('draggable="true"', html)
+        # GEN-047 Preview Mode alterna o atributo draggable em runtime:
+        # edição => true; preview => false.
+        self.assertIn("draggable=\"${previewMode?'false':'true'}\"", html)
         self.assertIn("canvas.ondragstart", html)
         self.assertIn("canvas.ondragover", html)
         self.assertIn("canvas.ondrop", html)
+        self.assertIn("if(previewMode){e.preventDefault();return}", html)
+        self.assertIn("if(!previewMode&&dragged!==null)e.preventDefault()", html)
         self.assertIn("reflow(w)", html)
         self.assertIn("Math.floor((e.clientX-r.left)/(r.width/12))", html)
         self.assertIn("Math.floor((e.clientY-r.top-16)/80)", html)

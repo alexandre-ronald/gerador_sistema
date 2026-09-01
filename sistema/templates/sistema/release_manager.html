@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4" style="max-width:1500px">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="small text-uppercase fw-bold text-primary mb-1">Lifecycle · GEN-043</div>
+            <h1 class="h3 fw-bold mb-1">Release Manager</h1>
+            <p class="text-secondary mb-0">{{ sistema.nome }} · controle de versões, validação e publicação.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'sistema:validation_center' sistema.id %}" class="btn btn-outline-primary">Validation Center</a>
+            <a href="{% url 'sistema:editar_sistema' sistema.id %}" class="btn btn-outline-secondary">Voltar</a>
+        </div>
+    </div>
+
+    {% if latest_release %}
+    <div class="alert alert-success rounded-4 border-0 shadow-sm mb-4">
+        <strong>Release atual:</strong> v{{ latest_release.numero }}{% if latest_release.publicado_em %} · publicada em {{ latest_release.publicado_em|date:'d/m/Y H:i' }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 fw-bold mb-0">Histórico de versões</h2>
+                <span class="badge bg-light text-dark border">{{ versions|length }} versão(ões)</span>
+            </div>
+
+            {% if versions %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Versão</th><th>Gerada em</th><th>Status</th><th>Descrição / Changelog</th><th class="text-end">Ações</th></tr></thead>
+                    <tbody>
+                    {% for version in versions %}
+                    <tr>
+                        <td class="fw-bold">v{{ version.numero }}</td>
+                        <td>{{ version.criado_em|date:'d/m/Y H:i' }}</td>
+                        <td>
+                            {% if version.status == 'RELEASED' %}<span class="badge text-bg-success">RELEASED</span>
+                            {% elif version.status == 'VALIDATED' %}<span class="badge text-bg-primary">VALIDATED</span>
+                            {% elif version.status == 'VALIDATING' %}<span class="badge text-bg-info">VALIDATING</span>
+                            {% else %}<span class="badge text-bg-secondary">DRAFT</span>{% endif %}
+                        </td>
+                        <td style="min-width:280px">
+                            <div>{{ version.descricao|default:'Sem descrição' }}</div>
+                            {% if version.changelog %}<div class="small text-secondary mt-1">{{ version.changelog }}</div>{% endif %}
+                        </td>
+                        <td class="text-end" style="min-width:310px">
+                            {% if version.status != 'RELEASED' %}
+                            <form method="post" action="{% url 'sistema:validate_release' sistema.id version.id %}" class="d-inline">
+                                {% csrf_token %}<button class="btn btn-sm btn-outline-primary">Validar</button>
+                            </form>
+                            {% endif %}
+                            {% if version.status == 'VALIDATED' %}
+                            <form method="post" action="{% url 'sistema:publish_release' sistema.id version.id %}" class="d-inline-flex gap-1 ms-1">
+                                {% csrf_token %}
+                                <input type="text" name="changelog" class="form-control form-control-sm" placeholder="Changelog" style="width:150px">
+                                <button class="btn btn-sm btn-success">Publicar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-secondary">Nenhuma versão numerada gerada ainda.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

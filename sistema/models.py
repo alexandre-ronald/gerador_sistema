@@ -78,6 +78,60 @@ class VersaoGeracao(models.Model):
         return f"{self.sistema.nome} v{self.numero}"
 
 
+class Ambiente(models.Model):
+    TIPO_DEVELOPMENT = "DEVELOPMENT"
+    TIPO_TEST = "TEST"
+    TIPO_STAGING = "STAGING"
+    TIPO_PRODUCTION = "PRODUCTION"
+    TIPO_CHOICES = [
+        (TIPO_DEVELOPMENT, "Development"),
+        (TIPO_TEST, "Test"),
+        (TIPO_STAGING, "Staging"),
+        (TIPO_PRODUCTION, "Production"),
+    ]
+
+    sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="ambientes")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    nome = models.CharField(max_length=100)
+    url_base = models.URLField(blank=True)
+    ativo = models.BooleanField(default=True)
+    release_atual = models.ForeignKey(
+        VersaoGeracao,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ambientes_atuais",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Ambiente"
+        verbose_name_plural = "Ambientes"
+        ordering = ["sistema", "tipo"]
+        constraints = [
+            models.UniqueConstraint(fields=["sistema", "tipo"], name="uniq_ambiente_sistema_tipo")
+        ]
+
+    def __str__(self):
+        return f"{self.sistema.nome} · {self.get_tipo_display()}"
+
+
+class PromocaoAmbiente(models.Model):
+    ambiente = models.ForeignKey(Ambiente, on_delete=models.CASCADE, related_name="promocoes")
+    versao = models.ForeignKey(VersaoGeracao, on_delete=models.PROTECT, related_name="promocoes_ambiente")
+    promovido_em = models.DateTimeField(auto_now_add=True)
+    observacao = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "Promoção de Ambiente"
+        verbose_name_plural = "Promoções de Ambiente"
+        ordering = ["-promovido_em", "-id"]
+
+    def __str__(self):
+        return f"{self.ambiente} → v{self.versao.numero}"
+
+
 class Modulo(models.Model):
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="modulos")
     nome = models.CharField(max_length=100, verbose_name="Nome do Módulo (App)")

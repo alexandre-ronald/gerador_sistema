@@ -86,10 +86,12 @@ class DashboardAnalyticsEngine:
         try:
             qs = queryset
             for item in plan.filters:
+                if item.operator == "neq":
+                    qs = qs.exclude(**{item.field: item.value})
+                    continue
                 lookup = LOOKUPS[item.operator]
                 key = item.field if lookup == "exact" else f"{item.field}__{lookup}"
-                if item.operator == "neq": qs = qs.exclude(**{item.field: item.value})
-                else: qs = qs.filter(**{key: item.value})
+                qs = qs.filter(**{key: item.value})
             window = plan.comparison_window if comparison else plan.current_window
             if window and plan.date_field:
                 if plan.date_field_type == "DateTimeField":

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.validation-hero{border:1px solid var(--bs-border-color);border-radius:20px;padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}.validation-stat,.validation-check{border:1px solid var(--bs-border-color);border-radius:16px;background:var(--bs-body-bg)}.validation-stat{padding:1rem 1.25rem;height:100%}.validation-stat .value{font-size:1.8rem;font-weight:800}.validation-check{padding:1rem 1.25rem}.validation-check+.validation-check{margin-top:.75rem}.status-dot{width:11px;height:11px;border-radius:50%;display:inline-block}.status-success{background:var(--bs-success)}.status-warning{background:var(--bs-warning)}.status-error{background:var(--bs-danger)}.status-pending{background:var(--bs-secondary)}
+</style>
+<div class="container-fluid py-4" style="max-width:1500px">
+    <div class="validation-hero d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="small text-uppercase fw-bold text-primary mb-1">Quality Gate · GEN-042</div>
+            <h1 class="h3 fw-bold mb-1">Validation Center</h1>
+            <p class="text-secondary mb-0">{{ sistema.nome }} · validação estrutural sem alterar a definição ou o banco.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if report.release_ready %}<span class="badge text-bg-success rounded-pill px-3 py-2">APTO PARA RELEASE</span>{% elif report.overall_status == 'error' %}<span class="badge text-bg-danger rounded-pill px-3 py-2">BLOQUEADO</span>{% else %}<span class="badge text-bg-warning rounded-pill px-3 py-2">REQUER ATENÇÃO</span>{% endif %}
+            <a href="{% url 'sistema:editar_sistema' sistema.id %}" class="btn btn-outline-secondary">Voltar ao sistema</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg"><div class="validation-stat"><div class="text-secondary small">Checks</div><div class="value">{{ report.total }}</div></div></div>
+        <div class="col-6 col-lg"><div class="validation-stat"><div class="text-secondary small">Sucessos</div><div class="value text-success">{{ report.successes }}</div></div></div>
+        <div class="col-6 col-lg"><div class="validation-stat"><div class="text-secondary small">Warnings</div><div class="value text-warning">{{ report.warnings }}</div></div></div>
+        <div class="col-6 col-lg"><div class="validation-stat"><div class="text-secondary small">Erros</div><div class="value text-danger">{{ report.errors }}</div></div></div>
+        <div class="col-6 col-lg"><div class="validation-stat"><div class="text-secondary small">Pendentes</div><div class="value text-secondary">{{ report.pending }}</div></div></div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div><h2 class="h5 fw-bold mb-1">Relatório de qualidade</h2><div class="small text-secondary">Versão analisada: {% if report.version != None %}v{{ report.version }}{% else %}sem versão{% endif %}</div></div>
+                <div class="small text-secondary">{{ report.executed_at|date:'d/m/Y H:i:s' }}</div>
+            </div>
+            {% for check in report.checks %}
+            <div class="validation-check" data-check="{{ check.key }}" data-status="{{ check.status }}">
+                <div class="d-flex justify-content-between gap-3 align-items-start">
+                    <div>
+                        <div class="fw-bold"><span class="status-dot status-{{ check.status }} me-2"></span>{{ check.label }}</div>
+                        <div class="text-secondary mt-1">{{ check.summary }}</div>
+                    </div>
+                    <span class="badge {% if check.status == 'success' %}text-bg-success{% elif check.status == 'warning' %}text-bg-warning{% elif check.status == 'error' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ check.status|upper }}</span>
+                </div>
+                {% if check.details %}<ul class="small text-secondary mb-0 mt-2">{% for detail in check.details %}<li>{{ detail }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

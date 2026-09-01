@@ -1,4 +1,3 @@
-from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 
@@ -7,6 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.db.models import Avg, Count, Max, Min, Sum
 from django.http import JsonResponse
+
+ALLOWED_OPERATIONS = {'count', 'sum', 'avg', 'min', 'max'}
+AGGREGATES = {'count': Count, 'sum': Sum, 'avg': Avg, 'min': Min, 'max': Max}
+MAX_LIMIT = 500
 
 
 def _model(entity_name):
@@ -17,6 +20,8 @@ def _model(entity_name):
 
 
 def _field(model, name):
+    if not name or '__' in name:
+        return None
     try:
         return model._meta.get_field(name)
     except Exception:
@@ -24,19 +29,44 @@ def _field(model, name):
 
 
 def _serialize(value):
-    if value is None:
-        return ""
-    if isinstance(value, models.Model):
-        return str(value)
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
-    if isinstance(value, (Decimal, UUID)):
-        return str(value)
-    if isinstance(value, dict):
-        return {str(key): _serialize(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_serialize(item) for item in value]
+    if value is None: return ''
+    if isinstance(value, models.Model): return str(value)
+    if hasattr(value, 'isoformat'): return value.isoformat()
+    if isinstance(value, (Decimal, UUID)): return str(value)
+    if isinstance(value, dict): return {str(k): _serialize(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)): return [_serialize(v) for v in value]
     return value
+
+
+def _limit(value):
+    try: value = int(value)
+    except (TypeError, ValueError): return 100
+    return max(1, min(MAX_LIMIT, value))
+
+
+def _operation(config):
+    value = str(config.get('operation') or 'count').lower()
+    return value if value in ALLOWED_OPERATIONS else 'count'
+
+
+def _aggregate(qs, operation, field_name):
+    if operation == 'count' and field_name == 'id':
+        return qs.count()
+    return qs.aggregate(value=AGGREGATES[operation](field_name))['value']
+
+
+def _grouping(model, config):
+    related = str(config.get('group_by_related') or '')
+    label = str(config.get('related_label') or '__str__')
+    if related:
+        relation = _field(model, related)
+        if not relation or not getattr(relation, 'is_relation', False): return ''
+        if label == '__str__': return related
+        related_model = getattr(relation, 'related_model', None)
+        if related_model and _field(related_model, label): return f'{related}__{label}'
+        return ''
+    group_by = str(config.get('group_by') or '')
+    return group_by if _field(model, group_by) else ''
 
 
 @login_required
@@ -44,37 +74,36 @@ def dashboard_data(request):
     widgets = {{ dashboard_json|safe }}
     result = []
     for widget in widgets:
-        model = _model(widget.get('entity', ''))
         item = {'id': widget.get('id'), 'type': widget.get('type'), 'title': widget.get('title'), 'value': None, 'labels': [], 'values': [], 'columns': [], 'rows': [], 'error': None}
-        if model is None:
-            item['error'] = 'Entidade não encontrada'
-            result.append(item)
-            continue
-        qs = model.objects.all()
-        config = widget.get('config') or {}
-        operation = str(config.get('operation', 'count')).lower()
-        field_name = config.get('field') or 'id'
-        field = _field(model, field_name)
-        if widget.get('type') == 'metric':
-            if operation == 'sum' and field: item['value'] = qs.aggregate(v=Sum(field_name))['v'] or 0
-            elif operation == 'avg' and field: item['value'] = qs.aggregate(v=Avg(field_name))['v'] or 0
-            elif operation == 'min' and field: item['value'] = qs.aggregate(v=Min(field_name))['v']
-            elif operation == 'max' and field: item['value'] = qs.aggregate(v=Max(field_name))['v']
-            else: item['value'] = qs.count()
-            item['value'] = _serialize(item['value'])
-        elif widget.get('type') == 'table':
-            fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]
-            fields = [f for f in fields if _field(model, f)][:8]
-            item['columns'] = fields
-            for obj in qs[:100]:
-                item['rows'].append([_serialize(getattr(obj, f, None)) for f in fields])
-        else:
-            group_by = config.get('group_by') or None
-            if group_by and _field(model, group_by):
-                rows = qs.values(group_by).annotate(total=Count('pk')).order_by('-total')[:20]
-                item['labels'] = [_serialize(row[group_by]) or 'Sem valor' for row in rows]
-                item['values'] = [_serialize(row['total']) for row in rows]
+        try:
+            model = _model(widget.get('entity', ''))
+            if model is None: raise ValueError('Entidade não encontrada')
+            qs = model.objects.all()
+            config = widget.get('config') or {}
+            operation = _operation(config)
+            field_name = str(config.get('field') or 'id')
+            limit = _limit(config.get('limit', 100))
+            if field_name != 'id' and not _field(model, field_name): raise ValueError('Campo não encontrado')
+            if widget.get('type') == 'table':
+                fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]
+                fields = [str(f) for f in fields if _field(model, str(f))][:8]
+                ordering = str(config.get('ordering') or '')
+                plain_ordering = ordering[1:] if ordering.startswith('-') else ordering
+                if ordering and _field(model, plain_ordering): qs = qs.order_by(ordering)
+                item['columns'] = fields
+                for row in qs.values(*fields)[:limit]: item['rows'].append([_serialize(row.get(f)) for f in fields])
+            elif widget.get('type') == 'metric':
+                item['value'] = _serialize(_aggregate(qs, operation, field_name))
             else:
-                item['labels'], item['values'] = ['Total'], [qs.count()]
+                grouping = _grouping(model, config)
+                if grouping:
+                    rows = qs.values(grouping).annotate(value=AGGREGATES[operation](field_name)).order_by('-value')[:limit]
+                    item['labels'] = [_serialize(row.get(grouping)) or 'Sem valor' for row in rows]
+                    item['values'] = [_serialize(row.get('value')) for row in rows]
+                else:
+                    item['labels'] = ['Total']
+                    item['values'] = [_serialize(_aggregate(qs, operation, field_name))]
+        except Exception:
+            item['error'] = 'Não foi possível executar a consulta deste widget.'
         result.append(item)
     return JsonResponse({'widgets': _serialize(result)})

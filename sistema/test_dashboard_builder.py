@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
 
@@ -52,10 +53,21 @@ class DashboardBuilderTests(TestCase):
         self.assertContains(response, 'class="btn btn-outline-secondary btn-sm mb-2 widget-palette-button"')
         self.assertContains(response, 'data-widget-type="metric"')
         self.assertContains(response, "function addWidget(type)")
-        self.assertContains(response, "function reflowWidgets()")
+        self.assertContains(response, "function reflowWidgets(priorityWidget=null)")
         self.assertContains(response, "function canPlace(widget,x,y,placed)")
         self.assertContains(response, "x+widget.w>12")
         self.assertContains(response, "reflowWidgets();")
+
+    def test_builder_supports_drag_and_drop_repositioning(self):
+        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
+        html = response.content.decode()
+        self.assertIn('draggable="true"', html)
+        self.assertIn("addEventListener('dragstart'", html)
+        self.assertIn("addEventListener('dragover'", html)
+        self.assertIn("addEventListener('drop'", html)
+        self.assertIn("reflowWidgets(widget)", html)
+        self.assertIn("targetX", html)
+        self.assertIn("targetY", html)
 
     def test_builder_renders_valid_widget_types_object(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
@@ -91,6 +103,14 @@ class DashboardBuilderTests(TestCase):
         widget = ctx["dashboard"]["widgets"][0]
         self.assertEqual(widget["grid_column_start"], 9)
         self.assertEqual(widget["grid_row_start"], 4)
+
+    def test_generated_dashboard_contains_chart_inside_card(self):
+        ctx = GeradorService(self.sistema.pk)._prepare_context()
+        html = render_to_string("gerador/snippets/dashboard_html.txt", ctx)
+        self.assertIn("display:flex;flex-direction:column", html)
+        self.assertIn(".widget-chart{flex:1 1 auto;min-height:0", html)
+        self.assertIn(".widget-chart canvas{display:block;width:100%!important;height:100%!important", html)
+        self.assertIn("maintainAspectRatio:false", html)
 
     def test_save_dashboard_creates_draft_version_zero(self):
         payload = {"title": "Indicadores", "refresh_seconds": 30, "widgets": [{"id": "kpi-1", "type": "metric", "title": "Total", "entity": "", "x": 0, "y": 0, "w": 4, "h": 3}]}

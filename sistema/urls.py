@@ -4,6 +4,7 @@ from . import installer_views
 from . import dashboard_builder_views
 from . import validation_center_views
 from . import release_manager_views
+from . import environment_manager_views
 
 app_name = 'sistema'
 
@@ -24,6 +25,9 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/releases/', release_manager_views.release_manager, name='release_manager'),
     path('sistemas/<int:sistema_id>/releases/<int:version_id>/validar/', release_manager_views.validate_release, name='validate_release'),
     path('sistemas/<int:sistema_id>/releases/<int:version_id>/publicar/', release_manager_views.publish_release, name='publish_release'),
+    path('sistemas/<int:sistema_id>/environments/', environment_manager_views.environment_manager, name='environment_manager'),
+    path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/atualizar/', environment_manager_views.update_environment, name='update_environment'),
+    path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/promover/', environment_manager_views.promote_environment, name='promote_environment'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

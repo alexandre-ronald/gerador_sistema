@@ -52,9 +52,16 @@ class DashboardBuilderTests(TestCase):
         self.assertContains(response, 'data-widget-type="metric"')
         self.assertContains(response, "function addWidget(type)")
         self.assertContains(response, "function reflowWidgets()")
-        self.assertContains(response, "function canPlace(widget, x, y, placed)")
-        self.assertContains(response, "x + widget.w > 12")
+        self.assertContains(response, "function canPlace(widget,x,y,placed)")
+        self.assertContains(response, "x+widget.w>12")
         self.assertContains(response, "reflowWidgets();")
+
+    def test_builder_renders_valid_widget_types_object(self):
+        response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
+        html = response.content.decode()
+        self.assertIn("const widgetTypes={", html)
+        self.assertIn("'metric':", html)
+        self.assertNotIn("const widgetTypes='metric':", html)
 
     def test_builder_preserves_analytical_metadata_controls(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))

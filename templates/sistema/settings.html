@@ -1,48 +1,48 @@
 {% extends 'base.html' %}
-
-{% block title %}Configurações | AdminPanel{% endblock %}
-
+{% block title %}Configurações | DjangoForge{% endblock %}
 {% block content %}
-<div class="mb-4">
-  <h4 class="fw-medium m-0">Preferências e Configurações</h4>
-  <p class="text-secondary m-0">Ajuste os parâmetros gerais do sistema e notificações.</p>
-</div>
+<style>
+.settings-hero,.settings-card{border:1px solid var(--bs-border-color);border-radius:18px;background:var(--bs-body-bg);box-shadow:0 6px 24px rgba(0,0,0,.04)}.settings-hero{padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}.settings-card{padding:1.25rem;height:100%}.settings-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--django-emerald-light);color:var(--django-emerald);font-size:1.2rem}.settings-link{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 0;border-bottom:1px solid var(--bs-border-color);text-decoration:none;color:var(--bs-body-color)}.settings-link:last-child{border-bottom:0}.settings-link:hover{color:var(--django-emerald)}
+</style>
+<div class="container-fluid p-0">
+  <div class="settings-hero mb-4 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+    <div><div class="small text-uppercase fw-bold text-success">DjangoForge Platform</div><h2 class="fw-bold mb-1"><i class="bi bi-gear-wide-connected me-2"></i>Configurações</h2><p class="text-secondary mb-0">Centralize preferências da plataforma e acesse os pontos de configuração dos projetos.</p></div>
+    <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary"><i class="bi bi-boxes me-1"></i>Meus Sistemas</a>
+  </div>
 
-<div class="row g-4">
-  <div class="col-12 col-md-8">
-    <div class="card card-modern p-4">
-      <form method="POST" action="{% url 'sistema:settings' %}">
-        {% csrf_token %}
-        
-        <h5 class="fw-medium mb-3">Notificações</h5>
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" role="switch" id="notifyEmail" checked>
-          <label class="form-check-label fw-medium" for="notifyEmail">Receber alertas por e-mail</label>
-          <div class="form-text">Envia um resumo semanal das principais métricas do painel.</div>
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="settings-card">
+        <div class="d-flex align-items-center gap-3 mb-3"><div class="settings-icon"><i class="bi bi-palette"></i></div><div><h5 class="fw-bold mb-0">Aparência</h5><small class="text-secondary">Preferências locais da interface</small></div></div>
+        <p class="small text-secondary">O tema claro/escuro já é persistido localmente no navegador pelo DjangoForge.</p>
+        <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('themeToggleBtn')?.click()"><i class="bi bi-circle-half me-1"></i>Alternar tema</button>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="settings-card">
+        <div class="d-flex align-items-center gap-3 mb-3"><div class="settings-icon"><i class="bi bi-shield-lock"></i></div><div><h5 class="fw-bold mb-0">Conta e segurança</h5><small class="text-secondary">Perfil e autenticação</small></div></div>
+        <a class="settings-link" href="{% url 'sistema:profile' %}"><span><i class="bi bi-person me-2"></i>Meu perfil</span><i class="bi bi-chevron-right"></i></a>
+        <a class="settings-link" href="{% url 'password_change' %}"><span><i class="bi bi-key me-2"></i>Alterar senha</span><i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="settings-card">
+        <div class="d-flex align-items-center gap-3 mb-3"><div class="settings-icon"><i class="bi bi-diagram-3"></i></div><div><h5 class="fw-bold mb-0">Configuração por sistema</h5><small class="text-secondary">Design, Build e Run</small></div></div>
+        <p class="small text-secondary">Banco, Docker, auditoria, modelos, formulários, dashboards, releases e ambientes são configurados dentro de cada workspace.</p>
+        <a href="{% url 'sistema:lista' %}" class="btn btn-primary w-100"><i class="bi bi-boxes me-1"></i>Abrir workspaces</a>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="settings-card">
+        <div class="d-flex align-items-center gap-3 mb-3"><div class="settings-icon"><i class="bi bi-sliders"></i></div><div><h5 class="fw-bold mb-0">Mapa de configurações</h5><small class="text-secondary">Onde cada responsabilidade vive no DjangoForge</small></div></div>
+        <div class="row g-3 small">
+          <div class="col-md-3"><div class="p-3 rounded-3 bg-body-tertiary h-100"><strong class="d-block mb-2">Design</strong><span class="text-secondary">Modelos, formulários e dashboards.</span></div></div>
+          <div class="col-md-3"><div class="p-3 rounded-3 bg-body-tertiary h-100"><strong class="d-block mb-2">Build</strong><span class="text-secondary">Validação, releases e geração.</span></div></div>
+          <div class="col-md-3"><div class="p-3 rounded-3 bg-body-tertiary h-100"><strong class="d-block mb-2">Run</strong><span class="text-secondary">Ambientes, runtime e health.</span></div></div>
+          <div class="col-md-3"><div class="p-3 rounded-3 bg-body-tertiary h-100"><strong class="d-block mb-2">Govern</strong><span class="text-secondary">Permissões, backups, auditoria e observabilidade nas próximas etapas.</span></div></div>
         </div>
-
-        <div class="form-check form-switch mb-4">
-          <input class="form-check-input" type="checkbox" role="switch" id="notifySystem" checked>
-          <label class="form-check-label fw-medium" for="notifySystem">Notificações push no sistema</label>
-          <div class="form-text">Exibe balões de notificação para novos registros e alterações.</div>
-        </div>
-
-        <hr class="my-4">
-
-        <h5 class="fw-medium mb-3">Segurança</h5>
-        <div class="mb-3">
-          <label class="form-label fw-medium">Sessão Ativa</label>
-          <select class="form-select">
-            <option value="15">Desconectar após 15 minutos de inatividade</option>
-            <option value="30" selected>Desconectar após 30 minutos de inatividade</option>
-            <option value="60">Desconectar após 1 hora</option>
-          </select>
-        </div>
-
-        <div class="mt-4 text-end">
-          <button type="submit" class="btn btn-primary px-4 rounded-3">Salvar Configurações</button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 </div>

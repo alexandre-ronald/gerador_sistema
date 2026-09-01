@@ -213,4 +213,4 @@ class Campo(models.Model):
         ordering = ["entidade", "nome"]
 
 
-from .runtime_models import RuntimeSnapshot
+from .runtime_models import RuntimeCheck, RuntimeSnapshot

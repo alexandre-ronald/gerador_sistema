@@ -19,15 +19,26 @@ class {{ entidade.classe_nome }}Form(forms.ModelForm):
     class Meta:
         model = {{ entidade.classe_nome }}
         fields = [
-{% for campo in entidade.campos_geracao %}            "{{ campo.codigo_nome }}",
-{% endfor %}        ]
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}            "{{ campo.codigo_nome }}",
+{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}            "{{ campo.codigo_nome }}",
+{% endfor %}{% endif %}        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        configurar_widgets_bootstrap(self)
-{% for campo in entidade.campos_geracao %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}{% if campo.widget == "text" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.TextInput()
+{% elif campo.widget == "textarea" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.Textarea(attrs={"rows": 4})
+{% elif campo.widget == "number" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.NumberInput()
+{% elif campo.widget == "date" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.DateInput(attrs={"type": "date"})
+{% elif campo.widget == "datetime" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.DateTimeInput(attrs={"type": "datetime-local"})
+{% elif campo.widget == "checkbox" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.CheckboxInput()
+{% endif %}{% endfor %}{% endif %}        configurar_widgets_bootstrap(self)
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.label|escapejs }}"
+        self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
+{% if campo.placeholder %}        self.fields["{{ campo.codigo_nome }}"].widget.attrs["placeholder"] = "{{ campo.placeholder|escapejs }}"
+{% endif %}{% if campo.readonly %}        self.fields["{{ campo.codigo_nome }}"].disabled = True
+{% endif %}{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
 {% if campo.help_text %}        self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
-{% endif %}{% endfor %}
+{% endif %}{% endfor %}{% endif %}
 
 {% endfor %}
 {% endwith %}

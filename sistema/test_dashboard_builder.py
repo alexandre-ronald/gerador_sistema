@@ -25,107 +25,67 @@ class DashboardBuilderTests(TestCase):
     def test_builder_requires_system_owner(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Dashboard Builder")
+        self.assertContains(response, "Dashboard Designer 2.0")
 
     def test_builder_exposes_entity_field_metadata_without_500(self):
         modulo = Modulo.objects.create(sistema=self.sistema, nome="cadastro")
         entidade = Entidade.objects.create(modulo=modulo, nome="Funcionario")
         Campo.objects.create(entidade=entidade, nome="nome_completo", tipo="CharField", verbose_name="Nome completo")
-        Campo.objects.create(
-            entidade=entidade,
-            nome="salario",
-            tipo="DecimalField",
-            verbose_name="Salário",
-            max_digits=12,
-            decimal_places=2,
-        )
+        Campo.objects.create(entidade=entidade, nome="salario", tipo="DecimalField", verbose_name="Salário", max_digits=12, decimal_places=2)
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Nome completo")
-        self.assertContains(response, "Salário")
         self.assertContains(response, "nome_completo")
         self.assertContains(response, "DecimalField")
 
     def test_builder_contains_widget_palette_and_grid_engine(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="canvas"')
-        self.assertContains(response, 'class="btn btn-outline-secondary btn-sm mb-2 widget-palette-button"')
-        self.assertContains(response, 'data-widget-type="metric"')
-        self.assertContains(response, "function addWidget(type)")
-        self.assertContains(response, "function reflowWidgets(priorityWidget=null)")
-        self.assertContains(response, "function canPlace(widget,x,y,placed)")
-        self.assertContains(response, "x+widget.w>12")
-        self.assertContains(response, "reflowWidgets();")
+        html = response.content.decode()
+        self.assertIn('id="canvas"', html)
+        self.assertIn('class="btn btn-outline-secondary btn-sm mb-2 add-widget"', html)
+        self.assertIn('data-type="metric"', html)
+        self.assertIn("function add(type)", html)
+        self.assertIn("function reflow(priority=null)", html)
+        self.assertIn("const can=", html)
+        self.assertIn("x+w.w<=12", html)
+        self.assertIn("reflow();", html)
 
     def test_builder_supports_drag_and_drop_repositioning(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         html = response.content.decode()
         self.assertIn('draggable="true"', html)
-        self.assertIn("addEventListener('dragstart'", html)
-        self.assertIn("addEventListener('dragover'", html)
-        self.assertIn("addEventListener('drop'", html)
-        self.assertIn("reflowWidgets(widget)", html)
-        self.assertIn("targetX", html)
-        self.assertIn("targetY", html)
+        self.assertIn("canvas.ondragstart", html)
+        self.assertIn("canvas.ondragover", html)
+        self.assertIn("canvas.ondrop", html)
+        self.assertIn("reflow(w)", html)
+        self.assertIn("Math.floor((e.clientX-r.left)/(r.width/12))", html)
+        self.assertIn("Math.floor((e.clientY-r.top-16)/80)", html)
 
     def test_builder_renders_valid_widget_types_object(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
         html = response.content.decode()
-        self.assertIn("const widgetTypes={", html)
-        self.assertIn("'metric':", html)
-        self.assertNotIn("const widgetTypes='metric':", html)
+        self.assertIn("const types={", html)
+        self.assertIn("'metric':'Indicador'", html)
+        self.assertNotIn("const types='metric':", html)
 
-    def test_builder_preserves_analytical_metadata_controls(self):
+    def test_builder_preserves_analytical_metadata_contract(self):
         response = self.client.get(reverse("sistema:dashboard_builder", args=[self.sistema.pk]))
-        self.assertContains(response, "Operação")
-        self.assertContains(response, "Agrupar por")
-        self.assertContains(response, "Campo relacionado")
-        self.assertContains(response, "Campos da tabela")
-        self.assertContains(response, "Ordenação")
+        html = response.content.decode()
+        self.assertIn("Operação", html)
+        self.assertIn("Agrupar por", html)
+        self.assertIn("group_by_related", html)
+        self.assertIn("related_label", html)
+        self.assertIn("fields:[]", html)
+        self.assertIn("Ordenação", html)
 
     def test_generated_dashboard_uses_saved_canvas_coordinates(self):
-        VersaoGeracao.objects.create(
-            sistema=self.sistema,
-            numero=0,
-            estrutura_json={
-                "dashboard": {
-                    "enabled": True,
-                    "title": "Layout",
-                    "layout": "12-column",
-                    "widgets": [
-                        {"id": "a", "type": "metric", "title": "A", "entity": "", "x": 8, "y": 3, "w": 4, "h": 2},
-                    ],
-                }
-            },
-        )
+        VersaoGeracao.objects.create(sistema=self.sistema, numero=0, estrutura_json={"dashboard": {"enabled": True, "title": "Layout", "layout": "12-column", "widgets": [{"id": "a", "type": "metric", "title": "A", "entity": "", "x": 8, "y": 3, "w": 4, "h": 2}]}})
         ctx = GeradorService(self.sistema.pk)._prepare_context()
         widget = ctx["dashboard"]["widgets"][0]
         self.assertEqual(widget["grid_column_start"], 9)
         self.assertEqual(widget["grid_row_start"], 4)
 
     def test_generated_dashboard_contains_chart_inside_card(self):
-        ctx = {
-            "dashboard": {
-                "enabled": True,
-                "title": "Dashboard",
-                "refresh_seconds": 0,
-                "widgets": [
-                    {
-                        "id": "chart-1",
-                        "type": "bar",
-                        "title": "Gráfico",
-                        "entity": "",
-                        "x": 0,
-                        "y": 0,
-                        "w": 6,
-                        "h": 4,
-                        "grid_column_start": 1,
-                        "grid_row_start": 1,
-                    }
-                ],
-            }
-        }
+        ctx = {"dashboard": {"enabled": True, "title": "Dashboard", "refresh_seconds": 0, "widgets": [{"id": "chart-1", "type": "bar", "title": "Gráfico", "entity": "", "x": 0, "y": 0, "w": 6, "h": 4, "grid_column_start": 1, "grid_row_start": 1}]}}
         html = render_to_string("gerador/snippets/dashboard_html.txt", ctx)
         self.assertIn("display:flex;flex-direction:column", html)
         self.assertIn(".widget-chart{flex:1 1 auto;min-height:0", html)

@@ -105,7 +105,27 @@ class DashboardBuilderTests(TestCase):
         self.assertEqual(widget["grid_row_start"], 4)
 
     def test_generated_dashboard_contains_chart_inside_card(self):
-        ctx = GeradorService(self.sistema.pk)._prepare_context()
+        ctx = {
+            "dashboard": {
+                "enabled": True,
+                "title": "Dashboard",
+                "refresh_seconds": 0,
+                "widgets": [
+                    {
+                        "id": "chart-1",
+                        "type": "bar",
+                        "title": "Gráfico",
+                        "entity": "",
+                        "x": 0,
+                        "y": 0,
+                        "w": 6,
+                        "h": 4,
+                        "grid_column_start": 1,
+                        "grid_row_start": 1,
+                    }
+                ],
+            }
+        }
         html = render_to_string("gerador/snippets/dashboard_html.txt", ctx)
         self.assertIn("display:flex;flex-direction:column", html)
         self.assertIn(".widget-chart{flex:1 1 auto;min-height:0", html)

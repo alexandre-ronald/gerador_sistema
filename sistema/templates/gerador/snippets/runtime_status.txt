@@ -1,0 +1,33 @@
+import os
+import time
+
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
+from django.http import JsonResponse
+from django.utils import timezone
+
+_STARTED_AT = time.monotonic()
+
+
+def runtime_status(request):
+    pending = 0
+    status = "ok"
+    try:
+        executor = MigrationExecutor(connection)
+        pending = len(executor.migration_plan(executor.loader.graph.leaf_nodes()))
+        if pending:
+            status = "degraded"
+    except Exception:
+        status = "degraded"
+
+    return JsonResponse({
+        "contract": "1.0",
+        "status": status,
+        "system": "{{ sistema.nome|escapejs }}",
+        "environment": os.environ.get("DJANGOFORGE_ENVIRONMENT", ""),
+        "release": os.environ.get("DJANGOFORGE_RELEASE", ""),
+        "database": {"vendor": connection.vendor},
+        "migrations": {"pending": pending},
+        "uptime_seconds": int(time.monotonic() - _STARTED_AT),
+        "timestamp": timezone.now().isoformat(),
+    })

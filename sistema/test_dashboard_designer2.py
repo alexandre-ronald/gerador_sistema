@@ -52,3 +52,39 @@ class DashboardDesigner2ContractTests(SimpleTestCase):
         }]})
         widget = config["widgets"][0]
         self.assertEqual((widget["x"], widget["y"], widget["w"], widget["h"]), (6, 4, 6, 5))
+
+
+class DashboardDesigner2PreviewContractTests(SimpleTestCase):
+    def test_preview_is_client_only_and_not_part_of_dashboard_contract(self):
+        config = normalize_dashboard_config({
+            "preview": True,
+            "widgets": [{"id": "a", "type": "metric", "x": 3, "y": 2, "w": 4, "h": 3}],
+        })
+        self.assertNotIn("preview", config)
+        widget = config["widgets"][0]
+        self.assertEqual((widget["x"], widget["y"], widget["w"], widget["h"]), (3, 2, 4, 3))
+
+    def test_preview_does_not_change_widget_appearance_contract(self):
+        config = normalize_dashboard_config({
+            "widgets": [{
+                "id": "a",
+                "type": "metric",
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 3,
+                "config": {"appearance": {
+                    "variant": "soft",
+                    "show_header": False,
+                    "show_border": True,
+                    "compact": True,
+                }},
+            }],
+        })
+        appearance = config["widgets"][0]["config"]["appearance"]
+        self.assertEqual(appearance, {
+            "variant": "soft",
+            "show_header": False,
+            "show_border": True,
+            "compact": True,
+        })

@@ -5,6 +5,7 @@ from . import dashboard_builder_views
 from . import validation_center_views
 from . import release_manager_views
 from . import environment_manager_views
+from . import health_monitoring_views
 
 app_name = 'sistema'
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/atualizar/', environment_manager_views.update_environment, name='update_environment'),
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/promover/', environment_manager_views.promote_environment, name='promote_environment'),
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/runtime/', environment_manager_views.check_runtime, name='check_runtime'),
+    path('sistemas/<int:sistema_id>/health/', health_monitoring_views.health_monitoring, name='health_monitoring'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

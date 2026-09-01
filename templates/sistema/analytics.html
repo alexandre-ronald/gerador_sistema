@@ -1,120 +1,43 @@
 {% extends 'base.html' %}
-
-{% block title %}Relatórios & Analytics | AdminPanel{% endblock %}
-
+{% block title %}Relatórios | DjangoForge{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="fw-bold m-0">Relatórios & Analytics</h2>
-    <p class="text-secondary m-0">Acompanhe as métricas e o desempenho do sistema.</p>
+<style>
+.analytics-hero,.analytics-card{border:1px solid var(--bs-border-color);border-radius:18px;background:var(--bs-body-bg);box-shadow:0 6px 24px rgba(0,0,0,.04)}.analytics-hero{padding:1.5rem;background:linear-gradient(135deg,var(--bs-primary-bg-subtle),var(--bs-body-bg))}.analytics-card{padding:1.25rem;height:100%}.analytics-icon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--django-emerald-light);color:var(--django-emerald);font-size:1.2rem}.report-item{border:1px solid var(--bs-border-color);border-radius:12px;padding:1rem;background:var(--bs-body-bg);height:100%}.report-item .badge{font-size:.68rem}.flow-step{position:relative;padding-left:1.8rem}.flow-step:before{content:'';position:absolute;left:.42rem;top:.45rem;width:.65rem;height:.65rem;border-radius:50%;background:var(--django-emerald)}.flow-step:not(:last-child):after{content:'';position:absolute;left:.72rem;top:1.15rem;bottom:-.65rem;width:1px;background:var(--bs-border-color)}
+</style>
+<div class="container-fluid p-0">
+  <div class="analytics-hero mb-4 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+    <div><div class="small text-uppercase fw-bold text-success">DjangoForge Insights</div><h2 class="fw-bold mb-1"><i class="bi bi-bar-chart-line me-2"></i>Relatórios</h2><p class="text-secondary mb-0">Visão consolidada das capacidades de análise da plataforma e dos relatórios por sistema.</p></div>
+    <div class="d-flex gap-2"><a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary"><i class="bi bi-boxes me-1"></i>Meus Sistemas</a><a href="{% url 'sistema:dashboard' %}" class="btn btn-primary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></div>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-outline-secondary rounded-3">
-      <i class="bi bi-download me-1"></i> Exportar PDF
-    </button>
-    <button class="btn btn-primary rounded-3">
-      <i class="bi bi-filter me-1"></i> Filtrar Período
-    </button>
-  </div>
-</div>
 
-<!-- Cards Sintéticos -->
-<div class="row g-3 mb-4">
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Acessos Totais</span>
-          <h3 class="fw-bold my-1">48.290</h3>
-          <span class="text-success small fw-semibold"><i class="bi bi-arrow-up-short"></i>+14% vs mês anterior</span>
-        </div>
-        <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-3">
-          <i class="bi bi-bar-chart-line-fill fs-4"></i>
+  <div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3"><div class="analytics-card"><div class="analytics-icon mb-3"><i class="bi bi-grid-1x2"></i></div><h5 class="fw-bold">Dashboards</h5><p class="small text-secondary mb-0">Indicadores, tabelas e gráficos configurados no Dashboard Designer.</p></div></div>
+    <div class="col-md-6 col-xl-3"><div class="analytics-card"><div class="analytics-icon mb-3"><i class="bi bi-funnel"></i></div><h5 class="fw-bold">Analytics</h5><p class="small text-secondary mb-0">Períodos, filtros estruturados e comparações do GEN-049.</p></div></div>
+    <div class="col-md-6 col-xl-3"><div class="analytics-card"><div class="analytics-icon mb-3"><i class="bi bi-heart-pulse"></i></div><h5 class="fw-bold">Runtime</h5><p class="small text-secondary mb-0">Health, disponibilidade e histórico de verificações por ambiente.</p></div></div>
+    <div class="col-md-6 col-xl-3"><div class="analytics-card"><div class="analytics-icon mb-3"><i class="bi bi-tags"></i></div><h5 class="fw-bold">Releases</h5><p class="small text-secondary mb-0">Evolução das versões e estado do ciclo de publicação.</p></div></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-xl-8">
+      <div class="analytics-card">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-4"><div><h5 class="fw-bold mb-1">Fontes de relatório</h5><p class="small text-secondary mb-0">Escolha o sistema no workspace para acessar dados reais do projeto.</p></div><a href="{% url 'sistema:lista' %}" class="btn btn-sm btn-outline-primary">Abrir workspaces</a></div>
+        <div class="row g-3">
+          <div class="col-md-6"><div class="report-item"><div class="d-flex justify-content-between mb-2"><strong>Dashboard da aplicação</strong><span class="badge bg-success-subtle text-success">Disponível</span></div><p class="small text-secondary mb-0">Métricas de negócio alimentadas pelo Data Engine e Dashboard Analytics.</p></div></div>
+          <div class="col-md-6"><div class="report-item"><div class="d-flex justify-content-between mb-2"><strong>Health & Monitoring</strong><span class="badge bg-success-subtle text-success">Disponível</span></div><p class="small text-secondary mb-0">Estado do runtime, latência e verificações por ambiente.</p></div></div>
+          <div class="col-md-6"><div class="report-item"><div class="d-flex justify-content-between mb-2"><strong>Releases</strong><span class="badge bg-success-subtle text-success">Disponível</span></div><p class="small text-secondary mb-0">Histórico do fluxo DRAFT → VALIDATING → VALIDATED → RELEASED.</p></div></div>
+          <div class="col-md-6"><div class="report-item"><div class="d-flex justify-content-between mb-2"><strong>Observabilidade consolidada</strong><span class="badge bg-secondary-subtle text-secondary">Roadmap</span></div><p class="small text-secondary mb-0">Logs, métricas e eventos centralizados serão ampliados nas próximas capacidades.</p></div></div>
         </div>
       </div>
     </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Tempo Médio de Sessão</span>
-          <h3 class="fw-bold my-1">12m 45s</h3>
-          <span class="text-success small fw-semibold"><i class="bi bi-arrow-up-short"></i>+3% melhora</span>
-        </div>
-        <div class="p-3 bg-info bg-opacity-10 text-info rounded-3">
-          <i class="bi bi-clock-history fs-4"></i>
-        </div>
+    <div class="col-xl-4">
+      <div class="analytics-card">
+        <h5 class="fw-bold mb-3">Ciclo de análise</h5>
+        <div class="flow-step pb-3"><strong class="d-block">Design</strong><small class="text-secondary">Defina widgets, fontes e filtros.</small></div>
+        <div class="flow-step pb-3"><strong class="d-block">Build</strong><small class="text-secondary">Valide o contrato e publique uma release.</small></div>
+        <div class="flow-step pb-3"><strong class="d-block">Run</strong><small class="text-secondary">Observe ambiente e runtime.</small></div>
+        <div class="flow-step"><strong class="d-block">Govern</strong><small class="text-secondary">Use evidências para evolução e auditoria.</small></div>
       </div>
     </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Taxa de Erro (HTTP 500)</span>
-          <h3 class="fw-bold my-1">0.02%</h3>
-          <span class="text-success small fw-semibold"><i class="bi bi-arrow-down-short"></i>-0.05% estável</span>
-        </div>
-        <div class="p-3 bg-success bg-opacity-10 text-success rounded-3">
-          <i class="bi bi-check-circle-fill fs-4"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card card-modern p-3">
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <span class="text-secondary small fw-medium">Requisições/min</span>
-          <h3 class="fw-bold my-1">340</h3>
-          <span class="text-warning small fw-semibold"><i class="bi bi-dash"></i>Normal</span>
-        </div>
-        <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-3">
-          <i class="bi bi-lightning-charge-fill fs-4"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Tabela de Módulos mais Acessados -->
-<div class="card card-modern p-4">
-  <h5 class="fw-bold mb-3">Módulos Mais Utilizados</h5>
-  <div class="table-responsive">
-    <table class="table align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Módulo</th>
-          <th>Acessos</th>
-          <th>Usuários Únicos</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fw-semibold">Gestão de Formulários</td>
-          <td>18.420</td>
-          <td>1.102</td>
-          <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Ativo</span></td>
-        </tr>
-        <tr>
-          <td class="fw-semibold">Emissão de Relatórios</td>
-          <td>12.150</td>
-          <td>890</td>
-          <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Ativo</span></td>
-        </tr>
-        <tr>
-          <td class="fw-semibold">Cadastro de Usuários</td>
-          <td>4.310</td>
-          <td>120</td>
-          <td><span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-1">Manutenção</span></td>
-        </tr>
-      </tbody>
-    </table>
   </div>
 </div>
 {% endblock %}

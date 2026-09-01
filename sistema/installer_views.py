@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.text import slugify
 
-from .models import Sistema, VersaoGeracao
+from .models import Sistema
 from .services import GeradorService
 from .structure_service import serialize_system_structure
 
@@ -115,7 +115,12 @@ python manage.py runserver
 def processar_geracao_ajax(request, pk):
     try:
         sistema = get_object_or_404(Sistema, pk=pk, usuario=request.user)
-        logs = GeradorService(sistema.pk).gerar_projeto_completo()
+        gerador = GeradorService(sistema.pk)
+        logs = gerador.gerar_projeto_completo()
+        versao = gerador.versao_gerada
+        if versao is None:
+            raise RuntimeError("A geração foi concluída sem registrar a versão correspondente.")
+
         root = sistema.caminho_geracao
         if not root or not os.path.isdir(root):
             raise RuntimeError(f"Diretório de destino '{root}' não foi localizado.")
@@ -138,13 +143,13 @@ def processar_geracao_ajax(request, pk):
 
         sistema.arquivo_zip = f"downloads_sistemas/{nome_zip}"
         sistema.save(update_fields=["arquivo_zip", "atualizado_em"])
-        numero = (sistema.versoes.order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
-        versao = VersaoGeracao.objects.create(sistema=sistema, numero=numero, descricao=f"Geração {timestamp}", estrutura_json=_estrutura_snapshot(sistema))
+        versao.descricao = f"Geração {timestamp}"
         with open(zip_path, "rb") as zip_file:
-            versao.arquivo_zip.save(nome_zip, zip_file, save=True)
+            versao.arquivo_zip.save(nome_zip, zip_file, save=False)
+        versao.save(update_fields=["descricao", "arquivo_zip"])
 
-        logs.extend([f"Versão de geração registrada: v{numero}", f"ZIP gerado: {nome_zip}"])
-        return JsonResponse({"status": "sucesso", "logs": logs, "versao": numero, "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk})})
+        logs.extend([f"Versão de geração consolidada: v{versao.numero}", f"ZIP gerado: {nome_zip}"])
+        return JsonResponse({"status": "sucesso", "logs": logs, "versao": versao.numero, "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk})})
     except Exception as exc:
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 

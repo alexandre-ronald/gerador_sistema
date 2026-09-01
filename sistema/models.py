@@ -211,3 +211,6 @@ class Campo(models.Model):
         verbose_name = "Campo"
         verbose_name_plural = "Campos"
         ordering = ["entidade", "nome"]
+
+
+from .runtime_models import RuntimeSnapshot

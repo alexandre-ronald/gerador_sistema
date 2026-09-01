@@ -28,14 +28,16 @@ try{config=JSON.parse(document.getElementById('dashboard-data').textContent||'{}
 config.widgets=Array.isArray(config.widgets)?config.widgets:[];
 const metadata=JSON.parse(document.getElementById('entity-metadata').textContent||'{}');
 const entities=Object.keys(metadata);
-const widgetTypes={% for t,label,icon in widget_types %}'{{ t }}':'{{ label }}',{% endfor %};
+const widgetTypes={
+{% for t,label,icon in widget_types %}    '{{ t|escapejs }}':'{{ label|escapejs }}'{% if not forloop.last %},{% endif %}
+{% endfor %}};
 const ops=[['count','Contagem'],['sum','Soma'],['avg','Média'],['min','Mínimo'],['max','Máximo']];
 let selected=null;
 function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
 function integer(v,fallback){const n=Number(v);return Number.isFinite(n)?Math.trunc(n):fallback}
 function normalizeWidget(widget){widget.x=Math.max(0,Math.min(11,integer(widget.x,0)));widget.y=Math.max(0,integer(widget.y,0));widget.w=Math.max(1,Math.min(12,integer(widget.w,4)));widget.h=Math.max(1,integer(widget.h,3));if(widget.x + widget.w > 12){widget.x=Math.max(0,12-widget.w)}widget.type=widget.type||'metric';widget.title=widget.title||(widget.type==='metric'?'Indicador':'Novo gráfico');widget.entity=widget.entity||entities[0]||'';widget.config=widget.config&&typeof widget.config==='object'?widget.config:{}}
 function overlaps(a,b){return !(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y)}
-function canPlace(widget, x, y, placed){if(x<0||x + widget.w > 12||y<0)return false;const candidate={x,y,w:widget.w,h:widget.h};return !placed.some(other=>overlaps(candidate,other))}
+function canPlace(widget,x,y,placed){if(x<0||x+widget.w>12||y<0)return false;const candidate={x,y,w:widget.w,h:widget.h};return !placed.some(other=>overlaps(candidate,other))}
 function reflowWidgets(){const placed=[];config.widgets.forEach(widget=>{normalizeWidget(widget);let found=canPlace(widget,widget.x,widget.y,placed);if(!found){for(let y=0;!found&&y<1000;y++){for(let x=0;x<=12-widget.w;x++){if(canPlace(widget,x,y,placed)){widget.x=x;widget.y=y;found=true;break}}}}placed.push({x:widget.x,y:widget.y,w:widget.w,h:widget.h})})}
 function nextFreePosition(widget){const placed=config.widgets.filter(w=>w!==widget).map(w=>({x:w.x,y:w.y,w:w.w,h:w.h}));for(let y=0;y<1000;y++){for(let x=0;x<=12-widget.w;x++){if(canPlace(widget,x,y,placed))return{x,y}}}return{x:0,y:0}}
 function addWidget(type){if(!type)return;const widget={id:'widget-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),type,title:type==='metric'?'Indicador':'Novo '+(widgetTypes[type]||'widget'),entity:entities[0]||'',x:0,y:0,w:4,h:3,config:{operation:'count',field:'id',group_by:'',group_by_related:'',related_label:'__str__',fields:[],limit:100,ordering:'-id'}};const pos=nextFreePosition(widget);widget.x=pos.x;widget.y=pos.y;config.widgets.push(widget);selected=config.widgets.length-1;reflowWidgets();render()}

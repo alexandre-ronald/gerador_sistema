@@ -15,6 +15,7 @@ class RuntimeSnapshot(models.Model):
     database_vendor = models.CharField(max_length=50, blank=True)
     migrations_pending = models.PositiveIntegerField(default=0)
     uptime_seconds = models.PositiveBigIntegerField(default=0)
+    latency_ms = models.PositiveIntegerField(default=0)
     payload = models.JSONField(default=dict, blank=True)
     erro = models.TextField(blank=True)
     verificado_em = models.DateTimeField(auto_now=True)
@@ -26,3 +27,27 @@ class RuntimeSnapshot(models.Model):
     def __str__(self):
         state = "online" if self.online else "offline"
         return f"{self.ambiente} · {state}"
+
+
+class RuntimeCheck(models.Model):
+    ambiente = models.ForeignKey(
+        "sistema.Ambiente",
+        on_delete=models.CASCADE,
+        related_name="runtime_checks",
+    )
+    online = models.BooleanField(default=False)
+    health = models.CharField(max_length=20, default="UNKNOWN")
+    release_observada = models.CharField(max_length=50, blank=True)
+    migrations_pending = models.PositiveIntegerField(default=0)
+    latency_ms = models.PositiveIntegerField(default=0)
+    erro = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    verificado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Verificação de Runtime"
+        verbose_name_plural = "Verificações de Runtime"
+        ordering = ["-verificado_em", "-id"]
+
+    def __str__(self):
+        return f"{self.ambiente} · {self.health} · {self.verificado_em:%d/%m/%Y %H:%M:%S}"

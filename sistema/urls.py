@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import installer_views
 from . import dashboard_builder_views
+from . import validation_center_views
 
 app_name = 'sistema'
 
@@ -18,6 +19,7 @@ urlpatterns = [
     path('gerar/<int:pk>/sucesso/', views.gerar_sucesso_view, name='gerar_sucesso'),
     path('sistemas/<int:sistema_id>/dashboard-builder/', dashboard_builder_views.dashboard_builder, name='dashboard_builder'),
     path('sistemas/<int:sistema_id>/dashboard-builder/salvar/', dashboard_builder_views.salvar_dashboard, name='salvar_dashboard'),
+    path('sistemas/<int:sistema_id>/validation-center/', validation_center_views.validation_center, name='validation_center'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

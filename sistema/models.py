@@ -38,18 +38,41 @@ class Sistema(models.Model):
 
 
 class VersaoGeracao(models.Model):
+    STATUS_DRAFT = "DRAFT"
+    STATUS_VALIDATING = "VALIDATING"
+    STATUS_VALIDATED = "VALIDATED"
+    STATUS_RELEASED = "RELEASED"
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Rascunho"),
+        (STATUS_VALIDATING, "Em validação"),
+        (STATUS_VALIDATED, "Validada"),
+        (STATUS_RELEASED, "Publicada"),
+    ]
+
     sistema = models.ForeignKey(Sistema, on_delete=models.CASCADE, related_name="versoes")
     numero = models.PositiveIntegerField()
     criado_em = models.DateTimeField(auto_now_add=True)
     descricao = models.CharField(max_length=255, blank=True)
     estrutura_json = models.JSONField(default=dict)
     arquivo_zip = models.FileField(upload_to="sistemas_versoes/", null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    changelog = models.TextField(blank=True)
+    validado_em = models.DateTimeField(null=True, blank=True)
+    publicado_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Versão de Geração"
         verbose_name_plural = "Versões de Geração"
         ordering = ["-numero"]
         constraints = [models.UniqueConstraint(fields=["sistema", "numero"], name="uniq_versao_sistema_numero")]
+
+    @property
+    def is_draft(self):
+        return self.numero == 0 or self.status == self.STATUS_DRAFT
+
+    @property
+    def can_release(self):
+        return self.numero > 0 and self.status == self.STATUS_VALIDATED
 
     def __str__(self):
         return f"{self.sistema.nome} v{self.numero}"

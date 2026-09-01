@@ -1,3 +1,7 @@
+import os
+import tempfile
+from pathlib import Path
+
 from django.contrib.auth import get_user_model
 from django.template.loader import render_to_string
 from django.test import TestCase
@@ -92,3 +96,43 @@ class GeneratedFormDesignerTests(TestCase):
         self.assertEqual([field.codigo_nome for field in entidade.form_fields], ["ativo", "descricao", "interno", "quantidade"])
         self.assertTrue(all(field.width == 12 for field in entidade.form_fields))
         self.assertTrue(all(field.visible for field in entidade.form_fields))
+
+    def test_real_generation_materializes_form_designer_contract(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.sistema.caminho_geracao = temp_dir
+            self.sistema.save(update_fields=["caminho_geracao"])
+
+            service = GeradorService(self.sistema.id)
+            service.gerar_projeto_completo()
+
+            forms_path = Path(temp_dir) / "cadastros" / "forms.py"
+            html_path = Path(temp_dir) / "cadastros" / "templates" / "cadastros" / "pedido_form.html"
+            self.assertTrue(forms_path.exists())
+            self.assertTrue(html_path.exists())
+
+            forms_content = forms_path.read_text(encoding="utf-8")
+            html_content = html_path.read_text(encoding="utf-8")
+
+            self.assertIn('fields = [', forms_content)
+            self.assertIn('"descricao",', forms_content)
+            self.assertIn('"quantidade",', forms_content)
+            self.assertIn('"ativo",', forms_content)
+            self.assertNotIn('"interno",', forms_content)
+            self.assertIn('forms.Textarea(attrs={"rows": 4})', forms_content)
+            self.assertIn('self.fields["quantidade"].disabled = True', forms_content)
+            self.assertIn('self.fields["descricao"].label = "Descrição detalhada"', forms_content)
+            self.assertIn('widget.attrs["placeholder"] = "Informe a descrição"', forms_content)
+
+            self.assertIn("Dados do Pedido", html_content)
+            self.assertIn("Dados principais", html_content)
+            self.assertIn("Informações para o cadastro.", html_content)
+            self.assertIn("col-12 col-md-8", html_content)
+            self.assertIn("col-12 col-md-4", html_content)
+            self.assertIn("{{ form.descricao }}", html_content)
+            self.assertIn("{{ form.quantidade }}", html_content)
+            self.assertIn("{{ form.ativo }}", html_content)
+            self.assertNotIn("form.interno", html_content)
+
+            self.assertTrue(any("Validação concluída" in log for log in service.logs))
+            self.assertIsNotNone(service.versao_gerada)
+            self.assertGreater(service.versao_gerada.numero, 0)

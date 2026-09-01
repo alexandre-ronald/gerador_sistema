@@ -20,12 +20,13 @@ class ValidationCenterService:
             self._runtime_check(version),
         ]
         counts = {status: sum(1 for check in checks if check["status"] == status) for status in self.STATUSES}
-        overall_status = "error" if counts["error"] else ("warning" if counts["warning"] else ("pending" if counts["pending"] else "success"))
+        overall_status = "error" if counts["error"] else ("pending" if counts["pending"] else ("warning" if counts["warning"] else "success"))
+        release_ready = counts["error"] == 0 and counts["pending"] == 0
         return {
             "system": {"id": self.sistema.pk, "name": self.sistema.nome},
             "version": version.numero if version else None,
             "overall_status": overall_status,
-            "release_ready": overall_status == "success",
+            "release_ready": release_ready,
             "total": len(checks),
             "successes": counts["success"],
             "warnings": counts["warning"],

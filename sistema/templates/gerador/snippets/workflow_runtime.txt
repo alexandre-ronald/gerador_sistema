@@ -1,0 +1,78 @@
+{% load workflow_generation %}from django.core.exceptions import ValidationError
+from django.db import transaction
+
+WORKFLOWS = {
+{% for entidade in entidades %}{% workflow_generation_config entidade as workflow %}{% if workflow.enabled %}    "{{ entidade.classe_nome }}": {
+        "state_field": "{{ workflow.state_field_code }}",
+        "initial_state": "{{ workflow.initial_state }}",
+        "states": [{% for state in workflow.states %}{"id": "{{ state.id|escapejs }}", "label": "{{ state.label|escapejs }}", "final": {% if state.final %}True{% else %}False{% endif %}}{% if not forloop.last %}, {% endif %}{% endfor %}],
+        "transitions": [{% for tr in workflow.transitions %}{"id": "{{ tr.id|escapejs }}", "label": "{{ tr.label|escapejs }}", "from": [{% for origin in tr.from %}"{{ origin|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}], "to": "{{ tr.to|escapejs }}", "enabled": {% if tr.enabled %}True{% else %}False{% endif %}, "confirm": {% if tr.confirm %}True{% else %}False{% endif %}, "confirm_message": "{{ tr.confirm_message|escapejs }}"}{% if not forloop.last %}, {% endif %}{% endfor %}],
+    },
+{% endif %}{% endfor %}}
+
+
+class WorkflowRuntimeError(ValidationError):
+    pass
+
+
+def get_workflow(instance_or_class):
+    cls = instance_or_class if isinstance(instance_or_class, type) else instance_or_class.__class__
+    return WORKFLOWS.get(cls.__name__)
+
+
+def apply_initial_state(instance):
+    workflow = get_workflow(instance)
+    if not workflow:
+        return instance
+    field = workflow["state_field"]
+    current = getattr(instance, field, None)
+    if current not in (None, "", workflow["initial_state"]):
+        raise WorkflowRuntimeError("Estado inicial inválido para criação.")
+    if current in (None, ""):
+        setattr(instance, field, workflow["initial_state"])
+    return instance
+
+
+def available_transitions(instance):
+    workflow = get_workflow(instance)
+    if not workflow:
+        return []
+    current = getattr(instance, workflow["state_field"], None)
+    return [t for t in workflow["transitions"] if t.get("enabled", True) and current in t.get("from", [])]
+
+
+def get_transition(instance, transition_id):
+    for transition in available_transitions(instance):
+        if transition["id"] == transition_id:
+            return transition
+    raise WorkflowRuntimeError("Transição inválida para o estado atual.")
+
+
+def protect_state_change(instance, original_state):
+    workflow = get_workflow(instance)
+    if not workflow:
+        return
+    current = getattr(instance, workflow["state_field"], None)
+    if current != original_state:
+        raise WorkflowRuntimeError("O estado só pode ser alterado por uma transição do workflow.")
+
+
+def perform_transition(instance, transition_id, *, user=None, history_model=None, rule_runner=None):
+    workflow = get_workflow(instance)
+    if not workflow:
+        raise WorkflowRuntimeError("Workflow não configurado para esta entidade.")
+    transition = get_transition(instance, transition_id)
+    state_field = workflow["state_field"]
+    from_state = getattr(instance, state_field, None)
+    to_state = transition["to"]
+    with transaction.atomic():
+        setattr(instance, state_field, to_state)
+        if rule_runner:
+            rule_runner(instance, "before_update")
+        instance.save()
+        if history_model is not None:
+            history_model.objects.create(
+                model_name=instance.__class__.__name__, object_id=str(instance.pk),
+                transition_id=transition_id, from_state=str(from_state or ""), to_state=str(to_state), user=user,
+            )
+    return transition

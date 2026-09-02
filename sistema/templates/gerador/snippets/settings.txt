@@ -16,10 +16,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    {% for modulo in modulos %}
-    '{{ modulo.app_name }}',
-    {% endfor %}
-]
+{% if api.enabled %}    'rest_framework',
+{% endif %}{% for modulo in modulos %}    '{{ modulo.app_name }}',
+{% endfor %}]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

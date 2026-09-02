@@ -3,6 +3,7 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from .integration_center import IntegrationCenterError, normalize_integrations_config
@@ -17,6 +18,7 @@ def _draft_structure(sistema):
 
 
 @login_required
+@ensure_csrf_cookie
 def integration_center(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
     estrutura = _draft_structure(sistema)

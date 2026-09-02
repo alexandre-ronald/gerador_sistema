@@ -10,6 +10,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 from .deployment_center import DeploymentCenterError
 from .deployment_service import DeploymentService
+from .environment_manager import EnvironmentManagerService
 from .models import Ambiente, DeploymentPlan, Sistema, VersaoGeracao
 
 
@@ -18,7 +19,7 @@ from .models import Ambiente, DeploymentPlan, Sistema, VersaoGeracao
 def deployment_center(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
     service = DeploymentService(sistema)
-    ambientes = sistema.ambientes.select_related("release_atual").order_by("tipo")
+    ambientes = EnvironmentManagerService(sistema).environments()
     return render(request, "sistema/deployment_center.html", {
         "sistema": sistema,
         "ambientes": ambientes,

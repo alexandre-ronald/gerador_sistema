@@ -27,6 +27,12 @@ class GeneratedAPITests(TestCase):
             }}},
         })
 
+    def _rendered_api_views(self):
+        ctx = GeradorService(self.sistema.id)._prepare_context()
+        modulo = ctx["modulos"][0]
+        local = {**ctx, "app_name": modulo.app_name, "entidades": modulo.entidades_geracao, "entidades_crud": modulo.entidades_crud, "entidades_api": modulo.entidades_api, "imports_por_app": {}}
+        return render_to_string("gerador/snippets/api_views.txt", local)
+
     def test_context_materializes_api_contract_with_generated_field_names(self):
         ctx = GeradorService(self.sistema.id)._prepare_context()
         self.assertTrue(ctx["api"]["enabled"])
@@ -85,13 +91,22 @@ class GeneratedAPITests(TestCase):
                 self.assertNotIn("djangorestframework", handle.read())
 
     def test_disabled_operation_is_not_in_allowed_actions(self):
-        ctx = GeradorService(self.sistema.id)._prepare_context()
-        modulo = ctx["modulos"][0]
-        local = {**ctx, "app_name": modulo.app_name, "entidades": modulo.entidades_geracao, "entidades_crud": modulo.entidades_crud, "entidades_api": modulo.entidades_api, "imports_por_app": {}}
-        views = render_to_string("gerador/snippets/api_views.txt", local)
-        allowed_line = next(line for line in views.splitlines() if "allowed_actions =" in line)
+        views = self._rendered_api_views()
+        viewset_block = views.split("class SolicitacaoViewSet", 1)[1]
+        allowed_line = next(line for line in viewset_block.splitlines() if "allowed_actions =" in line)
         self.assertIn("'list'", allowed_line)
+        self.assertIn("'retrieve'", allowed_line)
         self.assertIn("'create'", allowed_line)
         self.assertIn("'partial_update'", allowed_line)
         self.assertNotIn("'update'", allowed_line)
         self.assertNotIn("'destroy'", allowed_line)
+
+    def test_http_method_names_match_enabled_operations(self):
+        views = self._rendered_api_views()
+        viewset_block = views.split("class SolicitacaoViewSet", 1)[1]
+        methods_line = next(line for line in viewset_block.splitlines() if "http_method_names =" in line)
+        self.assertIn("'get'", methods_line)
+        self.assertIn("'post'", methods_line)
+        self.assertIn("'patch'", methods_line)
+        self.assertNotIn("'put'", methods_line)
+        self.assertNotIn("'delete'", methods_line)

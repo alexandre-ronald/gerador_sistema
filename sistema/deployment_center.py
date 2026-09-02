@@ -157,8 +157,15 @@ def normalize_deployment_config(raw, *, tolerant=False):
             return {"enabled": False, "environments": {}}
         _fail("invalid_environments", "environments deve ser um objeto.", field="environments")
 
+    unknown_environments = [name for name in environments if name not in ENVIRONMENTS]
+    if unknown_environments and not tolerant:
+        name = unknown_environments[0]
+        _fail("invalid_environment", f"Ambiente desconhecido: {name}.", environment=name)
+
     result = {"enabled": enabled, "environments": {}}
-    for name in sorted(environments):
+    for name in ENVIRONMENTS:
+        if name not in environments:
+            continue
         try:
             result["environments"][name] = _normalize_environment(name, environments[name])
         except DeploymentCenterError:

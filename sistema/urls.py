@@ -8,6 +8,7 @@ from . import business_rules_views
 from . import workflow_views
 from . import rbac_views
 from . import api_designer_views
+from . import integration_center_views
 from . import validation_center_views
 from . import release_manager_views
 from . import environment_manager_views
@@ -40,6 +41,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/permissions/salvar/', rbac_views.salvar_rbac, name='salvar_rbac'),
     path('sistemas/<int:sistema_id>/api-designer/', api_designer_views.api_designer, name='api_designer'),
     path('sistemas/<int:sistema_id>/api-designer/salvar/', api_designer_views.salvar_api_designer, name='salvar_api_designer'),
+    path('sistemas/<int:sistema_id>/integrations/', integration_center_views.integration_center, name='integration_center'),
+    path('sistemas/<int:sistema_id>/integrations/salvar/', integration_center_views.salvar_integration_center, name='salvar_integration_center'),
     path('sistemas/<int:sistema_id>/validation-center/', validation_center_views.validation_center, name='validation_center'),
     path('sistemas/<int:sistema_id>/releases/', release_manager_views.release_manager, name='release_manager'),
     path('sistemas/<int:sistema_id>/releases/<int:version_id>/validar/', release_manager_views.validate_release, name='validate_release'),

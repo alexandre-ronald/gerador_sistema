@@ -13,6 +13,7 @@ from . import validation_center_views
 from . import release_manager_views
 from . import environment_manager_views
 from . import health_monitoring_views
+from . import deployment_center_views
 
 app_name = 'sistema'
 
@@ -52,6 +53,11 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/promover/', environment_manager_views.promote_environment, name='promote_environment'),
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/runtime/', environment_manager_views.check_runtime, name='check_runtime'),
     path('sistemas/<int:sistema_id>/health/', health_monitoring_views.health_monitoring, name='health_monitoring'),
+    path('sistemas/<int:sistema_id>/deployments/', deployment_center_views.deployment_center, name='deployment_center'),
+    path('sistemas/<int:sistema_id>/deployments/config/', deployment_center_views.save_deployment_config, name='save_deployment_config'),
+    path('sistemas/<int:sistema_id>/deployments/ambientes/<int:ambiente_id>/planos/', deployment_center_views.create_deployment_plan, name='create_deployment_plan'),
+    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/validar/', deployment_center_views.validate_deployment_plan, name='validate_deployment_plan'),
+    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/cancelar/', deployment_center_views.cancel_deployment_plan, name='cancel_deployment_plan'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

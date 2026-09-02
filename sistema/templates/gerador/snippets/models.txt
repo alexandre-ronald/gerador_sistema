@@ -1,7 +1,20 @@
-from django.db import models
+{% load workflow_generation %}from django.db import models
 from django.conf import settings
 
-{% for entidade in entidades %}
+{% module_has_workflow entidades as has_workflow %}{% if has_workflow %}
+class WorkflowTransitionHistory(models.Model):
+    model_name = models.CharField(max_length=120)
+    object_id = models.CharField(max_length=120)
+    transition_id = models.CharField(max_length=120)
+    from_state = models.CharField(max_length=120, blank=True)
+    to_state = models.CharField(max_length=120)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+
+{% endif %}{% for entidade in entidades %}
 class {{ entidade.classe_nome }}(models.Model):
 {% for campo in entidade.campos_geracao %}
 {% if campo.tipo == "ForeignKey" or campo.tipo == "OneToOneField" %}

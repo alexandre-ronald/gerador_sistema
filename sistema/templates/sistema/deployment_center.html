@@ -32,9 +32,29 @@
     </form>
   </div></div>
 
-  <div class="card shadow-sm border-0 mb-4"><div class="card-body"><h5>Ambientes e criação de plano</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Ambiente</th><th>Release desejada</th><th>URL</th><th></th></tr></thead><tbody>
-    {% for ambiente in ambientes %}<tr><td><strong>{{ ambiente.nome }}</strong><div class="small text-muted">{{ ambiente.tipo }}</div></td><td>{% if ambiente.release_atual %}v{{ ambiente.release_atual.numero }}{% else %}—{% endif %}</td><td>{{ ambiente.url_base|default:"—" }}</td><td class="text-end">{% if ambiente.release_atual %}<form method="post" action="{% url 'sistema:create_deployment_plan' sistema.id ambiente.id %}">{% csrf_token %}<input type="hidden" name="version_id" value="{{ ambiente.release_atual.id }}"><button class="btn btn-sm btn-outline-primary">Criar plano</button></form>{% endif %}</td></tr>{% endfor %}
-  </tbody></table></div></div></div>
+  <div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+      <div><h5 class="mb-1">Ambientes e criação de plano</h5><div class="small text-muted">Um plano só pode ser criado para uma release publicada e já promovida ao ambiente.</div></div>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'sistema:environment_manager' sistema.id %}">Gerenciar promoções</a>
+    </div>
+    <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Ambiente</th><th>Release desejada</th><th>URL</th><th>Situação</th><th class="text-end">Ação</th></tr></thead><tbody>
+    {% for ambiente in ambientes %}
+      <tr>
+        <td><strong>{{ ambiente.nome }}</strong><div class="small text-muted">{{ ambiente.tipo }}</div></td>
+        <td>{% if ambiente.release_atual %}<span class="badge bg-success-subtle text-success">v{{ ambiente.release_atual.numero }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{{ ambiente.url_base|default:"—" }}</td>
+        <td>{% if ambiente.release_atual %}<span class="text-success small"><i class="bi bi-check-circle me-1"></i>Release promovida</span>{% else %}<span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>Promova uma release primeiro</span>{% endif %}</td>
+        <td class="text-end">
+          {% if ambiente.release_atual %}
+            <form method="post" action="{% url 'sistema:create_deployment_plan' sistema.id ambiente.id %}">{% csrf_token %}<input type="hidden" name="version_id" value="{{ ambiente.release_atual.id }}"><button class="btn btn-sm btn-outline-primary">Criar plano</button></form>
+          {% else %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'sistema:environment_manager' sistema.id %}" title="Promova uma release publicada para este ambiente antes de criar o plano">Promover release</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+  </div></div>
 
   <div class="card shadow-sm border-0"><div class="card-body"><h5>Histórico de deployments</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Ambiente</th><th>Release</th><th>Executor</th><th>Status</th><th>Criado</th><th></th></tr></thead><tbody>
     {% for plan in plans %}<tr><td>{{ plan.id }}</td><td>{{ plan.ambiente.nome }}</td><td>v{{ plan.versao.numero }}</td><td>{{ plan.executor }}</td><td><span class="badge bg-secondary">{{ plan.status }}</span>{% if plan.erro %}<div class="small text-danger mt-1">{{ plan.erro }}</div>{% endif %}</td><td>{{ plan.criado_em|date:"d/m/Y H:i" }}</td><td class="text-end d-flex gap-1 justify-content-end">{% if plan.status == 'PLANNED' %}<form method="post" action="{% url 'sistema:validate_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-success">Validar</button></form>{% endif %}{% if plan.status == 'PLANNED' or plan.status == 'VALIDATING' or plan.status == 'READY' %}<form method="post" action="{% url 'sistema:cancel_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancelar</button></form>{% endif %}{% if plan.status == 'READY' %}<button class="btn btn-sm btn-primary" disabled title="Disponível na GEN-057.3">Executar deploy</button>{% endif %}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum plano criado.</td></tr>{% endfor %}

@@ -2,9 +2,11 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView, D
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 {% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
 from .forms import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
+from .business_rules import run_business_rules
 {% endif %}
 {% for entidade in entidades_crud %}
 class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -27,35 +29,27 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
         if value_{{ filtro.codigo_nome }}:
 {% if filtro.type == 'text' %}            queryset = queryset.filter({{ filtro.codigo_nome }}__icontains=value_{{ filtro.codigo_nome }})
 {% elif filtro.type == 'boolean' %}            normalized_{{ filtro.codigo_nome }} = value_{{ filtro.codigo_nome }}.lower()
-            if normalized_{{ filtro.codigo_nome }} in {'1', 'true', 'sim', 'yes'}:
-                queryset = queryset.filter({{ filtro.codigo_nome }}=True)
-            elif normalized_{{ filtro.codigo_nome }} in {'0', 'false', 'nao', 'não', 'no'}:
-                queryset = queryset.filter({{ filtro.codigo_nome }}=False)
+            if normalized_{{ filtro.codigo_nome }} in {'1', 'true', 'sim', 'yes'}: queryset = queryset.filter({{ filtro.codigo_nome }}=True)
+            elif normalized_{{ filtro.codigo_nome }} in {'0', 'false', 'nao', 'não', 'no'}: queryset = queryset.filter({{ filtro.codigo_nome }}=False)
 {% else %}            queryset = queryset.filter({{ filtro.codigo_nome }}=value_{{ filtro.codigo_nome }})
 {% endif %}{% endfor %}        ordering = self.request.GET.get('ordering', '').strip()
         allowed_ordering = [{% for campo in entidade.crud_sortable_fields %}'{{ campo }}', '-{{ campo }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
-        if ordering in allowed_ordering:
-            queryset = queryset.order_by(ordering)
-{% if entidade.crud_default_order %}        elif '{{ entidade.crud_default_order }}':
-            queryset = queryset.order_by('{{ entidade.crud_default_order }}')
+        if ordering in allowed_ordering: queryset = queryset.order_by(ordering)
+{% if entidade.crud_default_order %}        else: queryset = queryset.order_by('{{ entidade.crud_default_order }}')
 {% endif %}{% else %}        if query:
             search_filter = Q()
-{% for campo in entidade.campos_geracao %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}
-            search_filter |= Q({{ campo.codigo_nome }}__icontains=query)
+{% for campo in entidade.campos_geracao %}{% if campo.tipo == 'CharField' or campo.tipo == 'TextField' or campo.tipo == 'EmailField' or campo.tipo == 'URLField' %}            search_filter |= Q({{ campo.codigo_nome }}__icontains=query)
 {% endif %}{% endfor %}            queryset = queryset.filter(search_filter)
 {% endif %}        return queryset
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['total_registros'] = self.get_queryset().count()
+        context = super().get_context_data(**kwargs); context['total_registros'] = self.get_queryset().count()
 {% if entidade.crud_designer_ready %}        context['titulo_pagina'] = "{{ entidade.crud_title }}"
 {% else %}        context['titulo_pagina'] = "{{ entidade.nome }}"
 {% endif %}        context['search_query'] = self.request.GET.get('q', '').strip()
 {% if entidade.crud_designer_ready %}        context['ordering'] = self.request.GET.get('ordering', '').strip()
 {% for filtro in entidade.crud_filters %}        context['{{ filtro.param }}'] = self.request.GET.get('{{ filtro.param }}', '').strip()
-{% endfor %}        params = self.request.GET.copy()
-        params.pop('page', None)
-        context['querystring'] = params.urlencode()
+{% endfor %}        params = self.request.GET.copy(); params.pop('page', None); context['querystring'] = params.urlencode()
 {% endif %}        return context
 
 {% if not entidade.crud_designer_ready or entidade.crud_actions.create %}class {{ entidade.classe_nome }}CreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -67,6 +61,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     raise_exception = True
     def form_valid(self, form):
 {% if sistema.usar_auditoria %}        form.instance.criado_por = self.request.user
+{% endif %}{% if entidade.business_rules_ready %}        try:
+            run_business_rules(form.instance, 'before_create')
+        except ValidationError as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
 {% endif %}        messages.success(self.request, "{{ entidade.nome }} criado com sucesso!")
         return super().form_valid(form)
 
@@ -85,7 +84,12 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     permission_required = '{{ app_name }}.change_{{ entidade.codigo_nome }}'
     raise_exception = True
     def form_valid(self, form):
-        messages.success(self.request, "{{ entidade.nome }} atualizado!")
+{% if entidade.business_rules_ready %}        try:
+            run_business_rules(form.instance, 'before_update')
+        except ValidationError as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
+{% endif %}        messages.success(self.request, "{{ entidade.nome }} atualizado!")
         return super().form_valid(form)
 
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.delete %}class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
@@ -94,8 +98,13 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.delete_{{ entidade.codigo_nome }}'
     raise_exception = True
-    def delete(self, request, *args, **kwargs):
-        messages.warning(self.request, "{{ entidade.nome }} removido.")
-        return super().delete(request, *args, **kwargs)
+    def form_valid(self, form):
+{% if entidade.business_rules_ready %}        try:
+            run_business_rules(self.object, 'before_delete')
+        except ValidationError as exc:
+            messages.error(self.request, '; '.join(exc.messages))
+            return self.render_to_response(self.get_context_data(form=form))
+{% endif %}        messages.warning(self.request, "{{ entidade.nome }} removido.")
+        return super().form_valid(form)
 
 {% endif %}{% endfor %}

@@ -187,7 +187,11 @@ class GeradorService:
             if entidade.crud_designer_ready and entidade.crud_actions.view: self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_detail.html", "gerador/snippets/html_detail.txt", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
-        self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx); self._escrever_arquivo("templates/home.html", "gerador/snippets/home_html.txt", ctx); self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx); self._escrever_arquivo("templates/dashboard.html", "gerador/snippets/dashboard_html.txt", ctx)
+        self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)
+        self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)
+        self._escrever_arquivo("templates/home.html", "gerador/snippets/home_html.txt", ctx)
+        self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
+        self._escrever_arquivo("templates/dashboard.html", "gerador/snippets/dashboard_html.txt", ctx)
 
     def _gerar_docker(self):
         self._escrever_arquivo("Dockerfile", "gerador/snippets/dockerfile.txt", {"sistema": self.sistema, "nome_projeto": self.nome_projeto}); self._escrever_arquivo("docker-compose.yml", "gerador/snippets/docker_compose.txt", {"sistema": self.sistema, "nome_projeto": self.nome_projeto}); self._escrever_arquivo(".env.example", "gerador/snippets/env_example.txt", {"sistema": self.sistema})

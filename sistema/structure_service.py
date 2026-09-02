@@ -67,8 +67,8 @@ def save_system_structure(*, user, payload, sistema_id=None):
         sistema.caminho_geracao = caminho
         sistema.tipo_menu = tipo_menu
         sistema.banco_dados = banco
-        sistema.usar_custom_user = False
-        sistema.gerar_api_rest = False
+        sistema.usar_custom_user = _bool(data.get("usar_custom_user"), False)
+        sistema.gerar_api_rest = _bool(data.get("gerar_api_rest"), False)
         sistema.gerar_docker = _bool(data.get("gerar_docker"), False)
         sistema.usar_auditoria = _bool(data.get("usar_auditoria"), False)
         sistema.save()
@@ -105,7 +105,7 @@ def save_system_structure(*, user, payload, sistema_id=None):
                     descricao=_text(ent_data.get("descricao")),
                     gerar_admin=_bool(ent_data.get("gerar_admin"), True),
                     gerar_crud_views=crud,
-                    gerar_endpoints_api=False,
+                    gerar_endpoints_api=_bool(ent_data.get("gerar_endpoints_api"), False),
                 )
                 entity_map[_entity_key(mod_name, ent_name)] = entidade
                 pending.append((mod_name, ent_name, campos))

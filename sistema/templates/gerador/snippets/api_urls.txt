@@ -1,0 +1,7 @@
+from rest_framework.routers import DefaultRouter
+from .api_views import {% for entidade in entidades_api %}{{ entidade.classe_nome }}ViewSet{% if not forloop.last %}, {% endif %}{% endfor %}
+
+router = DefaultRouter()
+{% for entidade in entidades_api %}router.register(r'{{ entidade.api_endpoint }}', {{ entidade.classe_nome }}ViewSet, basename='{{ entidade.codigo_nome }}')
+{% endfor %}
+urlpatterns = router.urls

@@ -4,6 +4,7 @@ from . import installer_views
 from . import dashboard_builder_views
 from . import form_designer_views
 from . import crud_designer_views
+from . import business_rules_views
 from . import validation_center_views
 from . import release_manager_views
 from . import environment_manager_views
@@ -28,6 +29,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/form-designer/salvar/', form_designer_views.salvar_form_designer, name='salvar_form_designer'),
     path('sistemas/<int:sistema_id>/crud-designer/', crud_designer_views.crud_designer, name='crud_designer'),
     path('sistemas/<int:sistema_id>/crud-designer/salvar/', crud_designer_views.salvar_crud_designer, name='salvar_crud_designer'),
+    path('sistemas/<int:sistema_id>/business-rules/', business_rules_views.business_rules_designer, name='business_rules_designer'),
+    path('sistemas/<int:sistema_id>/business-rules/salvar/', business_rules_views.salvar_business_rules, name='salvar_business_rules'),
     path('sistemas/<int:sistema_id>/validation-center/', validation_center_views.validation_center, name='validation_center'),
     path('sistemas/<int:sistema_id>/releases/', release_manager_views.release_manager, name='release_manager'),
     path('sistemas/<int:sistema_id>/releases/<int:version_id>/validar/', release_manager_views.validate_release, name='validate_release'),

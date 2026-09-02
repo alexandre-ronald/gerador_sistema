@@ -1,0 +1,76 @@
+from datetime import date, datetime, time
+from decimal import Decimal
+
+from django.core.exceptions import ValidationError
+
+
+RULES = {
+{% for entidade in entidades %}    '{{ entidade.classe_nome }}': {{ entidade.business_rules|safe }},
+{% endfor %}}
+
+
+def _empty(value):
+    return value is None or value == '' or value == [] or value == () or value == {}
+
+
+def _compare(left, operator, right=None):
+    if operator == 'eq': return left == right
+    if operator == 'neq': return left != right
+    if operator == 'gt': return left is not None and right is not None and left > right
+    if operator == 'gte': return left is not None and right is not None and left >= right
+    if operator == 'lt': return left is not None and right is not None and left < right
+    if operator == 'lte': return left is not None and right is not None and left <= right
+    if operator == 'contains': return right is not None and str(right) in str(left or '')
+    if operator == 'starts_with': return str(left or '').startswith(str(right or ''))
+    if operator == 'ends_with': return str(left or '').endswith(str(right or ''))
+    if operator == 'is_empty': return _empty(left)
+    if operator == 'is_not_empty': return not _empty(left)
+    if operator == 'is_true': return left is True
+    if operator == 'is_false': return left is False
+    return False
+
+
+def _literal_for_instance(instance, field_name, value):
+    if value is None: return None
+    field = instance._meta.get_field(field_name)
+    internal = field.get_internal_type()
+    if internal == 'DecimalField': return Decimal(str(value))
+    if internal == 'DateField' and not isinstance(value, date): return date.fromisoformat(str(value))
+    if internal == 'DateTimeField' and not isinstance(value, datetime): return datetime.fromisoformat(str(value))
+    if internal == 'TimeField' and not isinstance(value, time): return time.fromisoformat(str(value))
+    return value
+
+
+def _condition_matches(instance, condition):
+    left = getattr(instance, condition['field'], None)
+    if condition['operator'] in {'is_empty', 'is_not_empty', 'is_true', 'is_false'}:
+        return _compare(left, condition['operator'])
+    if condition.get('value_source') == 'field':
+        right = getattr(instance, condition.get('value'), None)
+    else:
+        right = _literal_for_instance(instance, condition['field'], condition.get('value'))
+    return _compare(left, condition['operator'], right)
+
+
+def _matches(instance, rule):
+    conditions = rule.get('conditions') or []
+    if not conditions: return True
+    results = [_condition_matches(instance, condition) for condition in conditions]
+    return all(results) if rule.get('condition_mode', 'all') == 'all' else any(results)
+
+
+def run_business_rules(instance, event):
+    rules = RULES.get(instance.__class__.__name__, [])
+    for rule in rules:
+        if not rule.get('enabled', True) or rule.get('event') not in {event, 'before_save'}:
+            continue
+        if not _matches(instance, rule):
+            continue
+        for action in rule.get('actions') or []:
+            action_type = action.get('type')
+            if action_type == 'reject':
+                raise ValidationError(action.get('message') or 'Operação não permitida.')
+            if action_type == 'set_value':
+                setattr(instance, action['field'], _literal_for_instance(instance, action['field'], action.get('value')))
+            elif action_type == 'copy_value':
+                setattr(instance, action['field'], getattr(instance, action['source_field'], None))

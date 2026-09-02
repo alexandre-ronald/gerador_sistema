@@ -1,0 +1,3 @@
+"""Configuração declarativa gerada pelo DjangoForge. Não contém secrets."""
+
+INTEGRATIONS = {{ integrations_json|safe }}

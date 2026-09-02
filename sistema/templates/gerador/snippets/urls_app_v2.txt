@@ -1,14 +1,15 @@
-from django.urls import path
+{% load workflow_generation %}from django.urls import path
 from . import views
 
 app_name = '{{ app_name }}'
 
 urlpatterns = [
-{% for entidade in entidades_crud %}
+{% for entidade in entidades_crud %}{% workflow_generation_config entidade as workflow %}
     path('{{ entidade.codigo_nome }}/', views.{{ entidade.classe_nome }}ListView.as_view(), name='{{ entidade.codigo_nome }}_list'),
 {% if not entidade.crud_designer_ready or entidade.crud_actions.create %}    path('{{ entidade.codigo_nome }}/novo/', views.{{ entidade.classe_nome }}CreateView.as_view(), name='{{ entidade.codigo_nome }}_create'),
 {% endif %}{% if entidade.crud_designer_ready and entidade.crud_actions.view %}    path('{{ entidade.codigo_nome }}/<int:pk>/', views.{{ entidade.classe_nome }}DetailView.as_view(), name='{{ entidade.codigo_nome }}_detail'),
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.edit %}    path('{{ entidade.codigo_nome }}/<int:pk>/editar/', views.{{ entidade.classe_nome }}UpdateView.as_view(), name='{{ entidade.codigo_nome }}_update'),
+{% endif %}{% if workflow.enabled %}    path('{{ entidade.codigo_nome }}/<int:pk>/workflow/<str:transition_id>/', views.{{ entidade.codigo_nome }}_transition, name='{{ entidade.codigo_nome }}_transition'),
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.delete %}    path('{{ entidade.codigo_nome }}/<int:pk>/deletar/', views.{{ entidade.classe_nome }}DeleteView.as_view(), name='{{ entidade.codigo_nome }}_delete'),
 {% endif %}{% endfor %}
 ]

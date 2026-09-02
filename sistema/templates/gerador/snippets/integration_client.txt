@@ -1,0 +1,164 @@
+import os
+from dataclasses import dataclass
+
+import httpx
+
+from .config import INTEGRATIONS
+
+
+class IntegrationConfigurationError(RuntimeError):
+    pass
+
+
+class IntegrationRequestError(RuntimeError):
+    pass
+
+
+class IntegrationResponseError(RuntimeError):
+    def __init__(self, message, *, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+@dataclass
+class IntegrationResponse:
+    status_code: int
+    headers: dict
+    text: str
+    _json: object = None
+    _has_json: bool = False
+
+    def json(self):
+        if not self._has_json:
+            raise IntegrationResponseError("A resposta da integração não contém JSON válido.", status_code=self.status_code)
+        return self._json
+
+
+def _required_env(name):
+    value = os.environ.get(name)
+    if value is None or value == "":
+        raise IntegrationConfigurationError(f"Variável de ambiente obrigatória não configurada: {name}")
+    return value
+
+
+def _operation(config, operation_id):
+    for operation in config.get("operations", []):
+        if operation.get("id") == operation_id:
+            return operation
+    raise IntegrationConfigurationError(f"Operação de integração desconhecida: {operation_id}")
+
+
+def _authentication(config):
+    auth = config.get("authentication") or {"type": "none"}
+    auth_type = auth.get("type", "none")
+    headers = {}
+    query = {}
+    httpx_auth = None
+    if auth_type == "none":
+        pass
+    elif auth_type == "basic":
+        httpx_auth = httpx.BasicAuth(_required_env(auth["username_env_var"]), _required_env(auth["password_env_var"]))
+    elif auth_type == "bearer":
+        headers["Authorization"] = f"Bearer {_required_env(auth['env_var'])}"
+    elif auth_type == "api_key":
+        value = _required_env(auth["env_var"])
+        if auth["location"] == "header":
+            headers[auth["name"]] = value
+        else:
+            query[auth["name"]] = value
+    else:
+        raise IntegrationConfigurationError(f"Tipo de autenticação desconhecido: {auth_type}")
+    return httpx_auth, headers, query
+
+
+class IntegrationClient:
+    def __init__(self, config):
+        self.config = config
+
+    def call(self, operation_id, *, path=None, query=None, body=None):
+        operation = _operation(self.config, operation_id)
+        path_values = dict(path or {})
+        query_values = dict(query or {})
+        body_values = dict(body or {})
+        expected_path = set(operation.get("path_params", []))
+        expected_query = set(operation.get("query_params", []))
+        expected_body = set(operation.get("body_fields", []))
+        if set(path_values) != expected_path:
+            raise IntegrationConfigurationError(f"Path params inválidos para {operation_id}. Esperado: {sorted(expected_path)}")
+        if not set(query_values).issubset(expected_query):
+            raise IntegrationConfigurationError(f"Query params inválidos para {operation_id}.")
+        if not set(body_values).issubset(expected_body):
+            raise IntegrationConfigurationError(f"Body fields inválidos para {operation_id}.")
+
+        request_path = operation["path"]
+        for name in expected_path:
+            request_path = request_path.replace("{" + name + "}", str(path_values[name]))
+        url = self.config["base_url"].rstrip("/") + request_path
+        auth, auth_headers, auth_query = _authentication(self.config)
+        headers = dict(self.config.get("headers") or {})
+        headers.update(auth_headers)
+        params = dict(auth_query)
+        params.update(query_values)
+        kwargs = {
+            "method": operation["method"],
+            "url": url,
+            "headers": headers,
+            "params": params,
+            "timeout": self.config.get("timeout_seconds", 15),
+        }
+        if auth is not None:
+            kwargs["auth"] = auth
+        if operation["method"] not in {"GET", "DELETE"} and body_values:
+            kwargs["json"] = body_values
+        try:
+            response = httpx.request(**kwargs)
+        except httpx.TimeoutException as exc:
+            raise IntegrationRequestError(f"Timeout ao executar integração {self.config['id']}.{operation_id}.") from exc
+        except httpx.RequestError as exc:
+            raise IntegrationRequestError(f"Falha de comunicação ao executar integração {self.config['id']}.{operation_id}.") from exc
+        if response.status_code >= 400:
+            raise IntegrationResponseError(
+                f"Integração {self.config['id']}.{operation_id} retornou HTTP {response.status_code}.",
+                status_code=response.status_code,
+            )
+        try:
+            payload = response.json()
+            has_json = True
+        except ValueError:
+            payload = None
+            has_json = False
+        return IntegrationResponse(response.status_code, dict(response.headers), response.text, payload, has_json)
+
+
+class IntegrationOperation:
+    def __init__(self, client, operation_id):
+        self.client = client
+        self.operation_id = operation_id
+
+    def __call__(self, *, path=None, query=None, body=None):
+        return self.client.call(self.operation_id, path=path, query=query, body=body)
+
+
+class IntegrationProxy:
+    def __init__(self, config):
+        self._client = IntegrationClient(config)
+        self._operations = {item["id"] for item in config.get("operations", [])}
+
+    def __getattr__(self, name):
+        if name not in self._operations:
+            raise AttributeError(name)
+        return IntegrationOperation(self._client, name)
+
+
+class IntegrationsRegistry:
+    def __init__(self, config):
+        self._items = {item["id"]: item for item in config.get("items", [])}
+
+    def __getattr__(self, name):
+        config = self._items.get(name)
+        if config is None:
+            raise AttributeError(name)
+        return IntegrationProxy(config)
+
+
+integrations = IntegrationsRegistry(INTEGRATIONS)

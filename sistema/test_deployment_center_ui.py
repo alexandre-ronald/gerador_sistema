@@ -33,6 +33,8 @@ class DeploymentCenterUITests(TestCase):
     def test_page_sets_csrf_cookie(self):
         response = self.client.get(reverse("sistema:deployment_center", args=[self.sistema.pk]))
         self.assertIn("csrftoken", response.cookies)
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertContains(response, 'id="deploymentConfigForm"')
 
     def test_save_config_persists_only_deployment_key(self):
         self.draft.estrutura_json = {"api": {"enabled": True}, "integrations": {"enabled": False, "items": []}}
@@ -41,8 +43,18 @@ class DeploymentCenterUITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.draft.refresh_from_db()
         self.assertTrue(self.draft.estrutura_json["deployment"]["enabled"])
+        self.assertEqual(self.draft.estrutura_json["deployment"]["environments"]["DEVELOPMENT"]["working_directory"], "C:/apps/deployapp")
         self.assertEqual(self.draft.estrutura_json["api"], {"enabled": True})
         self.assertIn("integrations", self.draft.estrutura_json)
+
+    def test_saved_config_is_rendered_after_reload(self):
+        self.draft.estrutura_json = {"deployment": self.config_payload()}
+        self.draft.save(update_fields=["estrutura_json"])
+        response = self.client.get(reverse("sistema:deployment_center", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '"working_directory": "C:/apps/deployapp"')
+        self.assertContains(response, '"executor": "local"')
+        self.assertContains(response, 'id="deploymentEnabled" checked')
 
     def test_invalid_config_returns_structured_400(self):
         payload = self.config_payload(); payload["environments"]["PRODUCTION"] = payload["environments"].pop("DEVELOPMENT")

@@ -31,6 +31,43 @@ class DeploymentCenterContractTests(SimpleTestCase):
         self.assertEqual(env["strategy"], "docker_compose")
         self.assertEqual(env["compose_file"], "docker-compose.yml")
 
+    def test_environments_are_normalized_in_canonical_order(self):
+        config = normalize_deployment_config({
+            "enabled": True,
+            "environments": {
+                "PRODUCTION": {
+                    "executor": "ssh",
+                    "strategy": "docker_compose",
+                    "working_directory": "/opt/prod",
+                    "host": "prod.example.org",
+                    "username_env_var": "DEPLOY_PROD_USERNAME",
+                    "private_key_env_var": "DEPLOY_PROD_PRIVATE_KEY",
+                },
+                "TEST": {
+                    "executor": "local",
+                    "strategy": "docker_compose",
+                    "working_directory": "/tmp/test",
+                },
+                "DEVELOPMENT": {
+                    "executor": "local",
+                    "strategy": "docker_compose",
+                    "working_directory": "/tmp/dev",
+                },
+                "STAGING": {
+                    "executor": "ssh",
+                    "strategy": "docker_compose",
+                    "working_directory": "/opt/staging",
+                    "host": "staging.example.org",
+                    "username_env_var": "DEPLOY_STAGING_USERNAME",
+                    "private_key_env_var": "DEPLOY_STAGING_PRIVATE_KEY",
+                },
+            },
+        })
+        self.assertEqual(
+            list(config["environments"]),
+            ["DEVELOPMENT", "TEST", "STAGING", "PRODUCTION"],
+        )
+
     def test_production_rejects_local_executor(self):
         with self.assertRaises(DeploymentCenterError) as ctx:
             normalize_deployment_config({

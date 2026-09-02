@@ -1,18 +1,19 @@
-{% load workflow_generation %}from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
+{% load workflow_generation rbac_generation %}from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
-{% module_has_workflow entidades_crud as has_workflow %}{% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if has_workflow %}, WorkflowTransitionHistory{% endif %}
+{% module_has_workflow entidades_crud as has_workflow %}{% module_has_rbac entidades as has_rbac %}{% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if has_workflow %}, WorkflowTransitionHistory{% endif %}
 from .forms import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 from .business_rules import run_business_rules
 {% if has_workflow %}from .workflow import apply_initial_state, available_transitions, perform_transition, WorkflowRuntimeError
+{% endif %}{% if has_rbac %}from .rbac import require_entity_action, require_transition, filter_transitions, RBACRuntimeError
 {% endif %}{% endif %}
-{% for entidade in entidades_crud %}{% workflow_generation_config entidade as workflow %}
+{% for entidade in entidades_crud %}{% workflow_generation_config entidade as workflow %}{% rbac_entity_policy entidades entidade.nome as rbac_policy %}
 class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.classe_nome }}
     template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_list.html'
@@ -21,7 +22,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
 {% else %}    paginate_by = 10
 {% endif %}    permission_required = '{{ app_name }}.view_{{ entidade.codigo_nome }}'
     raise_exception = True
-
+{% if rbac_policy.enabled %}    def dispatch(self, request, *args, **kwargs):
+        try: require_entity_action(request.user, '{{ entidade.nome|escapejs }}', 'list')
+        except RBACRuntimeError as exc: raise PermissionDenied(str(exc))
+        return super().dispatch(request, *args, **kwargs)
+{% endif %}
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q', '').strip()
@@ -63,7 +68,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.add_{{ entidade.codigo_nome }}'
     raise_exception = True
-    def form_valid(self, form):
+{% if rbac_policy.enabled %}    def dispatch(self, request, *args, **kwargs):
+        try: require_entity_action(request.user, '{{ entidade.nome|escapejs }}', 'create')
+        except RBACRuntimeError as exc: raise PermissionDenied(str(exc))
+        return super().dispatch(request, *args, **kwargs)
+{% endif %}    def form_valid(self, form):
 {% if sistema.usar_auditoria %}        form.instance.criado_por = self.request.user
 {% endif %}{% if workflow.enabled %}        try:
             apply_initial_state(form.instance)
@@ -84,9 +93,15 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     context_object_name = 'objeto'
     permission_required = '{{ app_name }}.view_{{ entidade.codigo_nome }}'
     raise_exception = True
-{% if workflow.enabled %}    def get_context_data(self, **kwargs):
+{% if rbac_policy.enabled %}    def dispatch(self, request, *args, **kwargs):
+        try: require_entity_action(request.user, '{{ entidade.nome|escapejs }}', 'view')
+        except RBACRuntimeError as exc: raise PermissionDenied(str(exc))
+        return super().dispatch(request, *args, **kwargs)
+{% endif %}{% if workflow.enabled %}    def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['workflow_transitions'] = available_transitions(self.object)
+        transitions = available_transitions(self.object)
+{% if rbac_policy.enabled %}        transitions = filter_transitions(self.request.user, '{{ entidade.nome|escapejs }}', transitions)
+{% endif %}        context['workflow_transitions'] = transitions
         context['workflow_state'] = getattr(self.object, '{{ workflow.state_field_code }}', '')
         return context
 {% endif %}
@@ -98,7 +113,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.change_{{ entidade.codigo_nome }}'
     raise_exception = True
-    def form_valid(self, form):
+{% if rbac_policy.enabled %}    def dispatch(self, request, *args, **kwargs):
+        try: require_entity_action(request.user, '{{ entidade.nome|escapejs }}', 'update')
+        except RBACRuntimeError as exc: raise PermissionDenied(str(exc))
+        return super().dispatch(request, *args, **kwargs)
+{% endif %}    def form_valid(self, form):
 {% if entidade.business_rules_ready %}        try:
             run_business_rules(form.instance, 'before_update')
         except ValidationError as exc:
@@ -113,8 +132,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
 def {{ entidade.codigo_nome }}_transition(request, pk, transition_id):
     objeto = get_object_or_404({{ entidade.classe_nome }}, pk=pk)
     try:
-        perform_transition(objeto, transition_id, user=request.user, history_model=WorkflowTransitionHistory, rule_runner={% if entidade.business_rules_ready %}run_business_rules{% else %}None{% endif %})
+{% if rbac_policy.enabled %}        require_transition(request.user, '{{ entidade.nome|escapejs }}', transition_id)
+{% endif %}        perform_transition(objeto, transition_id, user=request.user, history_model=WorkflowTransitionHistory, rule_runner={% if entidade.business_rules_ready %}run_business_rules{% else %}None{% endif %})
         messages.success(request, 'Transição executada com sucesso.')
+    except RBACRuntimeError as exc:
+        raise PermissionDenied(str(exc))
     except (WorkflowRuntimeError, ValidationError) as exc:
         messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
     return redirect('{{ app_name }}:{{ entidade.codigo_nome }}_detail', pk=pk)
@@ -125,7 +147,11 @@ def {{ entidade.codigo_nome }}_transition(request, pk, transition_id):
     success_url = reverse_lazy('{{ app_name }}:{{ entidade.codigo_nome }}_list')
     permission_required = '{{ app_name }}.delete_{{ entidade.codigo_nome }}'
     raise_exception = True
-    def form_valid(self, form):
+{% if rbac_policy.enabled %}    def dispatch(self, request, *args, **kwargs):
+        try: require_entity_action(request.user, '{{ entidade.nome|escapejs }}', 'delete')
+        except RBACRuntimeError as exc: raise PermissionDenied(str(exc))
+        return super().dispatch(request, *args, **kwargs)
+{% endif %}    def form_valid(self, form):
 {% if entidade.business_rules_ready %}        try:
             run_business_rules(self.object, 'before_delete')
         except ValidationError as exc:

@@ -1,14 +1,18 @@
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
+{% load workflow_generation %}from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-{% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
+{% module_has_workflow entidades_crud as has_workflow %}{% if entidades_crud %}from .models import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if has_workflow %}, WorkflowTransitionHistory{% endif %}
 from .forms import {% for entidade in entidades_crud %}{{ entidade.classe_nome }}Form{% if not forloop.last %}, {% endif %}{% endfor %}
 from .business_rules import run_business_rules
-{% endif %}
-{% for entidade in entidades_crud %}
+{% if has_workflow %}from .workflow import apply_initial_state, available_transitions, perform_transition, WorkflowRuntimeError
+{% endif %}{% endif %}
+{% for entidade in entidades_crud %}{% workflow_generation_config entidade as workflow %}
 class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = {{ entidade.classe_nome }}
     template_name = '{{ app_name }}/{{ entidade.codigo_nome }}_list.html'
@@ -61,6 +65,11 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     raise_exception = True
     def form_valid(self, form):
 {% if sistema.usar_auditoria %}        form.instance.criado_por = self.request.user
+{% endif %}{% if workflow.enabled %}        try:
+            apply_initial_state(form.instance)
+        except WorkflowRuntimeError as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
 {% endif %}{% if entidade.business_rules_ready %}        try:
             run_business_rules(form.instance, 'before_create')
         except ValidationError as exc:
@@ -75,6 +84,12 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
     context_object_name = 'objeto'
     permission_required = '{{ app_name }}.view_{{ entidade.codigo_nome }}'
     raise_exception = True
+{% if workflow.enabled %}    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['workflow_transitions'] = available_transitions(self.object)
+        context['workflow_state'] = getattr(self.object, '{{ workflow.state_field_code }}', '')
+        return context
+{% endif %}
 
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.edit %}class {{ entidade.classe_nome }}UpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = {{ entidade.classe_nome }}
@@ -91,6 +106,18 @@ class {{ entidade.classe_nome }}ListView(LoginRequiredMixin, PermissionRequiredM
             return self.form_invalid(form)
 {% endif %}        messages.success(self.request, "{{ entidade.nome }} atualizado!")
         return super().form_valid(form)
+
+{% endif %}{% if workflow.enabled %}@login_required
+@permission_required('{{ app_name }}.change_{{ entidade.codigo_nome }}', raise_exception=True)
+@require_POST
+def {{ entidade.codigo_nome }}_transition(request, pk, transition_id):
+    objeto = get_object_or_404({{ entidade.classe_nome }}, pk=pk)
+    try:
+        perform_transition(objeto, transition_id, user=request.user, history_model=WorkflowTransitionHistory, rule_runner={% if entidade.business_rules_ready %}run_business_rules{% else %}None{% endif %})
+        messages.success(request, 'Transição executada com sucesso.')
+    except (WorkflowRuntimeError, ValidationError) as exc:
+        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+    return redirect('{{ app_name }}:{{ entidade.codigo_nome }}_detail', pk=pk)
 
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.delete %}class {{ entidade.classe_nome }}DeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = {{ entidade.classe_nome }}

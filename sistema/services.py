@@ -13,6 +13,7 @@ from .api_designer import normalize_api_config
 from .business_rules import normalize_business_rules_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
+from .integration_center import normalize_integrations_config
 from .models import Sistema, VersaoGeracao
 from .runtime_validation import validate_generated_runtime
 from .structure_service import serialize_system_structure
@@ -68,6 +69,12 @@ class GeradorService:
 
     def _business_rules_config(self):
         rules = self._draft_structure().get("business_rules"); return rules if isinstance(rules, dict) else {}
+
+    def _integrations_config(self):
+        integrations = self._draft_structure().get("integrations")
+        if not isinstance(integrations, dict):
+            return {"enabled": False, "items": []}
+        return normalize_integrations_config(integrations, strict=True)
 
     def _api_config(self):
         structure = self._draft_structure(); raw = structure.get("api")
@@ -166,7 +173,7 @@ class GeradorService:
         entidade.api_has_workflow = bool(workflow.get("enabled"))
 
     def _prepare_context(self):
-        modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
+        modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); integrations_config = self._integrations_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
         for widget in dashboard.get("widgets", []): widget["grid_column_start"] = int(widget.get("x", 0)) + 1; widget["grid_row_start"] = int(widget.get("y", 0)) + 1
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
@@ -186,7 +193,7 @@ class GeradorService:
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
                 self._prepare_form_generation(entidade, forms_config); self._prepare_crud_generation(entidade, cruds_config); self._prepare_business_rules_generation(entidade, rules_config); self._prepare_api_generation(entidade, api_config, workflows)
                 if entidade.api_enabled: modulo.entidades_api.append(entidade)
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config, "cruds": cruds_config, "business_rules": rules_config, "api": api_config}
+        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config, "cruds": cruds_config, "business_rules": rules_config, "api": api_config, "integrations": integrations_config, "integrations_python": repr(integrations_config)}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada")
@@ -213,6 +220,7 @@ class GeradorService:
     def _gerar_requirements(self, ctx=None):
         requirements = ["Django>=5.2,<7", "python-dotenv>=1.0"]
         if ctx and ctx.get("api", {}).get("enabled"): requirements.append("djangorestframework>=3.16,<4")
+        if ctx and ctx.get("integrations", {}).get("enabled"): requirements.append("httpx>=0.27,<1")
         if self.sistema.banco_dados == "postgresql": requirements.append("psycopg[binary]>=3.2")
         elif self.sistema.banco_dados == "mysql": requirements.append("mysqlclient>=2.2")
         elif self.sistema.banco_dados == "sqlserver": requirements.append("mssql-django>=1.5")
@@ -222,6 +230,9 @@ class GeradorService:
 
     def _gerar_core(self, ctx):
         for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"), (f"{self.nome_projeto}/dashboard_data.py", "dashboard_data_views.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        if ctx.get("integrations", {}).get("enabled"):
+            for path, template in (("integrations/__init__.py", "integration_init.txt"), ("integrations/config.py", "integration_config.txt"), ("integrations/client.py", "integration_client.txt")):
+                self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         self._gerar_requirements(ctx); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True); self.log("✅ Diretórios static/ e media/ preparados")
 
     def _gerar_modulo(self, modulo, ctx):

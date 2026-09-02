@@ -1,0 +1,96 @@
+{% load rbac_generation %}from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from rest_framework import filters, permissions, viewsets
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied, ValidationError
+from rest_framework.pagination import PageNumberPagination
+
+from .models import {% for entidade in entidades_api %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+from .serializers import {% for entidade in entidades_api %}{{ entidade.classe_nome }}Serializer{% if not forloop.last %}, {% endif %}{% endfor %}
+from .business_rules import run_business_rules
+{% if entidades_api %}from .workflow import apply_initial_state, WorkflowRuntimeError
+from .rbac import require_entity_action, RBACRuntimeError
+{% endif %}
+
+
+class DjangoForgeModelPermissions(permissions.DjangoModelPermissions):
+    perms_map = {
+        'GET': ['%(app_label)s.view_%(model_name)s'],
+        'OPTIONS': [],
+        'HEAD': [],
+        'POST': ['%(app_label)s.add_%(model_name)s'],
+        'PUT': ['%(app_label)s.change_%(model_name)s'],
+        'PATCH': ['%(app_label)s.change_%(model_name)s'],
+        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+    }
+
+
+class DjangoForgeAPIMixin:
+    permission_classes = [permissions.IsAuthenticated, DjangoForgeModelPermissions]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    authentication_classes = [{% if api.authentication == 'session' %}SessionAuthentication{% elif api.authentication == 'basic' %}BasicAuthentication{% else %}SessionAuthentication, BasicAuthentication{% endif %}]
+    allowed_actions = set()
+    rbac_enabled = False
+    rbac_entity = ''
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if self.action not in self.allowed_actions:
+            raise MethodNotAllowed(request.method)
+        if self.rbac_enabled:
+            action_map = {'list': 'list', 'retrieve': 'view', 'create': 'create', 'update': 'update', 'partial_update': 'update', 'destroy': 'delete'}
+            try:
+                require_entity_action(request.user, self.rbac_entity, action_map[self.action])
+            except RBACRuntimeError as exc:
+                raise PermissionDenied(str(exc))
+
+    @staticmethod
+    def _rule_error(exc):
+        return ValidationError({'detail': getattr(exc, 'messages', [str(exc)])})
+
+{% for entidade in entidades_api %}{% rbac_entity_policy entidades entidade.nome as rbac_policy %}
+class {{ entidade.classe_nome }}Pagination(PageNumberPagination):
+    page_size = {{ entidade.api_page_size }}
+    page_size_query_param = None
+
+
+class {{ entidade.classe_nome }}ViewSet(DjangoForgeAPIMixin, viewsets.ModelViewSet):
+    queryset = {{ entidade.classe_nome }}.objects.all()
+    serializer_class = {{ entidade.classe_nome }}Serializer
+    pagination_class = {{ entidade.classe_nome }}Pagination
+    http_method_names = [{% for method in entidade.api_http_methods %}'{{ method }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    allowed_actions = {{ "{" }}{% if entidade.api_operations.list %}'list',{% endif %}{% if entidade.api_operations.retrieve %}'retrieve',{% endif %}{% if entidade.api_operations.create %}'create',{% endif %}{% if entidade.api_operations.update %}'update',{% endif %}{% if entidade.api_operations.partial_update %}'partial_update',{% endif %}{% if entidade.api_operations.destroy %}'destroy',{% endif %}{{ "}" }}
+    search_fields = [{% for field in entidade.api_search_fields %}'{{ field }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    ordering_fields = [{% for field in entidade.api_ordering_fields %}'{{ field }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    ordering = [{% for field in entidade.api_default_ordering %}'{{ field }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    rbac_enabled = {{ rbac_policy.enabled|yesno:"True,False" }}
+    rbac_entity = '{{ entidade.nome|escapejs }}'
+
+    def perform_create(self, serializer):
+        try:
+            with transaction.atomic():
+                instance = serializer.save()
+{% if entidade.api_has_workflow %}                apply_initial_state(instance)
+{% endif %}{% if entidade.business_rules_ready %}                run_business_rules(instance, 'before_create')
+{% endif %}                instance.save()
+        except (DjangoValidationError, WorkflowRuntimeError) as exc:
+            raise self._rule_error(exc)
+
+    def perform_update(self, serializer):
+        try:
+            with transaction.atomic():
+                instance = serializer.save()
+{% if entidade.business_rules_ready %}                run_business_rules(instance, 'before_update')
+                instance.save()
+{% endif %}        except DjangoValidationError as exc:
+            raise self._rule_error(exc)
+
+    def perform_destroy(self, instance):
+        try:
+            with transaction.atomic():
+{% if entidade.business_rules_ready %}                run_business_rules(instance, 'before_delete')
+{% endif %}                instance.delete()
+        except DjangoValidationError as exc:
+            raise self._rule_error(exc)
+
+{% endfor %}

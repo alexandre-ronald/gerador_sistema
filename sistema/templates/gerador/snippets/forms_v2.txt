@@ -1,4 +1,4 @@
-from django import forms
+{% load workflow_generation %}from django import forms
 {% if entidades %}from .models import {% for entidade in entidades %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}# Este módulo ainda não possui entidades.{% endif %}
 
 
@@ -14,31 +14,31 @@ def configurar_widgets_bootstrap(form):
             field.empty_label = "--- Selecione uma opção ---"
 
 {% with entidades_form=entidades_crud|default:entidades %}
-{% for entidade in entidades_form %}
+{% for entidade in entidades_form %}{% workflow_generation_config entidade as workflow %}
 class {{ entidade.classe_nome }}Form(forms.ModelForm):
     class Meta:
         model = {{ entidade.classe_nome }}
         fields = [
-{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}            "{{ campo.codigo_nome }}",
-{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}            "{{ campo.codigo_nome }}",
-{% endfor %}{% endif %}        ]
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}{% if not workflow.enabled or campo.codigo_nome != workflow.state_field_code %}            "{{ campo.codigo_nome }}",
+{% endif %}{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}{% if not workflow.enabled or campo.codigo_nome != workflow.state_field_code %}            "{{ campo.codigo_nome }}",
+{% endif %}{% endfor %}{% endif %}        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}{% if campo.widget == "text" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.TextInput()
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}{% if not workflow.enabled or campo.codigo_nome != workflow.state_field_code %}{% if campo.widget == "text" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.TextInput()
 {% elif campo.widget == "textarea" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.Textarea(attrs={"rows": 4})
 {% elif campo.widget == "number" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.NumberInput()
 {% elif campo.widget == "date" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.DateInput(attrs={"type": "date"})
 {% elif campo.widget == "datetime" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.DateTimeInput(attrs={"type": "datetime-local"})
 {% elif campo.widget == "checkbox" %}        self.fields["{{ campo.codigo_nome }}"].widget = forms.CheckboxInput()
-{% endif %}{% endfor %}{% endif %}        configurar_widgets_bootstrap(self)
-{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.label|escapejs }}"
+{% endif %}{% endif %}{% endfor %}{% endif %}        configurar_widgets_bootstrap(self)
+{% if entidade.form_designer_ready %}{% for campo in entidade.form_fields %}{% if not workflow.enabled or campo.codigo_nome != workflow.state_field_code %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.label|escapejs }}"
         self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
 {% if campo.placeholder %}        self.fields["{{ campo.codigo_nome }}"].widget.attrs["placeholder"] = "{{ campo.placeholder|escapejs }}"
 {% endif %}{% if campo.readonly %}        self.fields["{{ campo.codigo_nome }}"].disabled = True
-{% endif %}{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
+{% endif %}{% endif %}{% endfor %}{% else %}{% for campo in entidade.campos_geracao %}{% if not workflow.enabled or campo.codigo_nome != workflow.state_field_code %}        self.fields["{{ campo.codigo_nome }}"].label = "{{ campo.verbose_nome|escapejs }}"
 {% if campo.help_text %}        self.fields["{{ campo.codigo_nome }}"].help_text = "{{ campo.help_text|escapejs }}"
-{% endif %}{% endfor %}{% endif %}
+{% endif %}{% endif %}{% endfor %}{% endif %}
 
 {% endfor %}
 {% endwith %}

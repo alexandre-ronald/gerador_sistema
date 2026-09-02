@@ -1,0 +1,11 @@
+from rest_framework import serializers
+from .models import {% for entidade in entidades_api %}{{ entidade.classe_nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+{% for entidade in entidades_api %}
+class {{ entidade.classe_nome }}Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = {{ entidade.classe_nome }}
+        fields = [{% for field in entidade.api_fields %}'{{ field }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+        read_only_fields = [{% for field in entidade.api_read_only_fields %}'{{ field }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+
+{% endfor %}

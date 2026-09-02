@@ -36,6 +36,23 @@ class DeploymentCenterUITests(TestCase):
         self.assertContains(response, 'name="csrfmiddlewaretoken"')
         self.assertContains(response, 'id="deploymentConfigForm"')
 
+    def test_page_ensures_all_default_environments(self):
+        Ambiente.objects.filter(sistema=self.sistema).exclude(tipo=Ambiente.TIPO_DEVELOPMENT).delete()
+        response = self.client.get(reverse("sistema:deployment_center", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        tipos = list(self.sistema.ambientes.order_by("tipo").values_list("tipo", flat=True))
+        self.assertCountEqual(tipos, [
+            Ambiente.TIPO_DEVELOPMENT,
+            Ambiente.TIPO_TEST,
+            Ambiente.TIPO_STAGING,
+            Ambiente.TIPO_PRODUCTION,
+        ])
+        self.assertContains(response, "Development")
+        self.assertContains(response, "Test")
+        self.assertContains(response, "Staging")
+        self.assertContains(response, "Production")
+        self.assertContains(response, "v1")
+
     def test_save_config_persists_only_deployment_key(self):
         self.draft.estrutura_json = {"api": {"enabled": True}, "integrations": {"enabled": False, "items": []}}
         self.draft.save(update_fields=["estrutura_json"])

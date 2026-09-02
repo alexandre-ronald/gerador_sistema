@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Deployment Center · {{ sistema.nome }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4" style="max-width:1500px">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div><div class="text-uppercase text-muted small fw-semibold">DjangoForge · GEN-057</div><h2 class="mb-1">Deployment Center</h2><div class="text-muted">{{ sistema.nome }} · planeje, valide e acompanhe implantações.</div></div>
+    <a class="btn btn-outline-secondary" href="{% url 'sistema:environment_manager' sistema.id %}">Environment Manager</a>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Configuração declarativa</h5><small class="text-muted">Nenhum deploy é executado ao salvar esta configuração.</small></div><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="deploymentEnabled" {% if deployment_config.enabled %}checked{% endif %}><label class="form-check-label" for="deploymentEnabled">Ativo</label></div></div>
+    <div class="row g-3" id="environmentConfigs">
+      {% for ambiente in ambientes %}
+      <div class="col-xl-6"><div class="border rounded-3 p-3 env-config" data-env="{{ ambiente.tipo }}">
+        <div class="d-flex justify-content-between"><strong>{{ ambiente.nome }}</strong><span class="badge bg-light text-dark">{{ ambiente.tipo }}</span></div>
+        <div class="small text-muted mb-3">Release desejada: {% if ambiente.release_atual %}v{{ ambiente.release_atual.numero }}{% else %}nenhuma{% endif %}</div>
+        <div class="row g-2">
+          <div class="col-md-4"><label class="form-label small">Executor</label><select class="form-select executor"><option value="">Não configurar</option><option value="local">Local</option><option value="ssh">SSH</option></select></div>
+          <div class="col-md-8"><label class="form-label small">Diretório de trabalho</label><input class="form-control working-directory" placeholder="C:/apps/sistema ou /opt/sistema"></div>
+          <div class="col-md-6"><label class="form-label small">Compose file</label><input class="form-control compose-file" value="docker-compose.yml"></div>
+          <div class="col-md-6 ssh-field"><label class="form-label small">Host SSH</label><input class="form-control host"></div>
+          <div class="col-md-3 ssh-field"><label class="form-label small">Porta</label><input type="number" class="form-control port" value="22"></div>
+          <div class="col-md-9 ssh-field"><label class="form-label small">Env usuário</label><input class="form-control username-env" placeholder="DEPLOY_USERNAME"></div>
+          <div class="col-md-12 ssh-field"><label class="form-label small">Env chave privada</label><input class="form-control key-env" placeholder="DEPLOY_PRIVATE_KEY"></div>
+        </div>
+      </div></div>
+      {% endfor %}
+    </div>
+    <div class="d-flex align-items-center gap-3 mt-3"><button class="btn btn-primary" id="saveDeployment">Salvar configuração</button><span id="saveStatus" class="small"></span></div>
+  </div></div>
+
+  <div class="card shadow-sm border-0 mb-4"><div class="card-body"><h5>Ambientes e criação de plano</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Ambiente</th><th>Release desejada</th><th>URL</th><th></th></tr></thead><tbody>
+    {% for ambiente in ambientes %}<tr><td><strong>{{ ambiente.nome }}</strong><div class="small text-muted">{{ ambiente.tipo }}</div></td><td>{% if ambiente.release_atual %}v{{ ambiente.release_atual.numero }}{% else %}—{% endif %}</td><td>{{ ambiente.url_base|default:"—" }}</td><td class="text-end">{% if ambiente.release_atual %}<form method="post" action="{% url 'sistema:create_deployment_plan' sistema.id ambiente.id %}">{% csrf_token %}<input type="hidden" name="version_id" value="{{ ambiente.release_atual.id }}"><button class="btn btn-sm btn-outline-primary">Criar plano</button></form>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div></div></div>
+
+  <div class="card shadow-sm border-0"><div class="card-body"><h5>Histórico de deployments</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Ambiente</th><th>Release</th><th>Executor</th><th>Status</th><th>Criado</th><th></th></tr></thead><tbody>
+    {% for plan in plans %}<tr><td>{{ plan.id }}</td><td>{{ plan.ambiente.nome }}</td><td>v{{ plan.versao.numero }}</td><td>{{ plan.executor }}</td><td><span class="badge bg-secondary">{{ plan.status }}</span>{% if plan.erro %}<div class="small text-danger mt-1">{{ plan.erro }}</div>{% endif %}</td><td>{{ plan.criado_em|date:"d/m/Y H:i" }}</td><td class="text-end d-flex gap-1 justify-content-end">{% if plan.status == 'PLANNED' %}<form method="post" action="{% url 'sistema:validate_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-success">Validar</button></form>{% endif %}{% if plan.status == 'PLANNED' or plan.status == 'VALIDATING' or plan.status == 'READY' %}<form method="post" action="{% url 'sistema:cancel_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancelar</button></form>{% endif %}{% if plan.status == 'READY' %}<button class="btn btn-sm btn-primary" disabled title="Disponível na GEN-057.3">Executar deploy</button>{% endif %}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum plano criado.</td></tr>{% endfor %}
+  </tbody></table></div></div></div>
+</div>
+{{ deployment_config|json_script:"deployment-config" }}
+<script>
+const current = JSON.parse(document.getElementById('deployment-config').textContent);
+for (const box of document.querySelectorAll('.env-config')) {
+  const env = box.dataset.env, cfg = (current.environments || {})[env];
+  if (cfg) { box.querySelector('.executor').value=cfg.executor||''; box.querySelector('.working-directory').value=cfg.working_directory||''; box.querySelector('.compose-file').value=cfg.compose_file||'docker-compose.yml'; box.querySelector('.host').value=cfg.host||''; box.querySelector('.port').value=cfg.port||22; box.querySelector('.username-env').value=cfg.username_env_var||''; box.querySelector('.key-env').value=cfg.private_key_env_var||''; }
+}
+function csrf(){ return document.cookie.split('; ').find(x=>x.startsWith('csrftoken='))?.split('=')[1] || ''; }
+document.getElementById('saveDeployment').addEventListener('click', async () => {
+  const payload={enabled:document.getElementById('deploymentEnabled').checked,environments:{}};
+  document.querySelectorAll('.env-config').forEach(box=>{ const executor=box.querySelector('.executor').value; if(!executor)return; const cfg={executor,strategy:'docker_compose',working_directory:box.querySelector('.working-directory').value,compose_file:box.querySelector('.compose-file').value}; if(executor==='ssh'){cfg.host=box.querySelector('.host').value;cfg.port:Number(box.querySelector('.port').value||22);cfg.username_env_var=box.querySelector('.username-env').value;cfg.private_key_env_var=box.querySelector('.key-env').value;} payload.environments[box.dataset.env]=cfg; });
+  const status=document.getElementById('saveStatus'); status.textContent='Salvando...';
+  const r=await fetch('{% url "sistema:save_deployment_config" sistema.id %}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(payload)}); const data=await r.json(); status.className='small '+(r.ok?'text-success':'text-danger'); status.textContent=r.ok?'Configuração salva.':(data.error?.message||'Falha ao salvar.');
+});
+</script>
+{% endblock %}

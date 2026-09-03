@@ -47,6 +47,26 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertNotIn("gestão de pessoas:funcionário_list", base.lower())
         self.assertNotIn("gestão de pessoas:funcionário_list", index.lower())
 
+    def test_generated_ui_uses_modern_feedback_without_alert_components(self):
+        base = self._source("gerador/snippets/base_html.txt")
+        form = self._source("gerador/snippets/html_form.txt")
+        login = self._source("gerador/snippets/login_html.txt")
+        index = self._source("gerador/snippets/index_html.txt")
+
+        self.assertIn("app-toast-stack", base)
+        self.assertIn("data-app-toast", base)
+        self.assertIn("app-page-heading", index)
+        self.assertIn("app-page-heading", form)
+        self.assertIn("app-feedback-danger", form)
+        self.assertIn("auth-feedback", login)
+        self.assertNotIn("alert alert-", base)
+        self.assertNotIn("alert alert-", form)
+        self.assertNotIn("alert alert-", login)
+        self.assertNotIn("alert(", base)
+        self.assertNotIn("confirm(", base)
+        self.assertNotIn("alert(", login)
+        self.assertNotIn("confirm(", login)
+
     def test_settings_registers_the_single_navigation_context_processor(self):
         content = self._source("gerador/snippets/settings.txt")
         self.assertIn("{{ nome_projeto }}.context_processors.navigation", content)

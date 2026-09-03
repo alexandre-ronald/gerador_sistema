@@ -58,6 +58,10 @@ def _current_navigation_context(request, modules):
         return {"module_label": "Início", "item_label": "Área de trabalho"}
     if current_url_name in {"dashboard", "dashboard_data"}:
         return {"module_label": "Análise", "item_label": "Dashboard"}
+    if current_url_name == "profile":
+        return {"module_label": "Conta", "item_label": "Meu perfil"}
+    if current_url_name in {"user_list", "user_create", "user_update"}:
+        return {"module_label": "Administração", "item_label": "Usuários"}
     for module in modules:
         for item in module["items"]:
             if item.get("is_active"):

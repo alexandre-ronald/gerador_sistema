@@ -1,17 +1,76 @@
 import os
 import time
 
-from django.contrib import admin
-from django.urls import path, include
-from django.views.generic import TemplateView
-from django.contrib.auth.decorators import login_required
+from django.contrib import admin, messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.forms import UserCreationForm
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.urls import path, include
 from django.utils import timezone
+from django.views.generic import TemplateView
 from .dashboard_data import dashboard_data
 
 _RUNTIME_STARTED_AT = time.monotonic()
+User = get_user_model()
+
+
+@login_required
+def profile_view(request):
+    if request.method == 'POST':
+        user = request.user
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.email = request.POST.get('email', '').strip()
+        user.save(update_fields=['first_name', 'last_name', 'email'])
+        messages.success(request, 'Perfil atualizado com sucesso.')
+        return redirect('profile')
+    return render(request, 'accounts/profile.html')
+
+
+def _staff_required(view):
+    return user_passes_test(lambda user: user.is_authenticated and user.is_staff)(view)
+
+
+@_staff_required
+def user_list_view(request):
+    users = User.objects.order_by('username')
+    return render(request, 'accounts/user_list.html', {'users': users})
+
+
+@_staff_required
+def user_create_view(request):
+    form = UserCreationForm(request.POST or None)
+    if form.is_valid():
+        user = form.save()
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.email = request.POST.get('email', '').strip()
+        user.is_staff = request.POST.get('is_staff') == 'on'
+        user.is_active = request.POST.get('is_active') == 'on'
+        user.save()
+        messages.success(request, 'Usuário cadastrado com sucesso.')
+        return redirect('user_list')
+    return render(request, 'accounts/user_form.html', {'form': form, 'editing': False})
+
+
+@_staff_required
+def user_update_view(request, pk):
+    user = User.objects.get(pk=pk)
+    if request.method == 'POST':
+        user.username = request.POST.get('username', '').strip()
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.email = request.POST.get('email', '').strip()
+        user.is_staff = request.POST.get('is_staff') == 'on'
+        user.is_active = request.POST.get('is_active') == 'on'
+        user.save()
+        messages.success(request, 'Usuário atualizado com sucesso.')
+        return redirect('user_list')
+    return render(request, 'accounts/user_form.html', {'managed_user': user, 'editing': True})
 
 
 def runtime_status(request):
@@ -39,6 +98,10 @@ def runtime_status(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/profile/', profile_view, name='profile'),
+    path('accounts/users/', user_list_view, name='user_list'),
+    path('accounts/users/new/', user_create_view, name='user_create'),
+    path('accounts/users/<int:pk>/edit/', user_update_view, name='user_update'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', login_required(TemplateView.as_view(template_name='index.html')), name='index'),
     path('dashboard/', login_required(TemplateView.as_view(template_name='dashboard.html')), name='dashboard'),

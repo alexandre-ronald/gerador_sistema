@@ -44,10 +44,7 @@ def _mark_active_items(request, items):
     marked = []
     for item in items:
         active_names = item.get("active_url_names") or [item["url_name"].split(":")[-1]]
-        marked.append({
-            **item,
-            "is_active": current_app_name == item.get("app_name") and current_url_name in active_names,
-        })
+        marked.append({**item, "is_active": current_app_name == item.get("app_name") and current_url_name in active_names})
     return marked
 
 
@@ -58,10 +55,12 @@ def _current_navigation_context(request, modules):
         return {"module_label": "Início", "item_label": "Área de trabalho"}
     if current_url_name in {"dashboard", "dashboard_data"}:
         return {"module_label": "Análise", "item_label": "Dashboard"}
-    if current_url_name == "profile":
-        return {"module_label": "Conta", "item_label": "Meu perfil"}
+    if current_url_name in {"profile", "password_change"}:
+        return {"module_label": "Conta", "item_label": "Meu perfil" if current_url_name == "profile" else "Alterar senha"}
     if current_url_name in {"user_list", "user_create", "user_update"}:
         return {"module_label": "Administração", "item_label": "Usuários"}
+    if current_url_name == "role_list":
+        return {"module_label": "Administração", "item_label": "Perfis de acesso"}
     for module in modules:
         for item in module["items"]:
             if item.get("is_active"):
@@ -105,10 +104,7 @@ def _relation_filter_choices(request):
         related_model = getattr(field.remote_field, "model", None)
         if related_model is None:
             continue
-        options = [
-            {"value": str(obj.pk), "label": str(obj)}
-            for obj in related_model._default_manager.all()[:500]
-        ]
+        options = [{"value": str(obj.pk), "label": str(obj)} for obj in related_model._default_manager.all()[:500]]
         options.sort(key=lambda option: option["label"].casefold())
         result.append({"field": field.name, "options": options})
     return result
@@ -120,8 +116,4 @@ def navigation(request):
         items = _allowed_items(request, module["items"])
         if items:
             modules.append({**module, "items": _mark_active_items(request, items)})
-    return {
-        "navigation_modules": modules,
-        "navigation_current": _current_navigation_context(request, modules),
-        "relation_filter_choices": _relation_filter_choices(request),
-    }
+    return {"navigation_modules": modules, "navigation_current": _current_navigation_context(request, modules), "relation_filter_choices": _relation_filter_choices(request)}

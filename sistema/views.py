@@ -57,6 +57,17 @@ def lista_sistemas(request):
     return render(request, "sistema/lista.html", {"sistemas": Sistema.objects.filter(usuario=request.user).order_by("-atualizado_em")})
 
 @login_required
+def sistema_workspace(request, sistema_id):
+    sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
+    total_modulos = Modulo.objects.filter(sistema=sistema).count()
+    total_entidades = Entidade.objects.filter(modulo__sistema=sistema).count()
+    return render(request, "sistema/workspace.html", {
+        "sistema": sistema,
+        "total_modulos": total_modulos,
+        "total_entidades": total_entidades,
+    })
+
+@login_required
 def criar_sistema(request):
     caminho_padrao = os.path.join(str(settings.BASE_DIR), "projetos_gerados")
     estrutura = {"sistema": {"caminho": caminho_padrao}, "modulos": []}

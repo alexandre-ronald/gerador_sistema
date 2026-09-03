@@ -1,0 +1,25 @@
+DJANGO_SECRET_KEY=change-me
+DJANGO_DEBUG=1
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+
+{% if sistema.banco_dados == 'postgresql' %}POSTGRES_DB={{ sistema.slug|default:'app' }}_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change-me
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+{% elif sistema.banco_dados == 'mysql' %}MYSQL_DATABASE={{ sistema.slug|default:'app' }}_db
+MYSQL_USER=app
+MYSQL_PASSWORD=change-me
+MYSQL_HOST=db
+MYSQL_PORT=3306
+{% elif sistema.banco_dados == 'sqlserver' %}MSSQL_DATABASE={{ sistema.slug|default:'app' }}_db
+MSSQL_USER=sa
+MSSQL_PASSWORD=change-me
+MSSQL_HOST=localhost
+MSSQL_PORT=1433
+{% elif sistema.banco_dados == 'oracle' %}ORACLE_NAME={{ sistema.slug|default:'app' }}_db
+ORACLE_USER=system
+ORACLE_PASSWORD=change-me
+ORACLE_HOST=localhost
+ORACLE_PORT=1521
+{% endif %}

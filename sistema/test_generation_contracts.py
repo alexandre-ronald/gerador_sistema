@@ -44,10 +44,16 @@ class GeneratedTemplateContractTests(SimpleTestCase):
 
     def test_generated_ui_uses_modern_feedback_without_browser_dialogs(self):
         base = self._source("gerador/snippets/base_html.txt"); form = self._source("gerador/snippets/html_form.txt"); login = self._source("gerador/snippets/login_html.txt"); index = self._source("gerador/snippets/index_html.txt"); detail = self._source("gerador/snippets/html_detail.txt"); dashboard = self._source("gerador/snippets/dashboard_html.txt"); home = self._source("gerador/snippets/home_html.txt")
-        self.assertIn("app-toast-stack", base); self.assertIn("data-app-toast", base); self.assertIn("home-hero", index); self.assertIn("app-page-heading", form); self.assertIn("app-feedback-danger", form); self.assertIn("auth-feedback", login)
+        self.assertIn("app-toast-stack", base); self.assertIn("data-app-toast", base); self.assertIn("workspace-hero", index); self.assertIn("app-page-heading", form); self.assertIn("app-feedback-danger", form); self.assertIn("auth-feedback", login)
         self.assertIn("workflowConfirmModal", detail); self.assertIn("dashboard-status", dashboard); self.assertIn("dashboard-refresh", dashboard); self.assertIn("dashboard-skeleton", dashboard)
         for content in (base, form, login, detail, index, dashboard, home):
             self.assertNotIn("alert alert-", content); self.assertNotIn("alert(", content); self.assertNotIn("confirm(", content)
+
+    def test_dashboard_uses_named_runtime_routes(self):
+        dashboard = self._source("gerador/snippets/dashboard_html.txt")
+        self.assertIn("{% templatetag openblock %} url 'index' {% templatetag closeblock %}", dashboard)
+        self.assertIn('{% templatetag openblock %} url "dashboard_data" {% templatetag closeblock %}', dashboard)
+        self.assertNotIn('href="/" class="btn btn-primary"', dashboard)
 
     def test_dashboard_runtime_parses_json_instead_of_executing_json_literals_as_python(self):
         content = self._source("gerador/snippets/dashboard_data_views.txt")

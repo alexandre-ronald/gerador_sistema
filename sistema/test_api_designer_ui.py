@@ -115,6 +115,6 @@ class APIDesignerUITests(TestCase):
 
     def test_workspace_lists_api_designer(self):
         self.client.force_login(self.user)
-        response = self.client.get(reverse("sistema:lista"))
+        response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))
         self.assertContains(response, "API Designer")
         self.assertContains(response, self.url)

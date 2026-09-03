@@ -15,11 +15,12 @@ class LocalDockerComposeExecutor:
     def __init__(self, config, *, runner=None):
         self.config = dict(config or {})
         self.runner = runner or subprocess.run
-        self.working_directory = Path(self.config.get("working_directory", ""))
+        working_directory = str(self.config.get("working_directory") or "").strip()
+        self.working_directory = Path(working_directory) if working_directory else None
         self.compose_file = self.config.get("compose_file") or "docker-compose.yml"
 
     def prepare(self):
-        if not self.working_directory.is_dir():
+        if self.working_directory is None or not self.working_directory.is_dir():
             raise DeploymentExecutionError(
                 "working_directory_missing",
                 "O diretório de deployment não existe ou não está acessível.",
@@ -42,6 +43,11 @@ class LocalDockerComposeExecutor:
         return True
 
     def _run(self, args, *, timeout=None):
+        if self.working_directory is None:
+            raise DeploymentExecutionError(
+                "working_directory_missing",
+                "O diretório de deployment não existe ou não está acessível.",
+            )
         try:
             completed = self.runner(
                 args,
@@ -69,13 +75,10 @@ class LocalDockerComposeExecutor:
             ) from exc
 
         if completed.returncode != 0:
-            stderr = (completed.stderr or "").strip()
-            stdout = (completed.stdout or "").strip()
-            detail = stderr or stdout
-            if detail:
-                detail = detail.replace("\r", " ").replace("\n", " ")[:300]
-                message = f"Comando de deployment falhou: {detail}"
-            else:
-                message = "Comando de deployment falhou."
-            raise DeploymentExecutionError("command_failed", message)
+            # Nunca propagar stdout/stderr para o plano: ferramentas externas podem
+            # imprimir tokens, URLs autenticadas ou outras credenciais por engano.
+            raise DeploymentExecutionError(
+                "command_failed",
+                "Um comando controlado de deployment falhou. Consulte os logs locais do host para detalhes.",
+            )
         return completed

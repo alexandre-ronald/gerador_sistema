@@ -1,0 +1,38 @@
+{% templatetag openblock %} extends "base.html" {% templatetag closeblock %}
+{% templatetag openblock %} block content {% templatetag closeblock %}
+<div class="account-shell">
+  <div class="app-page-heading mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <div class="small text-uppercase fw-bold text-primary mb-1">Administração</div>
+      <h1 class="h4 fw-bold mb-1">Perfis de acesso</h1>
+      <p class="text-secondary mb-0">Perfis definidos no Permission Designer e sincronizados com os grupos e permissões do Django.</p>
+    </div>
+    <a href="{% templatetag openblock %} url 'user_list' {% templatetag closeblock %}" class="btn btn-light"><i class="bi bi-people me-1"></i>Usuários</a>
+  </div>
+
+  {% templatetag openblock %} if not rbac_enabled {% templatetag closeblock %}
+  <div class="app-card account-panel">
+    <div class="d-flex align-items-start gap-3">
+      <div class="app-empty-icon m-0"><i class="bi bi-shield-lock"></i></div>
+      <div><h2 class="h6 fw-bold mb-1">Permission Designer não está habilitado</h2><p class="text-secondary mb-0">Ative e configure os papéis no DjangoForge para que os perfis sejam gerados automaticamente.</p></div>
+    </div>
+  </div>
+  {% templatetag openblock %} else {% templatetag closeblock %}
+  <div class="row g-3">
+    {% templatetag openblock %} for item in roles {% templatetag closeblock %}
+    <div class="col-lg-6">
+      <div class="app-card account-panel h-100">
+        <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+          <div class="d-flex align-items-center gap-3 min-w-0"><div class="app-icon bg-primary-subtle text-primary"><i class="bi bi-shield-check"></i></div><div class="min-w-0"><div class="fw-bold text-truncate">{% templatetag openvariable %} item.role.label {% templatetag closevariable %}</div><div class="small text-secondary text-truncate">Grupo: {% templatetag openvariable %} item.group.name {% templatetag closevariable %}</div></div></div>
+          <span class="badge text-bg-light border text-secondary">{% templatetag openvariable %} item.permission_count {% templatetag closevariable %} permissões</span>
+        </div>
+        <div class="small text-secondary">Este perfil é gerenciado pelo Permission Designer. As permissões são sincronizadas automaticamente a partir das ações CRUD configuradas.</div>
+      </div>
+    </div>
+    {% templatetag openblock %} empty {% templatetag closeblock %}
+    <div class="col-12"><div class="app-card empty-state"><div class="app-empty-icon mb-3"><i class="bi bi-shield"></i></div><div class="fw-bold">Nenhum perfil configurado</div><div class="small">Crie papéis no Permission Designer e regenere a aplicação.</div></div></div>
+    {% templatetag openblock %} endfor {% templatetag closeblock %}
+  </div>
+  {% templatetag openblock %} endif {% templatetag closeblock %}
+</div>
+{% templatetag openblock %} endblock {% templatetag closeblock %}

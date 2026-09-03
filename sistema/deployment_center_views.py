@@ -76,6 +76,22 @@ def validate_deployment_plan(request, sistema_id, plan_id):
 
 @login_required
 @require_POST
+def execute_deployment_plan(request, sistema_id, plan_id):
+    sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
+    plan = get_object_or_404(DeploymentPlan, pk=plan_id, sistema=sistema)
+    try:
+        plan = DeploymentService(sistema).execute_plan(plan)
+        if plan.status == DeploymentPlan.STATUS_SUCCEEDED:
+            messages.success(request, f"Deployment #{plan.pk} concluído e verificado com sucesso.")
+        else:
+            messages.error(request, plan.erro or "O deployment falhou.")
+    except (ValidationError, DeploymentCenterError) as exc:
+        messages.error(request, getattr(exc, "message", None) or str(exc))
+    return redirect("sistema:deployment_center", sistema_id=sistema.pk)
+
+
+@login_required
+@require_POST
 def cancel_deployment_plan(request, sistema_id, plan_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
     plan = get_object_or_404(DeploymentPlan, pk=plan_id, sistema=sistema)

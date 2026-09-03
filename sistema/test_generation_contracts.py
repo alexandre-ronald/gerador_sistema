@@ -60,6 +60,23 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("coluna.tipo == 'BooleanField'", listing); self.assertIn("campo.tipo == 'BooleanField'", listing); self.assertIn("coluna.tipo == 'BooleanField'", detail)
         self.assertIn("bi-check-circle-fill", listing); self.assertIn("Sim", listing); self.assertIn("Não", listing)
 
+    def test_related_models_use_descriptive_labels_in_forms_and_filters(self):
+        models = self._source("gerador/snippets/models.txt")
+        listing = self._source("gerador/snippets/html_list.txt")
+        navigation = self._source("gerador/snippets/navigation_context.txt")
+
+        self.assertIn('campo.tipo == "CharField"', models)
+        self.assertIn('campo.tipo == "TextField"', models)
+        self.assertIn('campo.tipo != "BooleanField"', models)
+        self.assertIn("return str(self.pk)", models)
+        self.assertIn("relation_filter_choices", navigation)
+        self.assertIn("related_model._default_manager.all()[:500]", navigation)
+        self.assertIn('"label": str(obj)', navigation)
+        self.assertIn("filtro.type == 'relation'", listing)
+        self.assertIn('relation.field == \'{{ filtro.codigo_nome }}\'', listing)
+        self.assertIn("option.label", listing)
+        self.assertNotIn('placeholder="ID do registro relacionado"', listing)
+
     def test_settings_registers_the_single_navigation_context_processor(self):
         content = self._source("gerador/snippets/settings.txt")
         self.assertIn("{{ nome_projeto }}.context_processors.navigation", content)

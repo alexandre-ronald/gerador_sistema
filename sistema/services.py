@@ -72,31 +72,22 @@ class GeradorService:
 
     def _integrations_config(self):
         integrations = self._draft_structure().get("integrations")
-        if not isinstance(integrations, dict):
-            return {"enabled": False, "items": []}
+        if not isinstance(integrations, dict): return {"enabled": False, "items": []}
         return normalize_integrations_config(integrations, strict=True)
 
     def _api_config(self):
         structure = self._draft_structure(); raw = structure.get("api")
-        if not isinstance(raw, dict):
-            return {"enabled": False, "prefix": "api", "version": "v1", "authentication": "session_basic", "entities": {}}
-        workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
-        metadata = []
+        if not isinstance(raw, dict): return {"enabled": False, "prefix": "api", "version": "v1", "authentication": "session_basic", "entities": {}}
+        workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}; metadata = []
         for modulo in self.sistema.modulos.prefetch_related("entidades__campos"):
             for entidade in modulo.entidades.all():
                 workflow = workflows.get(entidade.nome) if isinstance(workflows.get(entidade.nome), dict) else {}
-                metadata.append({
-                    "name": entidade.nome,
-                    "label": entidade.nome,
-                    "api_eligible": bool(entidade.gerar_endpoints_api),
-                    "workflow_state_field": str(workflow.get("state_field") or "") if workflow.get("enabled") else "",
-                    "fields": [{"name": c.nome, "label": c.verbose_name or c.nome, "type": c.tipo, "editable": True} for c in entidade.campos.all()],
-                })
+                metadata.append({"name": entidade.nome,"label": entidade.nome,"api_eligible": bool(entidade.gerar_endpoints_api),"workflow_state_field": str(workflow.get("state_field") or "") if workflow.get("enabled") else "","fields": [{"name": c.nome,"label": c.verbose_name or c.nome,"type": c.tipo,"editable": True} for c in entidade.campos.all()]})
         return normalize_api_config(self.sistema.gerar_api_rest, metadata, raw, strict=True)
 
     def _prepare_form_generation(self, entidade, forms_config):
         saved_config = forms_config.get(entidade.nome); has_saved_config = isinstance(saved_config, dict)
-        metadata = {"name": entidade.nome, "label": entidade.nome, "fields": [{"name": c.nome, "label": c.verbose_name or c.nome, "type": c.tipo, "help_text": c.help_text or "", "editable": True} for c in entidade.campos_geracao]}
+        metadata = {"name": entidade.nome,"label": entidade.nome,"fields": [{"name": c.nome,"label": c.verbose_name or c.nome,"type": c.tipo,"help_text": c.help_text or "","editable": True} for c in entidade.campos_geracao]}
         config = normalize_form_config(entidade.nome, metadata, saved_config); source_fields = {c.nome: c for c in entidade.campos_geracao}; generated_fields = []
         for item in config["fields"]:
             source = source_fields.get(item["name"])
@@ -112,7 +103,7 @@ class GeradorService:
 
     def _prepare_crud_generation(self, entidade, cruds_config):
         saved_config = cruds_config.get(entidade.nome); has_saved_config = isinstance(saved_config, dict)
-        metadata = {"name": entidade.nome, "label": entidade.nome, "verbose_name_plural": entidade.nome_plural or entidade.nome, "fields": [{"name": c.nome, "label": c.verbose_name or c.nome, "type": c.tipo} for c in entidade.campos_geracao]}
+        metadata = {"name": entidade.nome,"label": entidade.nome,"verbose_name_plural": entidade.nome_plural or entidade.nome,"fields": [{"name": c.nome,"label": c.verbose_name or c.nome,"type": c.tipo} for c in entidade.campos_geracao]}
         config = normalize_crud_config(entidade.nome, metadata, saved_config); source_fields = {c.nome: c for c in entidade.campos_geracao}; columns = []
         for item in config["columns"]:
             source = source_fields.get(item["field"])
@@ -130,9 +121,7 @@ class GeradorService:
         entidade.crud_designer_ready = has_saved_config; entidade.crud_title = config["title"]; entidade.crud_page_size = config["page_size"]; entidade.crud_default_order = generated_default_order; entidade.crud_columns = columns; entidade.crud_visible_columns = [c for c in columns if c.visible]; entidade.crud_sortable_fields = [c.codigo_nome for c in columns if c.sortable]; entidade.crud_search_enabled = config["search"]["enabled"]; entidade.crud_search_fields = search_fields; entidade.crud_search_placeholder = config["search"]["placeholder"]; entidade.crud_filters = filters; entidade.crud_actions = SimpleNamespace(**config["actions"])
 
     def _prepare_business_rules_generation(self, entidade, rules_config):
-        saved = rules_config.get(entidade.nome); has_saved = isinstance(saved, dict)
-        metadata = {"name": entidade.nome, "label": entidade.nome, "fields": [{"name": c.nome, "label": c.verbose_name or c.nome, "type": c.tipo, "editable": True} for c in entidade.campos_geracao]}
-        config = normalize_business_rules_config(entidade.nome, metadata, saved, strict=True) if has_saved else {"rules": []}; source_fields = {c.nome: c for c in entidade.campos_geracao}; generated_rules = []
+        saved = rules_config.get(entidade.nome); has_saved = isinstance(saved, dict); metadata = {"name": entidade.nome,"label": entidade.nome,"fields": [{"name": c.nome,"label": c.verbose_name or c.nome,"type": c.tipo,"editable": True} for c in entidade.campos_geracao]}; config = normalize_business_rules_config(entidade.nome, metadata, saved, strict=True) if has_saved else {"rules": []}; source_fields = {c.nome: c for c in entidade.campos_geracao}; generated_rules = []
         for item in config["rules"]:
             rule = dict(item); conditions = []; actions = []
             for condition in item["conditions"]:
@@ -148,29 +137,15 @@ class GeradorService:
         entidade.business_rules_ready = bool(generated_rules); entidade.business_rules = generated_rules
 
     def _prepare_api_generation(self, entidade, api_config, workflows):
-        saved = (api_config.get("entities") or {}).get(entidade.nome)
-        entidade.api_enabled = bool(api_config.get("enabled") and isinstance(saved, dict) and saved.get("enabled"))
-        if not entidade.api_enabled:
-            return
-        source_fields = {c.nome: c for c in entidade.campos_geracao}
-        code = lambda name: "id" if name == "id" else source_fields[name].codigo_nome
-        entidade.api_endpoint = saved["endpoint"]
-        entidade.api_operations = SimpleNamespace(**saved["operations"])
-        methods = {"head", "options"}
+        saved = (api_config.get("entities") or {}).get(entidade.nome); entidade.api_enabled = bool(api_config.get("enabled") and isinstance(saved, dict) and saved.get("enabled"))
+        if not entidade.api_enabled: return
+        source_fields = {c.nome: c for c in entidade.campos_geracao}; code = lambda name: "id" if name == "id" else source_fields[name].codigo_nome; entidade.api_endpoint = saved["endpoint"]; entidade.api_operations = SimpleNamespace(**saved["operations"]); methods = {"head", "options"}
         if saved["operations"]["list"] or saved["operations"]["retrieve"]: methods.add("get")
         if saved["operations"]["create"]: methods.add("post")
         if saved["operations"]["update"]: methods.add("put")
         if saved["operations"]["partial_update"]: methods.add("patch")
         if saved["operations"]["destroy"]: methods.add("delete")
-        entidade.api_http_methods = sorted(methods)
-        entidade.api_fields = [code(n) for n in saved["fields"]]
-        entidade.api_read_only_fields = [code(n) for n in saved["read_only_fields"]]
-        entidade.api_search_fields = [code(n) for n in saved["search_fields"]]
-        entidade.api_ordering_fields = [code(n) for n in saved["ordering_fields"]]
-        entidade.api_default_ordering = [("-" if n.startswith("-") else "") + code(n[1:] if n.startswith("-") else n) for n in saved["default_ordering"]]
-        entidade.api_page_size = saved["page_size"]
-        workflow = workflows.get(entidade.nome) if isinstance(workflows.get(entidade.nome), dict) else {}
-        entidade.api_has_workflow = bool(workflow.get("enabled"))
+        entidade.api_http_methods = sorted(methods); entidade.api_fields = [code(n) for n in saved["fields"]]; entidade.api_read_only_fields = [code(n) for n in saved["read_only_fields"]]; entidade.api_search_fields = [code(n) for n in saved["search_fields"]]; entidade.api_ordering_fields = [code(n) for n in saved["ordering_fields"]]; entidade.api_default_ordering = [("-" if n.startswith("-") else "") + code(n[1:] if n.startswith("-") else n) for n in saved["default_ordering"]]; entidade.api_page_size = saved["page_size"]; workflow = workflows.get(entidade.nome) if isinstance(workflows.get(entidade.nome), dict) else {}; entidade.api_has_workflow = bool(workflow.get("enabled"))
 
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); integrations_config = self._integrations_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
@@ -193,7 +168,7 @@ class GeradorService:
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
                 self._prepare_form_generation(entidade, forms_config); self._prepare_crud_generation(entidade, cruds_config); self._prepare_business_rules_generation(entidade, rules_config); self._prepare_api_generation(entidade, api_config, workflows)
                 if entidade.api_enabled: modulo.entidades_api.append(entidade)
-        return {"sistema": self.sistema, "nome_projeto": self.nome_projeto, "modulos": modulos, "dashboard": dashboard, "dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False), "forms": forms_config, "cruds": cruds_config, "business_rules": rules_config, "api": api_config, "integrations": integrations_config, "integrations_python": repr(integrations_config)}
+        return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config)}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada")
@@ -231,27 +206,32 @@ class GeradorService:
     def _gerar_core(self, ctx):
         for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"), (f"{self.nome_projeto}/dashboard_data.py", "dashboard_data_views.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         if ctx.get("integrations", {}).get("enabled"):
-            for path, template in (("integrations/__init__.py", "integration_init.txt"), ("integrations/config.py", "integration_config.txt"), ("integrations/client.py", "integration_client.txt")):
-                self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+            for path, template in (("integrations/__init__.py", "integration_init.txt"), ("integrations/config.py", "integration_config.txt"), ("integrations/client.py", "integration_client.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         self._gerar_requirements(ctx); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True); self.log("✅ Diretórios static/ e media/ preparados")
 
     def _gerar_modulo(self, modulo, ctx):
-        local_ctx = {**ctx, "app_name": modulo.app_name, "entidades": modulo.entidades_geracao, "entidades_crud": modulo.entidades_crud, "entidades_api": modulo.entidades_api, "imports_por_app": {}}
-        arquivos = [(f"{modulo.app_name}/__init__.py", "init.txt"), (f"{modulo.app_name}/models.py", "models.txt"), (f"{modulo.app_name}/migrations/__init__.py", "init.txt"), (f"{modulo.app_name}/forms.py", "forms_v2.txt"), (f"{modulo.app_name}/business_rules.py", "business_rules_runtime.txt"), (f"{modulo.app_name}/workflow.py", "workflow_runtime.txt"), (f"{modulo.app_name}/rbac.py", "rbac_runtime.txt"), (f"{modulo.app_name}/views.py", "views.txt"), (f"{modulo.app_name}/urls.py", "urls_app_v2.txt"), (f"{modulo.app_name}/admin.py", "admin_v2.txt"), (f"{modulo.app_name}/apps.py", "apps_config.txt")]
-        if ctx.get("api", {}).get("enabled") and modulo.entidades_api:
-            arquivos.extend([(f"{modulo.app_name}/serializers.py", "api_serializers.txt"), (f"{modulo.app_name}/api_views.py", "api_views.txt"), (f"{modulo.app_name}/api_urls.py", "api_urls.txt")])
+        local_ctx = {**ctx,"app_name": modulo.app_name,"entidades": modulo.entidades_geracao,"entidades_crud": modulo.entidades_crud,"entidades_api": modulo.entidades_api,"imports_por_app": {}}
+        arquivos = [(f"{modulo.app_name}/__init__.py", "init.txt"),(f"{modulo.app_name}/models.py", "models.txt"),(f"{modulo.app_name}/migrations/__init__.py", "init.txt"),(f"{modulo.app_name}/forms.py", "forms_v2.txt"),(f"{modulo.app_name}/business_rules.py", "business_rules_runtime.txt"),(f"{modulo.app_name}/workflow.py", "workflow_runtime.txt"),(f"{modulo.app_name}/rbac.py", "rbac_runtime.txt"),(f"{modulo.app_name}/views.py", "views.txt"),(f"{modulo.app_name}/urls.py", "urls_app_v2.txt"),(f"{modulo.app_name}/admin.py", "admin_v2.txt"),(f"{modulo.app_name}/apps.py", "apps_config.txt")]
+        if ctx.get("api", {}).get("enabled") and modulo.entidades_api: arquivos.extend([(f"{modulo.app_name}/serializers.py", "api_serializers.txt"),(f"{modulo.app_name}/api_views.py", "api_views.txt"),(f"{modulo.app_name}/api_urls.py", "api_urls.txt")])
         for path, template in arquivos: self._escrever_arquivo(path, f"gerador/snippets/{template}", local_ctx)
         for entidade in modulo.entidades_crud:
-            ent_ctx = {**local_ctx, "entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
-            for suffix, template in (("list", "html_list.txt"), ("form", "html_form.txt"), ("confirm_delete", "html_delete.txt")): self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
+            ent_ctx = {**local_ctx,"entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
+            for suffix, template in (("list", "html_list.txt"),("form", "html_form.txt"),("confirm_delete", "html_delete.txt")): self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
             if entidade.crud_designer_ready and entidade.crud_actions.view: self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_detail.html", "gerador/snippets/html_detail.txt", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
-        self._escrever_arquivo("templates/base.html", "gerador/snippets/base_html.txt", ctx)
-        self._escrever_arquivo("templates/index.html", "gerador/snippets/index_html.txt", ctx)
-        self._escrever_arquivo("templates/home.html", "gerador/snippets/home_html.txt", ctx)
-        self._escrever_arquivo("templates/registration/login.html", "gerador/snippets/login_html.txt", ctx)
-        self._escrever_arquivo("templates/dashboard.html", "gerador/snippets/dashboard_html.txt", ctx)
+        for path, template in (
+            ("templates/base.html", "base_html.txt"),
+            ("templates/index.html", "index_html.txt"),
+            ("templates/home.html", "home_html.txt"),
+            ("templates/registration/login.html", "login_html.txt"),
+            ("templates/dashboard.html", "dashboard_html.txt"),
+            ("templates/accounts/profile.html", "profile_html.txt"),
+            ("templates/accounts/password_change.html", "password_change_html.txt"),
+            ("templates/accounts/user_list.html", "user_list_html.txt"),
+            ("templates/accounts/user_form.html", "user_form_html.txt"),
+        ):
+            self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_docker(self):
-        self._escrever_arquivo("Dockerfile", "gerador/snippets/dockerfile.txt", {"sistema": self.sistema, "nome_projeto": self.nome_projeto}); self._escrever_arquivo("docker-compose.yml", "gerador/snippets/docker_compose.txt", {"sistema": self.sistema, "nome_projeto": self.nome_projeto}); self._escrever_arquivo(".env.example", "gerador/snippets/env_example.txt", {"sistema": self.sistema})
+        self._escrever_arquivo("Dockerfile", "gerador/snippets/dockerfile.txt", {"sistema": self.sistema,"nome_projeto": self.nome_projeto}); self._escrever_arquivo("docker-compose.yml", "gerador/snippets/docker_compose.txt", {"sistema": self.sistema,"nome_projeto": self.nome_projeto}); self._escrever_arquivo(".env.example", "gerador/snippets/env_example.txt", {"sistema": self.sistema})

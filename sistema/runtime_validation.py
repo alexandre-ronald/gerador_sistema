@@ -28,9 +28,23 @@ class GeneratedProjectRuntimeValidator:
         return {"checked": self.checked, "warnings": list(self.warnings), "messages": list(self._loggable)}
 
     def _message(self, message): self._loggable.append(message)
-    def _read_generated_settings(self): return next(iter(self.root.glob("*/settings.py")), None)
-    def _read_generated_urls(self): return next(iter(self.root.glob("*/urls.py")), None)
-    def _read_generated_context_processor(self): return next(iter(self.root.glob("*/context_processors.py")), None)
+
+    def _read_generated_settings(self):
+        for path in self.root.glob("*/settings.py"):
+            if path.parent == self.root:
+                continue
+            return path
+        return None
+
+    def _read_project_file(self, filename):
+        settings = self._read_generated_settings()
+        if settings is None:
+            return None
+        path = settings.parent / filename
+        return path if path.is_file() else None
+
+    def _read_generated_urls(self): return self._read_project_file("urls.py")
+    def _read_generated_context_processor(self): return self._read_project_file("context_processors.py")
 
     def _validate_required_files(self):
         missing = [path for path in self.REQUIRED_ROOT_FILES if not (self.root / path).is_file()]
@@ -66,7 +80,7 @@ class GeneratedProjectRuntimeValidator:
         missing = []
         if not login.is_file(): missing.append("template de login")
         if urls is None:
-            missing.append("urls.py")
+            missing.append("urls.py raiz")
         else:
             content = urls.read_text(encoding="utf-8")
             if "django.contrib.auth.urls" not in content: missing.append("rotas de autenticação")

@@ -1,6 +1,3 @@
-from django.urls import NoReverseMatch
-
-
 # Generated from the persisted system specification. Keep URL/permission
 # identifiers here Python-safe; display labels may contain accents.
 NAVIGATION_MODULES = [
@@ -13,6 +10,13 @@ NAVIGATION_MODULES = [
             {
                 "label": "{{ entidade.nome|escapejs }}",
                 "url_name": "{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list",
+                "active_url_names": [
+                    "{{ entidade.codigo_nome }}_list",
+                    "{{ entidade.codigo_nome }}_create",
+                    "{{ entidade.codigo_nome }}_update",
+                    "{{ entidade.codigo_nome }}_detail",
+                    "{{ entidade.codigo_nome }}_delete",
+                ],
                 "permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}",
                 "app_name": "{{ modulo.app_name }}",
             },
@@ -30,10 +34,24 @@ def _allowed_items(request, items):
     return [item for item in items if not item["permission"] or user.has_perm(item["permission"])]
 
 
+def _mark_active_items(request, items):
+    resolver_match = getattr(request, "resolver_match", None)
+    current_url_name = getattr(resolver_match, "url_name", None)
+    current_app_name = getattr(resolver_match, "app_name", None)
+    marked = []
+    for item in items:
+        active_names = item.get("active_url_names") or [item["url_name"].split(":")[-1]]
+        marked.append({
+            **item,
+            "is_active": current_app_name == item.get("app_name") and current_url_name in active_names,
+        })
+    return marked
+
+
 def navigation(request):
     modules = []
     for module in NAVIGATION_MODULES:
         items = _allowed_items(request, module["items"])
         if items:
-            modules.append({**module, "items": items})
+            modules.append({**module, "items": _mark_active_items(request, items)})
     return {"navigation_modules": modules}

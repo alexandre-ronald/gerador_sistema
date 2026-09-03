@@ -71,12 +71,12 @@ def sistema_workspace(request, sistema_id):
 def criar_sistema(request):
     caminho_padrao = os.path.join(str(settings.BASE_DIR), "projetos_gerados")
     estrutura = {"sistema": {"caminho": caminho_padrao}, "modulos": []}
-    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(estrutura, ensure_ascii=False), "sistema_id": None, "caminho_geracao_padrao": caminho_padrao})
+    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(estrutura, ensure_ascii=False), "sistema_id": None, "sistema": None, "caminho_geracao_padrao": caminho_padrao})
 
 @login_required
 def editar_sistema(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(serialize_system_structure(sistema), ensure_ascii=False), "sistema_id": sistema.id, "caminho_geracao_padrao": sistema.caminho_geracao})
+    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(serialize_system_structure(sistema), ensure_ascii=False), "sistema_id": sistema.id, "sistema": sistema, "caminho_geracao_padrao": sistema.caminho_geracao})
 
 @login_required
 @require_http_methods(["POST"])

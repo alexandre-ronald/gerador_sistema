@@ -57,6 +57,7 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/deployments/config/', deployment_center_views.save_deployment_config, name='save_deployment_config'),
     path('sistemas/<int:sistema_id>/deployments/ambientes/<int:ambiente_id>/planos/', deployment_center_views.create_deployment_plan, name='create_deployment_plan'),
     path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/validar/', deployment_center_views.validate_deployment_plan, name='validate_deployment_plan'),
+    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/executar/', deployment_center_views.execute_deployment_plan, name='execute_deployment_plan'),
     path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/cancelar/', deployment_center_views.cancel_deployment_plan, name='cancel_deployment_plan'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),

@@ -68,6 +68,9 @@ def _relation_filter_choices(request):
     resolver_match = getattr(request, "resolver_match", None)
     if not str(getattr(resolver_match, "url_name", "") or "").endswith("_list"):
         return []
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return []
     item = _current_navigation_item(request)
     if not item:
         return []
@@ -79,19 +82,16 @@ def _relation_filter_choices(request):
         return []
     result = []
     for field in model._meta.fields:
-        if not getattr(field, "is_relation", False) or not getattr(field, "many_to_one", False) and not getattr(field, "one_to_one", False):
+        if not getattr(field, "is_relation", False) or (not getattr(field, "many_to_one", False) and not getattr(field, "one_to_one", False)):
             continue
         related_model = getattr(field.remote_field, "model", None)
         if related_model is None:
-            continue
-        permission = f"{related_model._meta.app_label}.view_{related_model._meta.model_name}"
-        user = getattr(request, "user", None)
-        if user is None or not user.is_authenticated or not user.has_perm(permission):
             continue
         options = [
             {"value": str(obj.pk), "label": str(obj)}
             for obj in related_model._default_manager.all()[:500]
         ]
+        options.sort(key=lambda option: option["label"].casefold())
         result.append({"field": field.name, "options": options})
     return result
 

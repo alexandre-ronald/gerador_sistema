@@ -20,7 +20,8 @@ class CrudDesignerUITests(SimpleTestCase):
     def test_exposes_crud_designer_shell(self):
         source = self.source()
         self.assertIn("CRUD Designer 2.0", source)
-        self.assertIn("System Builder · GEN-051", source)
+        self.assertIn("Design · GEN-051", source)
+        self.assertIn("Voltar ao Workspace", source)
         self.assertIn('id="entity"', source)
         self.assertIn('id="crud-title"', source)
         self.assertIn('id="page-size"', source)

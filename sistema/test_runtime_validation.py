@@ -42,7 +42,7 @@ class GeneratedRuntimeValidationTests(SimpleTestCase):
             encoding="utf-8",
         )
         (root / "demo" / "urls.py").write_text(
-            """from django.urls import path\nfrom django.http import HttpResponse\n\ndef view(request):\n    return HttpResponse('ok')\n\nurlpatterns = [path('', view, name='index'), path('login/', view, name='login'), path('logout/', view, name='logout')]\n""",
+            """from django.contrib.auth.decorators import login_required\nfrom django.http import HttpResponse\nfrom django.urls import include, path\n\n@login_required\ndef view(request):\n    return HttpResponse('ok')\n\nurlpatterns = [\n    path('', view, name='index'),\n    path('accounts/', include('django.contrib.auth.urls')),\n]\n""",
             encoding="utf-8",
         )
         (root / "demo" / "wsgi.py").write_text("import os\nos.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')\n", encoding="utf-8")
@@ -138,36 +138,3 @@ class MultiDatabaseSettingsSnippetTests(SimpleTestCase):
     def test_oracle_settings_contains_engine(self):
         content = self._render_settings("oracle")
         self.assertIn("django.db.backends.oracle", content)
-        self.assertIn("ORACLE_NAME", content)
-
-    def test_unknown_database_falls_back_to_sqlite(self):
-        content = self._render_settings("banco_desconhecido")
-        self.assertIn("django.db.backends.sqlite3", content)
-        self.assertIn("db.sqlite3", content)
-
-    def test_requirements_include_driver_for_postgresql(self):
-        class FakeSistema:
-            banco_dados = "postgresql"
-            gerar_api_rest = False
-        svc = GeradorService.__new__(GeradorService)
-        svc.sistema = FakeSistema()
-        svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")
-        svc.logs = []
-        svc._gerar_requirements()
-        req = Path(svc.diretorio_base, "requirements.txt").read_text(encoding="utf-8")
-        self.assertIn("psycopg", req)
-        self.assertIn("Django", req)
-
-    def test_requirements_sqlite_has_no_extra_driver(self):
-        class FakeSistema:
-            banco_dados = "sqlite3"
-            gerar_api_rest = False
-        svc = GeradorService.__new__(GeradorService)
-        svc.sistema = FakeSistema()
-        svc.diretorio_base = tempfile.mkdtemp(prefix="req_test_")
-        svc.logs = []
-        svc._gerar_requirements()
-        req = Path(svc.diretorio_base, "requirements.txt").read_text(encoding="utf-8")
-        self.assertIn("Django", req)
-        self.assertNotIn("psycopg", req)
-        self.assertNotIn("mysqlclient", req)

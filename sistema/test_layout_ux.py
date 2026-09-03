@@ -116,7 +116,7 @@ class LayoutUXNavigationContractTests(TestCase):
         sistema = Sistema.objects.create(usuario=user, nome="Model UX")
         self.client.force_login(user)
 
-        create_response = self.client.get(reverse("sistema:criar_sistema"))
+        create_response = self.client.get(reverse("sistema:criar"))
         edit_response = self.client.get(reverse("sistema:editar_sistema", args=[sistema.pk]))
 
         self.assertIsNone(create_response.context["sistema"])

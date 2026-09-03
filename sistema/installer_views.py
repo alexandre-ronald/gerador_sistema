@@ -125,7 +125,7 @@ def processar_geracao_ajax(request, pk):
         if not root or not os.path.isdir(root):
             raise RuntimeError(f"Diretório de destino '{root}' não foi localizado.")
 
-        with open(os.path.join(root, "instalacao.bat"), "w", encoding="utf-8-sig", newline="") as bat_file:
+        with open(os.path.join(root, "instalacao.bat"), "w", encoding="utf-8", newline="\r\n") as bat_file:
             bat_file.write(_installer_content(sistema))
         logs.append("Instalador criado: instalacao.bat")
 

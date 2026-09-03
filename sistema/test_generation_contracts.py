@@ -42,6 +42,23 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn('"active_url_names": [', navigation); self.assertIn('"{{ entidade.codigo_nome }}_create"', navigation); self.assertIn('"{{ entidade.codigo_nome }}_update"', navigation); self.assertIn('"{{ entidade.codigo_nome }}_detail"', navigation); self.assertIn('"is_active":', navigation); self.assertIn("current_url_name in active_names", navigation)
         self.assertNotIn("gestão de pessoas:funcionário_list", base.lower()); self.assertNotIn("gestão de pessoas:funcionário_list", index.lower())
 
+    def test_global_navigation_exposes_context_and_compact_sidebar(self):
+        base = self._source("gerador/snippets/base_html.txt")
+        navigation = self._source("gerador/snippets/navigation_context.txt")
+        self.assertIn("navigation_current", navigation)
+        self.assertIn("_current_navigation_context", navigation)
+        self.assertIn('"module_label": module["label"]', navigation)
+        self.assertIn('"item_label": item["label"]', navigation)
+        self.assertIn("sidebar-collapse", base)
+        self.assertIn("sidebar-collapsed", base)
+        self.assertIn("localStorage.setItem('sidebar-collapsed'", base)
+        self.assertIn("navigation_current.module_label", base)
+        self.assertIn("navigation_current.item_label", base)
+        self.assertIn("url 'dashboard'", base)
+        self.assertIn("app-user-menu", base)
+        self.assertIn("Sair do sistema", base)
+        self.assertIn("aria-controls=\"app-sidebar\"", base)
+
     def test_generated_ui_uses_modern_feedback_without_browser_dialogs(self):
         base = self._source("gerador/snippets/base_html.txt"); form = self._source("gerador/snippets/html_form.txt"); login = self._source("gerador/snippets/login_html.txt"); index = self._source("gerador/snippets/index_html.txt"); detail = self._source("gerador/snippets/html_detail.txt"); dashboard = self._source("gerador/snippets/dashboard_html.txt"); home = self._source("gerador/snippets/home_html.txt")
         self.assertIn("app-toast-stack", base); self.assertIn("data-app-toast", base); self.assertIn("workspace-hero", index); self.assertIn("app-page-heading", form); self.assertIn("app-feedback-danger", form); self.assertIn("auth-feedback", login)

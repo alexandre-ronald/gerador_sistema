@@ -56,6 +56,16 @@ class LocalDockerComposeExecutorTests(SimpleTestCase):
             ],
         )
 
+    def test_empty_working_directory_fails_closed(self):
+        executor = LocalDockerComposeExecutor(
+            {"working_directory": "", "compose_file": "docker-compose.yml"},
+            runner=self.runner,
+        )
+        with self.assertRaises(DeploymentExecutionError) as ctx:
+            executor.prepare()
+        self.assertEqual(ctx.exception.code, "working_directory_missing")
+        self.assertEqual(self.calls, [])
+
     def test_missing_working_directory_fails_before_commands(self):
         executor = LocalDockerComposeExecutor(
             {"working_directory": str(self.working_directory / "missing"), "compose_file": "docker-compose.yml"},
@@ -73,15 +83,18 @@ class LocalDockerComposeExecutorTests(SimpleTestCase):
         self.assertEqual(ctx.exception.code, "compose_file_missing")
         self.assertEqual(self.calls, [])
 
-    def test_command_failure_is_sanitized_and_bounded(self):
+    def test_command_failure_does_not_expose_process_output(self):
+        secret = "TOKEN_SUPER_SECRETO"
+
         def failing_runner(args, **kwargs):
-            return SimpleNamespace(returncode=1, stdout="", stderr="erro\nsegredo " + ("x" * 500))
+            return SimpleNamespace(returncode=1, stdout=f"url?token={secret}", stderr=f"password={secret}")
 
         with self.assertRaises(DeploymentExecutionError) as ctx:
             self.executor(failing_runner).deploy()
         self.assertEqual(ctx.exception.code, "command_failed")
-        self.assertNotIn("\n", ctx.exception.message)
-        self.assertLessEqual(len(ctx.exception.message), 330)
+        self.assertNotIn(secret, ctx.exception.message)
+        self.assertNotIn("password=", ctx.exception.message)
+        self.assertNotIn("token=", ctx.exception.message)
 
     def test_timeout_has_safe_error(self):
         def timeout_runner(args, **kwargs):

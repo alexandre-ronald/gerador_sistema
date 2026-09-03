@@ -51,6 +51,20 @@ def _mark_active_items(request, items):
     return marked
 
 
+def _current_navigation_context(request, modules):
+    resolver_match = getattr(request, "resolver_match", None)
+    current_url_name = getattr(resolver_match, "url_name", None)
+    if current_url_name == "index":
+        return {"module_label": "Início", "item_label": "Área de trabalho"}
+    if current_url_name in {"dashboard", "dashboard_data"}:
+        return {"module_label": "Análise", "item_label": "Dashboard"}
+    for module in modules:
+        for item in module["items"]:
+            if item.get("is_active"):
+                return {"module_label": module["label"], "item_label": item["label"]}
+    return {"module_label": "Área de trabalho", "item_label": "Visão geral"}
+
+
 def _current_navigation_item(request):
     resolver_match = getattr(request, "resolver_match", None)
     current_url_name = getattr(resolver_match, "url_name", None)
@@ -104,5 +118,6 @@ def navigation(request):
             modules.append({**module, "items": _mark_active_items(request, items)})
     return {
         "navigation_modules": modules,
+        "navigation_current": _current_navigation_context(request, modules),
         "relation_filter_choices": _relation_filter_choices(request),
     }

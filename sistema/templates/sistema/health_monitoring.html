@@ -1,14 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-start mb-4">
-    <div>
-      <div class="text-uppercase small text-muted fw-semibold">Lifecycle · GEN-046</div>
-      <h2 class="mb-1">Health & Monitoring</h2>
-      <p class="text-muted mb-0">{{ sistema.nome }} · saúde operacional dos ambientes</p>
-    </div>
-    <a href="{% url 'sistema:environment_manager' sistema.id %}" class="btn btn-outline-secondary">Environment Manager</a>
-  </div>
+  {% url 'sistema:workspace' sistema.id as workspace_url %}
+  {% url 'sistema:environment_manager' sistema.id as environment_url %}
+  {% include 'sistema/_page_header.html' with eyebrow='Lifecycle · GEN-046' title='Health & Monitoring' subtitle=sistema.nome|add:' · saúde operacional dos ambientes' secondary_url=environment_url secondary_label='Environment Manager' back_url=workspace_url back_label='Voltar ao Workspace' %}
 
   <div class="row g-3 mb-4">
     <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="text-muted small">Ambientes</div><div class="fs-3 fw-bold">{{ summary.total }}</div></div></div></div>
@@ -26,12 +21,8 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div><span class="badge bg-light text-dark">{{ item.ambiente.get_tipo_display }}</span><h5 class="mt-2 mb-0">{{ item.ambiente.nome }}</h5></div>
-            {% if item.health == 'HEALTHY' %}<span class="badge bg-success">HEALTHY</span>
-            {% elif item.health == 'DEGRADED' %}<span class="badge bg-warning text-dark">DEGRADED</span>
-            {% elif item.health == 'OFFLINE' %}<span class="badge bg-danger">OFFLINE</span>
-            {% else %}<span class="badge bg-secondary">UNKNOWN</span>{% endif %}
+            {% if item.health == 'HEALTHY' %}<span class="badge bg-success">HEALTHY</span>{% elif item.health == 'DEGRADED' %}<span class="badge bg-warning text-dark">DEGRADED</span>{% elif item.health == 'OFFLINE' %}<span class="badge bg-danger">OFFLINE</span>{% else %}<span class="badge bg-secondary">UNKNOWN</span>{% endif %}
           </div>
-
           <div class="row g-2 small mb-3">
             <div class="col-6"><span class="text-muted">Release desejada</span><div class="fw-semibold">{% if item.desired_release %}v{{ item.desired_release }}{% else %}—{% endif %}</div></div>
             <div class="col-6"><span class="text-muted">Release observada</span><div class="fw-semibold">{{ item.observed_release|default:'—' }}</div></div>
@@ -40,43 +31,15 @@
             <div class="col-6"><span class="text-muted">Banco</span><div class="fw-semibold">{% if item.snapshot %}{{ item.snapshot.database_vendor|default:'—' }}{% else %}—{% endif %}</div></div>
             <div class="col-6"><span class="text-muted">Migrations pendentes</span><div class="fw-semibold">{% if item.snapshot %}{{ item.snapshot.migrations_pending }}{% else %}—{% endif %}</div></div>
           </div>
-
           {% if item.drift %}<div class="alert alert-warning py-2 small mb-3">Drift detectado entre a release desejada e a observada.</div>{% endif %}
           {% if item.snapshot and item.snapshot.erro %}<div class="alert alert-danger py-2 small mb-3">{{ item.snapshot.erro }}</div>{% endif %}
-
-          <form method="post" action="{% url 'sistema:check_runtime' sistema.id item.ambiente.id %}" class="mb-3">
-            {% csrf_token %}<button class="btn btn-sm btn-primary">Verificar agora</button>
-          </form>
-
-          <div class="small fw-semibold mb-2">Últimas verificações</div>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead><tr><th>Quando</th><th>Saúde</th><th>Latência</th><th>Release</th></tr></thead>
-              <tbody>
-                {% for check in item.checks %}<tr><td>{{ check.verificado_em|date:"d/m H:i:s" }}</td><td>{{ check.health }}</td><td>{{ check.latency_ms }} ms</td><td>{{ check.release_observada|default:'—' }}</td></tr>
-                {% empty %}<tr><td colspan="4" class="text-muted">Nenhuma verificação registrada.</td></tr>{% endfor %}
-              </tbody>
-            </table>
-          </div>
+          <form method="post" action="{% url 'sistema:check_runtime' sistema.id item.ambiente.id %}" class="mb-3">{% csrf_token %}<button class="btn btn-sm btn-primary">Verificar agora</button></form>
+          <div class="small fw-semibold mb-2">Últimas verificações</div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Quando</th><th>Saúde</th><th>Latência</th><th>Release</th></tr></thead><tbody>{% for check in item.checks %}<tr><td>{{ check.verificado_em|date:"d/m H:i:s" }}</td><td>{{ check.health }}</td><td>{{ check.latency_ms }} ms</td><td>{{ check.release_observada|default:'—' }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted">Nenhuma verificação registrada.</td></tr>{% endfor %}</tbody></table></div>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
-
-  <div class="card border-0 shadow-sm mt-4">
-    <div class="card-body">
-      <h5>Histórico consolidado</h5>
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead><tr><th>Quando</th><th>Ambiente</th><th>Saúde</th><th>Release</th><th>Migrations</th><th>Latência</th><th>Erro</th></tr></thead>
-          <tbody>
-            {% for check in historico %}<tr><td>{{ check.verificado_em|date:"d/m/Y H:i:s" }}</td><td>{{ check.ambiente.nome }}</td><td>{{ check.health }}</td><td>{{ check.release_observada|default:'—' }}</td><td>{{ check.migrations_pending }}</td><td>{{ check.latency_ms }} ms</td><td>{{ check.erro|default:'—' }}</td></tr>
-            {% empty %}<tr><td colspan="7" class="text-muted">Nenhuma verificação registrada.</td></tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <div class="card border-0 shadow-sm mt-4"><div class="card-body"><h5>Histórico consolidado</h5><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Quando</th><th>Ambiente</th><th>Saúde</th><th>Release</th><th>Migrations</th><th>Latência</th><th>Erro</th></tr></thead><tbody>{% for check in historico %}<tr><td>{{ check.verificado_em|date:"d/m/Y H:i:s" }}</td><td>{{ check.ambiente.nome }}</td><td>{{ check.health }}</td><td>{{ check.release_observada|default:'—' }}</td><td>{{ check.migrations_pending }}</td><td>{{ check.latency_ms }} ms</td><td>{{ check.erro|default:'—' }}</td></tr>{% empty %}<tr><td colspan="7" class="text-muted">Nenhuma verificação registrada.</td></tr>{% endfor %}</tbody></table></div></div></div>
 </div>
 {% endblock %}

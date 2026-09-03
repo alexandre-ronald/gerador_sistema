@@ -86,7 +86,7 @@ def _runtime_system_config(sistema):
             role = roles.get(role_id)
             if role is None:
                 continue
-            seen = set(role["permissions"])
+            seen = {(item["app_label"], item["codename"]) for item in role["permissions"]}
             for action in actions:
                 django_action = action_map.get(action)
                 if not django_action:

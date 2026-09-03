@@ -1,10 +1,11 @@
-import os
+{% load rbac_generation %}{% rbac_system_runtime_config sistema as runtime_rbac %}import os
 import time
 
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import PasswordChangeForm, UserCreationForm
+from django.contrib.auth.models import Group, Permission
 from django.db import connection
 from django.db.models import Q
 from django.db.migrations.executor import MigrationExecutor
@@ -17,6 +18,46 @@ from .dashboard_data import dashboard_data
 
 _RUNTIME_STARTED_AT = time.monotonic()
 User = get_user_model()
+RBAC_ENABLED = {{ runtime_rbac.enabled|yesno:"True,False" }}
+RBAC_ROLE_GROUPS = [
+{% for role in runtime_rbac.roles %}    {
+        'id': '{{ role.id|escapejs }}',
+        'label': '{{ role.label|escapejs }}',
+        'group': '{{ role.group|escapejs }}',
+        'permissions': [
+{% for permission in role.permissions %}            ('{{ permission.app_label|escapejs }}', '{{ permission.codename|escapejs }}'),
+{% endfor %}        ],
+    },
+{% endfor %}]
+
+
+def _sync_rbac_groups():
+    if not RBAC_ENABLED:
+        return []
+    result = []
+    for role in RBAC_ROLE_GROUPS:
+        group, _ = Group.objects.get_or_create(name=role['group'])
+        permission_q = Q()
+        for app_label, codename in role['permissions']:
+            permission_q |= Q(content_type__app_label=app_label, codename=codename)
+        permissions = Permission.objects.filter(permission_q).distinct() if permission_q else Permission.objects.none()
+        group.permissions.set(permissions)
+        result.append({'role': role, 'group': group, 'permission_count': permissions.count()})
+    return result
+
+
+def _available_role_groups():
+    synced = _sync_rbac_groups()
+    return [item['group'] for item in synced]
+
+
+def _save_user_role_groups(user, group_names):
+    managed_names = [role['group'] for role in RBAC_ROLE_GROUPS]
+    if managed_names:
+        user.groups.remove(*Group.objects.filter(name__in=managed_names))
+    selected = Group.objects.filter(name__in=group_names)
+    if selected:
+        user.groups.add(*selected)
 
 
 @login_required
@@ -48,8 +89,15 @@ def _staff_required(view):
 
 
 @_staff_required
+def role_list_view(request):
+    roles = _sync_rbac_groups()
+    return render(request, 'accounts/role_list.html', {'roles': roles, 'rbac_enabled': RBAC_ENABLED})
+
+
+@_staff_required
 def user_list_view(request):
-    users = User.objects.order_by('username')
+    _sync_rbac_groups()
+    users = User.objects.prefetch_related('groups').order_by('username')
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '').strip()
     if query:
@@ -63,6 +111,7 @@ def user_list_view(request):
 
 @_staff_required
 def user_create_view(request):
+    role_groups = _available_role_groups()
     form = UserCreationForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         user = form.save()
@@ -72,14 +121,16 @@ def user_create_view(request):
         user.is_staff = request.POST.get('is_staff') == 'on'
         user.is_active = request.POST.get('is_active') == 'on'
         user.save()
+        _save_user_role_groups(user, request.POST.getlist('groups'))
         messages.success(request, 'Usuário cadastrado com sucesso.')
         return redirect('user_list')
-    return render(request, 'accounts/user_form.html', {'form': form, 'editing': False})
+    return render(request, 'accounts/user_form.html', {'form': form, 'editing': False, 'role_groups': role_groups})
 
 
 @_staff_required
 def user_update_view(request, pk):
-    managed_user = get_object_or_404(User, pk=pk)
+    role_groups = _available_role_groups()
+    managed_user = get_object_or_404(User.objects.prefetch_related('groups'), pk=pk)
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         if not username:
@@ -94,9 +145,11 @@ def user_update_view(request, pk):
             managed_user.is_staff = request.POST.get('is_staff') == 'on'
             managed_user.is_active = request.POST.get('is_active') == 'on'
             managed_user.save()
+            _save_user_role_groups(managed_user, request.POST.getlist('groups'))
             messages.success(request, 'Usuário atualizado com sucesso.')
             return redirect('user_list')
-    return render(request, 'accounts/user_form.html', {'managed_user': managed_user, 'editing': True})
+    selected_group_names = set(managed_user.groups.values_list('name', flat=True))
+    return render(request, 'accounts/user_form.html', {'managed_user': managed_user, 'editing': True, 'role_groups': role_groups, 'selected_group_names': selected_group_names})
 
 
 def runtime_status(request):
@@ -126,6 +179,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/profile/', profile_view, name='profile'),
     path('accounts/profile/password/', password_change_view, name='password_change'),
+    path('accounts/roles/', role_list_view, name='role_list'),
     path('accounts/users/', user_list_view, name='user_list'),
     path('accounts/users/new/', user_create_view, name='user_create'),
     path('accounts/users/<int:pk>/edit/', user_update_view, name='user_update'),

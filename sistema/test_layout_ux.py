@@ -101,6 +101,29 @@ class LayoutUXNavigationContractTests(TestCase):
                 self.assertIn("sistema:workspace", source)
                 self.assertIn("Voltar ao Workspace", source)
 
+    def test_model_designer_uses_contextual_hierarchical_return(self):
+        source = self._read("templates/sistema/editor.html")
+
+        self.assertIn('sistema/_page_header.html', source)
+        self.assertIn("{% if sistema_id %}", source)
+        self.assertIn("{% url 'sistema:workspace' sistema_id as model_back_url %}", source)
+        self.assertIn('back_label="Voltar ao Workspace"', source)
+        self.assertIn("{% url 'sistema:lista' as model_back_url %}", source)
+        self.assertIn('back_label="Voltar a Meus Sistemas"', source)
+
+    def test_model_designer_views_expose_system_context_only_when_editing(self):
+        user = get_user_model().objects.create_user(username="model-layout", password="senha-forte")
+        sistema = Sistema.objects.create(usuario=user, nome="Model UX")
+        self.client.force_login(user)
+
+        create_response = self.client.get(reverse("sistema:criar_sistema"))
+        edit_response = self.client.get(reverse("sistema:editar_sistema", args=[sistema.pk]))
+
+        self.assertIsNone(create_response.context["sistema"])
+        self.assertEqual(edit_response.context["sistema"], sistema)
+        self.assertContains(create_response, "Voltar a Meus Sistemas")
+        self.assertContains(edit_response, "Voltar ao Workspace")
+
     def test_designers_no_longer_use_legacy_builder_or_fake_workspace_back(self):
         for template_path in (
             "sistema/templates/sistema/form_designer.html",

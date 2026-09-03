@@ -54,191 +54,117 @@ def _parse_date(value):
 
 
 def _window(period, reference, analytics):
-    if period == 'all':
-        return None
-    if period == 'today':
-        return (reference, reference)
-    if period == 'current_week':
-        return (reference - timedelta(days=reference.weekday()), reference)
-    if period == 'current_month':
-        return (reference.replace(day=1), reference)
-    if period == 'current_year':
-        return (reference.replace(month=1, day=1), reference)
-    if period == 'last_7_days':
-        return (reference - timedelta(days=6), reference)
-    if period == 'last_30_days':
-        return (reference - timedelta(days=29), reference)
-    if period == 'last_90_days':
-        return (reference - timedelta(days=89), reference)
+    if period == 'all': return None
+    if period == 'today': return (reference, reference)
+    if period == 'current_week': return (reference - timedelta(days=reference.weekday()), reference)
+    if period == 'current_month': return (reference.replace(day=1), reference)
+    if period == 'current_year': return (reference.replace(month=1, day=1), reference)
+    if period == 'last_7_days': return (reference - timedelta(days=6), reference)
+    if period == 'last_30_days': return (reference - timedelta(days=29), reference)
+    if period == 'last_90_days': return (reference - timedelta(days=89), reference)
     if period == 'custom':
-        start = _parse_date(analytics.get('custom_start'))
-        end = _parse_date(analytics.get('custom_end'))
-        if start > end:
-            raise ValueError('Período inválido')
+        start = _parse_date(analytics.get('custom_start')); end = _parse_date(analytics.get('custom_end'))
+        if start > end: raise ValueError('Período inválido')
         return (start, end)
     raise ValueError('Período inválido')
 
 
 def _previous(window, compare):
-    if not window or compare == 'none':
-        return None
+    if not window or compare == 'none': return None
     start, end = window
     if compare == 'previous_period':
-        days = (end - start).days + 1
-        previous_end = start - timedelta(days=1)
+        days = (end - start).days + 1; previous_end = start - timedelta(days=1)
         return (previous_end - timedelta(days=days - 1), previous_end)
     if compare == 'previous_year':
         def shift(value):
-            try:
-                return value.replace(year=value.year - 1)
-            except ValueError:
-                return value.replace(year=value.year - 1, day=28)
+            try: return value.replace(year=value.year - 1)
+            except ValueError: return value.replace(year=value.year - 1, day=28)
         return (shift(start), shift(end))
     raise ValueError('Comparação inválida')
 
 
 def _analytics_qs(qs, model, analytics, window):
     for item in analytics.get('filters') or []:
-        name = str(item.get('field') or '')
-        operator = str(item.get('operator') or 'eq')
-        value = item.get('value')
-        if not _field(model, name):
-            raise ValueError('Filtro inválido')
-        if operator == 'neq':
-            qs = qs.exclude(**{name: value})
-            continue
+        name = str(item.get('field') or ''); operator = str(item.get('operator') or 'eq'); value = item.get('value')
+        if not _field(model, name): raise ValueError('Filtro inválido')
+        if operator == 'neq': qs = qs.exclude(**{name: value}); continue
         lookup = FILTER_LOOKUPS.get(operator)
-        if not lookup:
-            raise ValueError('Operador inválido')
-        key = name if lookup == 'exact' else f'{name}__{lookup}'
-        qs = qs.filter(**{key: value})
+        if not lookup: raise ValueError('Operador inválido')
+        key = name if lookup == 'exact' else f'{name}__{lookup}'; qs = qs.filter(**{key: value})
     if window:
-        name = str(analytics.get('date_field') or '')
-        field = _field(model, name)
-        if not field or not isinstance(field, (models.DateField, models.DateTimeField)):
-            raise ValueError('Campo temporal inválido')
+        name = str(analytics.get('date_field') or ''); field = _field(model, name)
+        if not field or not isinstance(field, (models.DateField, models.DateTimeField)): raise ValueError('Campo temporal inválido')
         start, end = window
         if isinstance(field, models.DateTimeField):
-            begin = datetime.combine(start, time.min)
-            finish = datetime.combine(end + timedelta(days=1), time.min)
-            if timezone.is_aware(timezone.now()):
-                begin = timezone.make_aware(begin)
-                finish = timezone.make_aware(finish)
+            begin = datetime.combine(start, time.min); finish = datetime.combine(end + timedelta(days=1), time.min)
+            if timezone.is_aware(timezone.now()): begin = timezone.make_aware(begin); finish = timezone.make_aware(finish)
             qs = qs.filter(**{f'{name}__gte': begin, f'{name}__lt': finish})
-        else:
-            qs = qs.filter(**{f'{name}__gte': start, f'{name}__lte': end})
+        else: qs = qs.filter(**{f'{name}__gte': start, f'{name}__lte': end})
     return qs
 
 
 def _limit(value):
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return 100
+    try: value = int(value)
+    except (TypeError, ValueError): return 100
     return max(1, min(MAX_LIMIT, value))
 
 
 def _operation(config):
-    value = str(config.get('operation') or 'count').lower()
-    return value if value in ALLOWED_OPERATIONS else 'count'
+    value = str(config.get('operation') or 'count').lower(); return value if value in ALLOWED_OPERATIONS else 'count'
 
 
 def _aggregate(qs, operation, field_name):
-    if operation == 'count' and field_name == 'id':
-        return qs.count()
+    if operation == 'count' and field_name == 'id': return qs.count()
     return qs.aggregate(value=AGGREGATES[operation](field_name))['value']
 
 
 def _grouping(model, config):
-    related = str(config.get('group_by_related') or '')
-    label = str(config.get('related_label') or '__str__')
+    related = str(config.get('group_by_related') or ''); label = str(config.get('related_label') or '__str__')
     if related:
         relation = _field(model, related)
-        if not relation or not getattr(relation, 'is_relation', False):
-            return ''
-        if label == '__str__':
-            return related
+        if not relation or not getattr(relation, 'is_relation', False): return ''
+        if label == '__str__': return related
         related_model = getattr(relation, 'related_model', None)
-        if related_model and _field(related_model, label):
-            return f'{related}__{label}'
+        if related_model and _field(related_model, label): return f'{related}__{label}'
         return ''
-    group_by = str(config.get('group_by') or '')
-    return group_by if _field(model, group_by) else ''
+    group_by = str(config.get('group_by') or ''); return group_by if _field(model, group_by) else ''
 
 
 def _evaluate(qs, widget, model, config, operation, field_name, limit):
     if widget.get('type') == 'table':
-        fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]
-        fields = [str(f) for f in fields if _field(model, str(f))][:8]
-        ordering = str(config.get('ordering') or '')
-        plain = ordering[1:] if ordering.startswith('-') else ordering
-        if ordering and _field(model, plain):
-            qs = qs.order_by(ordering)
-        return {
-            'columns': fields,
-            'rows': [[_serialize(row.get(f)) for f in fields] for row in qs.values(*fields)[:limit]],
-        }
-    if widget.get('type') == 'metric':
-        return {'value': _serialize(_aggregate(qs, operation, field_name))}
+        fields = config.get('fields') or [f.name for f in model._meta.fields[:6]]; fields = [str(f) for f in fields if _field(model, str(f))][:8]
+        ordering = str(config.get('ordering') or ''); plain = ordering[1:] if ordering.startswith('-') else ordering
+        if ordering and _field(model, plain): qs = qs.order_by(ordering)
+        return {'columns': fields, 'rows': [[_serialize(row.get(f)) for f in fields] for row in qs.values(*fields)[:limit]]}
+    if widget.get('type') == 'metric': return {'value': _serialize(_aggregate(qs, operation, field_name))}
     grouping = _grouping(model, config)
     if grouping:
         rows = qs.values(grouping).annotate(value=AGGREGATES[operation](field_name)).order_by('-value')[:limit]
-        return {
-            'labels': [_serialize(row.get(grouping)) or 'Sem valor' for row in rows],
-            'values': [_serialize(row.get('value')) for row in rows],
-        }
+        return {'labels': [_serialize(row.get(grouping)) or 'Sem valor' for row in rows], 'values': [_serialize(row.get('value')) for row in rows]}
     return {'labels': ['Total'], 'values': [_serialize(_aggregate(qs, operation, field_name))]}
 
 
 @login_required
 def dashboard_data(request):
-    widgets={{ dashboard_json|safe }}
+    # dashboard_python é emitido pelo gerador como literal Python. JSON bruto não pode
+    # ser injetado aqui porque true/false/null não existem como nomes em Python.
+    widgets = {{ dashboard_python|safe }}
     result = []
     for widget in widgets:
-        item = {
-            'id': widget.get('id'),
-            'type': widget.get('type'),
-            'title': widget.get('title'),
-            'value': None,
-            'labels': [],
-            'values': [],
-            'columns': [],
-            'rows': [],
-            'comparison': None,
-            'period': None,
-            'comparison_period': None,
-            'error': None,
-        }
+        item = {'id': widget.get('id'), 'type': widget.get('type'), 'title': widget.get('title'), 'value': None, 'labels': [], 'values': [], 'columns': [], 'rows': [], 'comparison': None, 'period': None, 'comparison_period': None, 'error': None}
         try:
             model = _model(widget.get('entity', ''))
-            if model is None:
-                raise ValueError('Entidade não encontrada')
-            config = widget.get('config') or {}
-            operation = _operation(config)
-            field_name = str(config.get('field') or 'id')
-            limit = _limit(config.get('limit', 100))
-            if field_name != 'id' and not _field(model, field_name):
-                raise ValueError('Campo não encontrado')
-            analytics = config.get('analytics') or {}
-            period = str(analytics.get('period') or 'all')
-            compare = str(analytics.get('compare') or 'none')
-            if period not in PERIODS or compare not in COMPARISONS:
-                raise ValueError('Analytics inválido')
-            current_window = _window(period, date.today(), analytics)
-            comparison_window = _previous(current_window, compare)
-            current_qs = _analytics_qs(model.objects.all(), model, analytics, current_window)
-            current = _evaluate(current_qs, widget, model, config, operation, field_name, limit)
-            item.update(current)
+            if model is None: raise ValueError('Entidade não encontrada')
+            config = widget.get('config') or {}; operation = _operation(config); field_name = str(config.get('field') or 'id'); limit = _limit(config.get('limit', 100))
+            if field_name != 'id' and not _field(model, field_name): raise ValueError('Campo não encontrado')
+            analytics = config.get('analytics') or {}; period = str(analytics.get('period') or 'all'); compare = str(analytics.get('compare') or 'none')
+            if period not in PERIODS or compare not in COMPARISONS: raise ValueError('Analytics inválido')
+            current_window = _window(period, date.today(), analytics); comparison_window = _previous(current_window, compare)
+            current_qs = _analytics_qs(model.objects.all(), model, analytics, current_window); item.update(_evaluate(current_qs, widget, model, config, operation, field_name, limit))
             if comparison_window:
-                previous_qs = _analytics_qs(model.objects.all(), model, analytics, comparison_window)
-                item['comparison'] = _evaluate(previous_qs, widget, model, config, operation, field_name, limit)
-            if current_window:
-                item['period'] = {'start': current_window[0].isoformat(), 'end': current_window[1].isoformat()}
-            if comparison_window:
-                item['comparison_period'] = {
-                    'start': comparison_window[0].isoformat(),
-                    'end': comparison_window[1].isoformat(),
-                }
+                previous_qs = _analytics_qs(model.objects.all(), model, analytics, comparison_window); item['comparison'] = _evaluate(previous_qs, widget, model, config, operation, field_name, limit)
+            if current_window: item['period'] = {'start': current_window[0].isoformat(), 'end': current_window[1].isoformat()}
+            if comparison_window: item['comparison_period'] = {'start': comparison_window[0].isoformat(), 'end': comparison_window[1].isoformat()}
         except Exception:
             item['error'] = 'Não foi possível executar a consulta deste widget.'
         result.append(item)

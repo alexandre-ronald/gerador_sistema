@@ -215,3 +215,4 @@ class Campo(models.Model):
 
 from .runtime_models import RuntimeCheck, RuntimeSnapshot
 from .deployment_models import DeploymentPlan
+from .observability_models import ObservabilityEvent

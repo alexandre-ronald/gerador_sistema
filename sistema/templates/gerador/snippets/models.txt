@@ -54,5 +54,9 @@ class {{ entidade.classe_nome }}(models.Model):
         verbose_name_plural = "{{ entidade.nome_plural|default:entidade.nome|escapejs }}"
 
     def __str__(self):
-        return {% if entidade.campos_geracao %}str(self.{{ entidade.campos_geracao.0.codigo_nome }}){% else %}str(self.pk){% endif %}
+{% for campo in entidade.campos_geracao %}{% if campo.tipo == "CharField" or campo.tipo == "TextField" or campo.tipo == "EmailField" or campo.tipo == "URLField" %}        if self.{{ campo.codigo_nome }} not in (None, ""):
+            return str(self.{{ campo.codigo_nome }})
+{% endif %}{% endfor %}{% for campo in entidade.campos_geracao %}{% if campo.tipo != "BooleanField" and campo.tipo != "ManyToManyField" and campo.tipo != "FileField" and campo.tipo != "ImageField" and campo.tipo != "CharField" and campo.tipo != "TextField" and campo.tipo != "EmailField" and campo.tipo != "URLField" %}        if self.{{ campo.codigo_nome }} not in (None, ""):
+            return str(self.{{ campo.codigo_nome }})
+{% endif %}{% endfor %}        return str(self.pk)
 {% endfor %}

@@ -100,12 +100,31 @@ class DeploymentService:
         if plan.ambiente.release_atual_id != plan.versao_id:
             raise ValidationError("A release promovida do ambiente mudou desde a validação do plano.")
 
+        started_at = timezone.now()
+        with transaction.atomic():
+            claimed = DeploymentPlan.objects.filter(
+                pk=plan.pk,
+                sistema=self.sistema,
+                status=DeploymentPlan.STATUS_READY,
+            ).update(
+                status=DeploymentPlan.STATUS_RUNNING,
+                iniciado_em=started_at,
+                finalizado_em=None,
+                erro="",
+                etapas=[],
+            )
+        if claimed != 1:
+            raise DeploymentCenterError(
+                "plan_already_claimed",
+                "O plano já foi iniciado, cancelado ou alterado por outra execução.",
+                field="status",
+            )
+
         plan.status = DeploymentPlan.STATUS_RUNNING
-        plan.iniciado_em = timezone.now()
+        plan.iniciado_em = started_at
         plan.finalizado_em = None
         plan.erro = ""
         plan.etapas = []
-        plan.save(update_fields=["status", "iniciado_em", "finalizado_em", "erro", "etapas"])
 
         try:
             executor = executor_factory(plan.config_snapshot)

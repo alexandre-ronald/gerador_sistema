@@ -99,7 +99,7 @@ def atualizar_sistema(request, sistema_id):
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["POST"])
 def excluir_sistema(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
     nome = sistema.nome

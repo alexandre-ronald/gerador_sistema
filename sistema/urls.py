@@ -21,6 +21,7 @@ urlpatterns = [
     path('', views.lista_sistemas, name='lista'),
     path('novo/', views.criar_sistema, name='criar'),
     path('excluir/<int:sistema_id>/', views.excluir_sistema, name='excluir_sistema'),
+    path('sistemas/<int:sistema_id>/workspace/', views.sistema_workspace, name='workspace'),
     path('sistemas/<int:sistema_id>/editar/', views.editar_sistema, name='editar_sistema'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),
     path('api/sistemas/<int:sistema_id>/', views.atualizar_sistema, name='atualizar_sistema'),

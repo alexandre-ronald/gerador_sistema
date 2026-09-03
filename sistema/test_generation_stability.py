@@ -69,3 +69,21 @@ class GenerationStabilityTests(TestCase):
             GeradorService(sistema.pk).gerar_projeto_completo()
 
         self.assertFalse(VersaoGeracao.objects.filter(sistema=sistema).exists())
+
+    def test_docker_generation_creates_complete_docker_artifacts(self):
+        root = tempfile.mkdtemp(prefix="gen_docker_")
+        sistema = Sistema.objects.create(
+            usuario=self.user,
+            nome="Sistema Docker",
+            caminho_geracao=root,
+            gerar_docker=True,
+        )
+        Modulo.objects.create(sistema=sistema, nome="Cadastro")
+
+        GeradorService(sistema.pk).gerar_projeto_completo()
+
+        self.assertTrue(Path(root, "Dockerfile").is_file())
+        self.assertTrue(Path(root, "docker-compose.yml").is_file())
+        env_example = Path(root, ".env.example")
+        self.assertTrue(env_example.is_file())
+        self.assertIn("DJANGO_SECRET_KEY=", env_example.read_text(encoding="utf-8"))

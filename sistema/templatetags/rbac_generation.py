@@ -1,6 +1,9 @@
 from copy import deepcopy
+import keyword
+import re
 
 from django import template
+from django.utils.text import slugify
 
 from sistema.rbac import CRUD_ACTIONS, normalize_rbac_config
 
@@ -9,6 +12,17 @@ register = template.Library()
 
 def _empty_config():
     return {"enabled": False, "roles": [], "entities": {}}
+
+
+def _python_identifier(value, fallback="item"):
+    value = slugify(str(value or ""), allow_unicode=False).replace("-", "_")
+    value = re.sub(r"[^a-zA-Z0-9_]", "_", value)
+    value = re.sub(r"_+", "_", value).strip("_") or fallback
+    if value[0].isdigit():
+        value = f"_{value}"
+    if keyword.iskeyword(value):
+        value = f"{value}_"
+    return value
 
 
 def _system_from_entities(entities):
@@ -53,6 +67,39 @@ def _system_config(sistema):
     return normalize_rbac_config(_metadata(_system_entities(sistema)), workflows, raw, strict=True)
 
 
+def _runtime_system_config(sistema):
+    config = _system_config(sistema)
+    if not config.get("enabled"):
+        return {"enabled": False, "roles": []}
+
+    entities = {getattr(entity, "nome", ""): entity for entity in _system_entities(sistema)}
+    roles = {role["id"]: {**role, "permissions": []} for role in config.get("roles", [])}
+    action_map = {"list": "view", "view": "view", "create": "add", "update": "change", "delete": "delete"}
+
+    for entity_name, policy in (config.get("entities") or {}).items():
+        entity = entities.get(entity_name)
+        if entity is None:
+            continue
+        app_label = _python_identifier(entity.modulo.nome, "app")
+        model_name = _python_identifier(entity.nome, "entidade")
+        for role_id, actions in (policy.get("roles") or {}).items():
+            role = roles.get(role_id)
+            if role is None:
+                continue
+            seen = set(role["permissions"])
+            for action in actions:
+                django_action = action_map.get(action)
+                if not django_action:
+                    continue
+                permission = {"app_label": app_label, "codename": f"{django_action}_{model_name}"}
+                key = (permission["app_label"], permission["codename"])
+                if key not in seen:
+                    role["permissions"].append(permission)
+                    seen.add(key)
+
+    return {"enabled": True, "roles": sorted(roles.values(), key=lambda item: (item.get("order", 0), item["label"].casefold()))}
+
+
 def _config(entities):
     entities = list(entities or [])
     sistema = _system_from_entities(entities)
@@ -78,6 +125,11 @@ def rbac_generation_config(entities):
 @register.simple_tag
 def rbac_system_config(sistema):
     return _system_config(sistema)
+
+
+@register.simple_tag
+def rbac_system_runtime_config(sistema):
+    return _runtime_system_config(sistema)
 
 
 @register.simple_tag

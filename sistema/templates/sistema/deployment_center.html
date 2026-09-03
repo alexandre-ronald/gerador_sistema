@@ -2,10 +2,9 @@
 {% block title %}Deployment Center · {{ sistema.nome }}{% endblock %}
 {% block content %}
 <div class="container-fluid py-4" style="max-width:1500px">
-  <div class="d-flex justify-content-between align-items-start mb-4">
-    <div><div class="text-uppercase text-muted small fw-semibold">DjangoForge · GEN-057</div><h2 class="mb-1">Deployment Center</h2><div class="text-muted">{{ sistema.nome }} · planeje, valide e acompanhe implantações.</div></div>
-    <a class="btn btn-outline-secondary" href="{% url 'sistema:environment_manager' sistema.id %}">Environment Manager</a>
-  </div>
+  {% url 'sistema:workspace' sistema.id as workspace_url %}
+  {% url 'sistema:environment_manager' sistema.id as environment_url %}
+  {% include 'sistema/_page_header.html' with eyebrow='DjangoForge · GEN-057' title='Deployment Center' subtitle=sistema.nome|add:' · planeje, valide e acompanhe implantações.' secondary_url=environment_url secondary_label='Environment Manager' back_url=workspace_url back_label='Voltar ao Workspace' %}
 
   <div class="card shadow-sm border-0 mb-4"><div class="card-body">
     <form id="deploymentConfigForm" method="post" action="{% url 'sistema:save_deployment_config' sistema.id %}">
@@ -98,57 +97,19 @@ document.getElementById('deploymentConfigForm').addEventListener('submit', async
   document.querySelectorAll('.env-config').forEach(box => {
     const executor = box.querySelector('.executor').value;
     if (!executor) return;
-    const cfg = {
-      executor,
-      strategy: 'docker_compose',
-      working_directory: box.querySelector('.working-directory').value.trim(),
-      compose_file: box.querySelector('.compose-file').value.trim() || 'docker-compose.yml'
-    };
-    if (executor === 'ssh') {
-      cfg.host = box.querySelector('.host').value.trim();
-      cfg.port = Number(box.querySelector('.port').value || 22);
-      cfg.username_env_var = box.querySelector('.username-env').value.trim();
-      cfg.private_key_env_var = box.querySelector('.key-env').value.trim();
-    }
+    const cfg = {executor,strategy: 'docker_compose',working_directory: box.querySelector('.working-directory').value.trim(),compose_file: box.querySelector('.compose-file').value.trim() || 'docker-compose.yml'};
+    if (executor === 'ssh') {cfg.host = box.querySelector('.host').value.trim();cfg.port = Number(box.querySelector('.port').value || 22);cfg.username_env_var = box.querySelector('.username-env').value.trim();cfg.private_key_env_var = box.querySelector('.key-env').value.trim();}
     payload.environments[box.dataset.env] = cfg;
   });
 
-  button.disabled = true;
-  status.className = 'small text-secondary';
-  status.textContent = 'Salvando...';
-
+  button.disabled = true;status.className = 'small text-secondary';status.textContent = 'Salvando...';
   try {
     const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
-    const response = await fetch(form.action, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      throw new Error('O servidor retornou uma resposta inválida ao salvar.');
-    }
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error?.message || 'Falha ao salvar a configuração.');
-    }
-
-    status.className = 'small text-success';
-    status.textContent = 'Configuração salva. Recarregando...';
-    window.location.reload();
-  } catch (error) {
-    status.className = 'small text-danger';
-    status.textContent = error.message || 'Falha ao salvar a configuração.';
-    button.disabled = false;
-  }
+    const response = await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify(payload)});
+    let data;try {data = await response.json();} catch (e) {throw new Error('O servidor retornou uma resposta inválida ao salvar.');}
+    if (!response.ok || !data.ok) throw new Error(data.error?.message || 'Falha ao salvar a configuração.');
+    status.className='small text-success';status.textContent='Configuração salva. Recarregando...';window.location.reload();
+  } catch (error) {status.className='small text-danger';status.textContent=error.message || 'Falha ao salvar a configuração.';button.disabled=false;}
 });
 </script>
 {% endblock %}

@@ -14,7 +14,7 @@ class GeneratedProjectRuntimeValidator:
 
     REQUIRED_ROOT_FILES = ("manage.py", "templates/base.html", "templates/index.html", "templates/registration/login.html", "requirements.txt")
     BASE_CONTRACT = {"login": "{% url 'login' %}", "logout": "{% url 'logout' %}", "csrf": "{% csrf_token %}", "content": "{% block content %}"}
-    NAVIGATION_CONTRACT = {"navigation": "navigation_modules", "namespace": "request.resolver_match.app_name", "dynamic_url": "url item.url_name", "permission": 'data-permission="{{ item.permission }}"'}
+    NAVIGATION_CONTRACT = {"navigation": "navigation_modules", "active_item": "item.is_active", "dynamic_url": "url item.url_name", "permission": 'data-permission="{{ item.permission }}"'}
 
     def __init__(self, root):
         self.root = Path(root).resolve()
@@ -73,14 +73,11 @@ class GeneratedProjectRuntimeValidator:
         missing = [name for name, token in self.NAVIGATION_CONTRACT.items() if token not in base_content]
         index_content = index.read_text(encoding="utf-8") if index.is_file() else ""
         if not index.is_file() or "navigation_modules" not in index_content: missing.append("navegação do index")
-        for token in ("NAVIGATION_MODULES", "has_perm", "def navigation", "permission"):
+        for token in ("NAVIGATION_MODULES", "has_perm", "def navigation", "permission", "active_url_names", "is_active", "resolver_match"):
             if token not in nav_content: missing.append(f"context processor: {token}")
-        # url_name is required only when the specification actually contains CRUD entries.
-        has_crud = '"url_name"' in nav_content and '"permission"' in nav_content and "_list" in nav_content
-        if has_crud and "url_name" not in nav_content: missing.append("context processor: url_name")
         if "context_processors.navigation" not in settings_content: missing.append("registro do context processor")
         if missing: self.errors.append("Contrato de navegação incompleto: " + ", ".join(missing)); return
-        self.checked += len(self.NAVIGATION_CONTRACT) + 5; self._message("✅ Contrato único de navegação, URLs e permissões validado")
+        self.checked += len(self.NAVIGATION_CONTRACT) + 7; self._message("✅ Contrato único de navegação, URLs, estado ativo e permissões validado")
 
     def _read_requirements(self):
         path, names = self.root / "requirements.txt", set()

@@ -92,7 +92,7 @@ class IntegrationCenterUITests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_workspace_exposes_integration_center(self):
-        response = self.client.get(reverse("sistema:lista"))
+        response = self.client.get(reverse("sistema:workspace", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Integration Center")
         self.assertContains(response, reverse("sistema:integration_center", args=[self.sistema.pk]))

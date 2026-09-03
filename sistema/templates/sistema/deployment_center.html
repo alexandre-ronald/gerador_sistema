@@ -57,7 +57,19 @@
   </div></div>
 
   <div class="card shadow-sm border-0"><div class="card-body"><h5>Histórico de deployments</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Ambiente</th><th>Release</th><th>Executor</th><th>Status</th><th>Criado</th><th></th></tr></thead><tbody>
-    {% for plan in plans %}<tr><td>{{ plan.id }}</td><td>{{ plan.ambiente.nome }}</td><td>v{{ plan.versao.numero }}</td><td>{{ plan.executor }}</td><td><span class="badge bg-secondary">{{ plan.status }}</span>{% if plan.erro %}<div class="small text-danger mt-1">{{ plan.erro }}</div>{% endif %}</td><td>{{ plan.criado_em|date:"d/m/Y H:i" }}</td><td class="text-end d-flex gap-1 justify-content-end">{% if plan.status == 'PLANNED' %}<form method="post" action="{% url 'sistema:validate_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-success">Validar</button></form>{% endif %}{% if plan.status == 'PLANNED' or plan.status == 'VALIDATING' or plan.status == 'READY' %}<form method="post" action="{% url 'sistema:cancel_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancelar</button></form>{% endif %}{% if plan.status == 'READY' %}<button class="btn btn-sm btn-primary" disabled title="Disponível na GEN-057.3">Executar deploy</button>{% endif %}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum plano criado.</td></tr>{% endfor %}
+    {% for plan in plans %}
+    <tr>
+      <td>{{ plan.id }}</td><td>{{ plan.ambiente.nome }}</td><td>v{{ plan.versao.numero }}</td><td>{{ plan.executor }}</td>
+      <td><span class="badge bg-secondary">{{ plan.status }}</span>{% if plan.erro %}<div class="small text-danger mt-1">{{ plan.erro }}</div>{% endif %}{% if plan.release_observada %}<div class="small text-muted mt-1">Release observada: v{{ plan.release_observada }}</div>{% endif %}</td>
+      <td>{{ plan.criado_em|date:"d/m/Y H:i" }}</td>
+      <td class="text-end d-flex gap-1 justify-content-end">
+        {% if plan.status == 'PLANNED' %}<form method="post" action="{% url 'sistema:validate_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-success">Validar</button></form>{% endif %}
+        {% if plan.status == 'PLANNED' or plan.status == 'VALIDATING' or plan.status == 'READY' %}<form method="post" action="{% url 'sistema:cancel_deployment_plan' sistema.id plan.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancelar</button></form>{% endif %}
+        {% if plan.status == 'READY' %}<form method="post" action="{% url 'sistema:execute_deployment_plan' sistema.id plan.id %}" onsubmit="return confirm('Executar o deployment deste plano agora?');">{% csrf_token %}<button class="btn btn-sm btn-primary">Executar deploy</button></form>{% endif %}
+      </td>
+    </tr>
+    {% if plan.etapas %}<tr><td></td><td colspan="6"><div class="small text-muted">{% for etapa in plan.etapas %}<div><strong>{{ etapa.name }}</strong> · {{ etapa.status }} · {{ etapa.message }}</div>{% endfor %}</div></td></tr>{% endif %}
+    {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum plano criado.</td></tr>{% endfor %}
   </tbody></table></div></div></div>
 </div>
 {{ deployment_config|json_script:"deployment-config" }}

@@ -2,13 +2,13 @@ import os
 import time
 
 from django.contrib import admin, messages
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import PasswordChangeForm, UserCreationForm
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, include
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -28,7 +28,18 @@ def profile_view(request):
         user.save(update_fields=['first_name', 'last_name', 'email'])
         messages.success(request, 'Perfil atualizado com sucesso.')
         return redirect('profile')
-    return render(request, 'accounts/profile.html')
+    return render(request, 'base.html')
+
+
+@login_required
+def password_change_view(request):
+    form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        messages.success(request, 'Senha alterada com sucesso.')
+        return redirect('profile')
+    return render(request, 'base.html', {'password_form': form})
 
 
 def _staff_required(view):
@@ -38,7 +49,7 @@ def _staff_required(view):
 @_staff_required
 def user_list_view(request):
     users = User.objects.order_by('username')
-    return render(request, 'accounts/user_list.html', {'users': users})
+    return render(request, 'base.html', {'users': users})
 
 
 @_staff_required
@@ -54,12 +65,12 @@ def user_create_view(request):
         user.save()
         messages.success(request, 'Usuário cadastrado com sucesso.')
         return redirect('user_list')
-    return render(request, 'accounts/user_form.html', {'form': form, 'editing': False})
+    return render(request, 'base.html', {'form': form, 'editing': False})
 
 
 @_staff_required
 def user_update_view(request, pk):
-    user = User.objects.get(pk=pk)
+    user = get_object_or_404(User, pk=pk)
     if request.method == 'POST':
         user.username = request.POST.get('username', '').strip()
         user.first_name = request.POST.get('first_name', '').strip()
@@ -70,7 +81,7 @@ def user_update_view(request, pk):
         user.save()
         messages.success(request, 'Usuário atualizado com sucesso.')
         return redirect('user_list')
-    return render(request, 'accounts/user_form.html', {'managed_user': user, 'editing': True})
+    return render(request, 'base.html', {'managed_user': user, 'editing': True})
 
 
 def runtime_status(request):
@@ -99,6 +110,7 @@ def runtime_status(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/profile/', profile_view, name='profile'),
+    path('accounts/profile/password/', password_change_view, name='password_change'),
     path('accounts/users/', user_list_view, name='user_list'),
     path('accounts/users/new/', user_create_view, name='user_create'),
     path('accounts/users/<int:pk>/edit/', user_update_view, name='user_update'),

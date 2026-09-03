@@ -61,7 +61,7 @@ class WorkflowDesignerUITests(TestCase):
         self.assertNotContains(response, "alert(")
 
     def test_workspace_lists_workflow_link(self):
-        response = self.client.get(reverse("sistema:lista"))
+        response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Workflow Designer")
         self.assertContains(response, self.url)

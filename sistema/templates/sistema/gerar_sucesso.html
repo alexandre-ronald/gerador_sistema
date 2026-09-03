@@ -2,63 +2,30 @@
 
 {% block content %}
 <div class="container py-5">
+    {% url 'sistema:gerar_sistema' sistema.id as gerar_url %}
+    {% url 'sistema:workspace' sistema.id as workspace_url %}
+    {% include 'sistema/_page_header.html' with eyebrow='Build · geração concluída' title='Sistema gerado com sucesso' subtitle=sistema.nome|add:' · o código-fonte foi materializado e está pronto para validação local.' secondary_url=workspace_url secondary_label='Abrir Workspace' back_url=gerar_url back_label='Voltar para Gerar aplicação' %}
+
     <div class="text-center mb-5">
-        <div class="display-1 text-success mb-3">
-            <i class="bi bi-check-circle-fill"></i>
-        </div>
-        <h1 class="fw-bold">Sistema Gerado com Sucesso!</h1>
-        <p class="text-muted fs-5">O código fonte foi exportado para: <br>
-            <code class="bg-light p-2 rounded text-dark border">{{ caminho }}</code>
-        </p>
+        <div class="display-1 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
+        <p class="text-muted fs-5">O código fonte foi exportado para:<br><code class="bg-light p-2 rounded text-dark border">{{ caminho }}</code></p>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-body p-4">
-                    <h5 class="fw-bold mb-4 border-bottom pb-2">Como rodar o seu sistema:</h5>
-                    
-                    <div class="mb-4">
-                        <label class="small fw-bold text-uppercase text-muted">1. Criar Ambiente Virtual e Instalar</label>
-                        <div class="bg-dark text-white p-3 rounded mt-2 position-relative">
-                            <pre class="mb-0"><code>cd {{ caminho }}
+    <div class="row justify-content-center"><div class="col-md-8"><div class="card shadow-sm border-0 rounded-4"><div class="card-body p-4">
+        <h5 class="fw-bold mb-4 border-bottom pb-2">Como rodar o seu sistema:</h5>
+        <div class="mb-4"><label class="small fw-bold text-uppercase text-muted">1. Criar Ambiente Virtual e Instalar</label><div class="bg-dark text-white p-3 rounded mt-2 position-relative"><pre class="mb-0"><code>cd {{ caminho }}
 python -m venv venv
 # No Windows:
 venv\Scripts\activate
 # No Linux/Mac:
 source venv/bin/activate
-pip install django</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="small fw-bold text-uppercase text-muted">2. Preparar Banco de Dados</label>
-                        <div class="bg-dark text-white p-3 rounded mt-2">
-                            <pre class="mb-0"><code>python manage.py makemigrations
+pip install django</code></pre></div></div>
+        <div class="mb-4"><label class="small fw-bold text-uppercase text-muted">2. Preparar Banco de Dados</label><div class="bg-dark text-white p-3 rounded mt-2"><pre class="mb-0"><code>python manage.py makemigrations
 python manage.py migrate
-python manage.py createsuperuser</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="small fw-bold text-uppercase text-muted">3. Iniciar Servidor</label>
-                        <div class="bg-dark text-white p-3 rounded mt-2">
-                            <pre class="mb-0"><code>python manage.py runserver</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-info mt-4 border-0 shadow-sm">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Acesse <strong>http://127.0.0.1:8000</strong> e use o usuário criado no passo 2.
-                    </div>
-
-                    <div class="text-center mt-5">
-                        <a href="{% url 'sistema:lista' %}" class="btn btn-outline-secondary px-4">Voltar para a Lista</a>
-                        <a href="https://docs.djangoproject.com/" target="_blank" class="btn btn-link text-muted">Documentação Django</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+python manage.py createsuperuser</code></pre></div></div>
+        <div class="mb-2"><label class="small fw-bold text-uppercase text-muted">3. Iniciar Servidor</label><div class="bg-dark text-white p-3 rounded mt-2"><pre class="mb-0"><code>python manage.py runserver</code></pre></div></div>
+        <div class="alert alert-info mt-4 border-0 shadow-sm"><i class="bi bi-info-circle me-2"></i>Acesse <strong>http://127.0.0.1:8000</strong> e use o usuário criado no passo 2.</div>
+        <div class="text-center mt-5"><a href="{{ gerar_url }}" class="btn btn-outline-secondary px-4"><i class="bi bi-arrow-left me-1"></i>Voltar para Gerar aplicação</a><a href="https://docs.djangoproject.com/" target="_blank" class="btn btn-link text-muted">Documentação Django</a></div>
+    </div></div></div></div>
 </div>
 {% endblock %}

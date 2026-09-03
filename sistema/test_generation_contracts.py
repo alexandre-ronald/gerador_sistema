@@ -23,6 +23,16 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("forms.CheckboxInput", content)
         self.assertNotIn("class BootstrapModelForm", content)
 
+    def test_boolean_form_controls_use_stable_switch_layout(self):
+        content = self._source("gerador/snippets/html_form.txt")
+        self.assertIn("app-boolean-field", content)
+        self.assertIn(".app-boolean-field .form-check-input", content)
+        self.assertIn("margin:0!important", content)
+        self.assertIn("float:none!important", content)
+        self.assertIn('class="form-check form-switch app-boolean-field border"', content)
+        self.assertNotIn('form-switch p-3 rounded-3', content)
+        self.assertNotIn('<span>{% templatetag openvariable %} field {% templatetag closevariable %}</span>', content)
+
     def test_navigation_is_centralized_and_python_safe(self):
         base = self._source("gerador/snippets/base_html.txt"); index = self._source("gerador/snippets/index_html.txt"); navigation = self._source("gerador/snippets/navigation_context.txt")
         self.assertIn("navigation_modules", base); self.assertIn("navigation_modules", index); self.assertIn("url item.url_name", base); self.assertIn("url item.url_name", index)

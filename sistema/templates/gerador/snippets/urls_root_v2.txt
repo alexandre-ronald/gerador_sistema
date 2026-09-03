@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import PasswordChangeForm, UserCreationForm
 from django.db import connection
+from django.db.models import Q
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -28,7 +29,7 @@ def profile_view(request):
         user.save(update_fields=['first_name', 'last_name', 'email'])
         messages.success(request, 'Perfil atualizado com sucesso.')
         return redirect('profile')
-    return render(request, 'base.html')
+    return render(request, 'accounts/profile.html')
 
 
 @login_required
@@ -39,7 +40,7 @@ def password_change_view(request):
         update_session_auth_hash(request, user)
         messages.success(request, 'Senha alterada com sucesso.')
         return redirect('profile')
-    return render(request, 'base.html', {'password_form': form})
+    return render(request, 'accounts/password_change.html', {'password_form': form})
 
 
 def _staff_required(view):
@@ -49,13 +50,21 @@ def _staff_required(view):
 @_staff_required
 def user_list_view(request):
     users = User.objects.order_by('username')
-    return render(request, 'base.html', {'users': users})
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+    if query:
+        users = users.filter(Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(email__icontains=query))
+    if status == 'active':
+        users = users.filter(is_active=True)
+    elif status == 'inactive':
+        users = users.filter(is_active=False)
+    return render(request, 'accounts/user_list.html', {'users': users})
 
 
 @_staff_required
 def user_create_view(request):
     form = UserCreationForm(request.POST or None)
-    if form.is_valid():
+    if request.method == 'POST' and form.is_valid():
         user = form.save()
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
@@ -65,23 +74,29 @@ def user_create_view(request):
         user.save()
         messages.success(request, 'Usuário cadastrado com sucesso.')
         return redirect('user_list')
-    return render(request, 'base.html', {'form': form, 'editing': False})
+    return render(request, 'accounts/user_form.html', {'form': form, 'editing': False})
 
 
 @_staff_required
 def user_update_view(request, pk):
-    user = get_object_or_404(User, pk=pk)
+    managed_user = get_object_or_404(User, pk=pk)
     if request.method == 'POST':
-        user.username = request.POST.get('username', '').strip()
-        user.first_name = request.POST.get('first_name', '').strip()
-        user.last_name = request.POST.get('last_name', '').strip()
-        user.email = request.POST.get('email', '').strip()
-        user.is_staff = request.POST.get('is_staff') == 'on'
-        user.is_active = request.POST.get('is_active') == 'on'
-        user.save()
-        messages.success(request, 'Usuário atualizado com sucesso.')
-        return redirect('user_list')
-    return render(request, 'base.html', {'managed_user': user, 'editing': True})
+        username = request.POST.get('username', '').strip()
+        if not username:
+            messages.error(request, 'Informe o nome de usuário.')
+        elif User.objects.exclude(pk=managed_user.pk).filter(username=username).exists():
+            messages.error(request, 'Já existe um usuário com esse nome.')
+        else:
+            managed_user.username = username
+            managed_user.first_name = request.POST.get('first_name', '').strip()
+            managed_user.last_name = request.POST.get('last_name', '').strip()
+            managed_user.email = request.POST.get('email', '').strip()
+            managed_user.is_staff = request.POST.get('is_staff') == 'on'
+            managed_user.is_active = request.POST.get('is_active') == 'on'
+            managed_user.save()
+            messages.success(request, 'Usuário atualizado com sucesso.')
+            return redirect('user_list')
+    return render(request, 'accounts/user_form.html', {'managed_user': managed_user, 'editing': True})
 
 
 def runtime_status(request):

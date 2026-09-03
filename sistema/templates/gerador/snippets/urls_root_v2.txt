@@ -91,7 +91,7 @@ def _staff_required(view):
 @_staff_required
 def role_list_view(request):
     roles = _sync_rbac_groups()
-    return render(request, 'accounts/role_list.html', {'roles': roles, 'rbac_enabled': RBAC_ENABLED})
+    return render(request, 'accounts/user_list.html', {'roles': roles, 'rbac_enabled': RBAC_ENABLED, 'role_mode': True})
 
 
 @_staff_required

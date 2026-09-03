@@ -1,30 +1,6 @@
 {% extends 'base.html' %}
-
 {% block title %}Início | {{ sistema.nome }}{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-  <div class="p-4 p-lg-5 rounded-4 border bg-body shadow-sm">
-    <div class="small text-uppercase fw-bold text-primary mb-2">Aplicação gerada pelo DjangoForge</div>
-    <h1 class="fw-bold mb-3">{{ sistema.nome }}</h1>
-    <p class="text-secondary mb-4">{{ sistema.descricao|default:'Sistema gerado com sucesso e pronto para evolução.' }}</p>
-
-    <div class="row g-3">
-      {% for modulo in modulos %}
-      <div class="col-md-6 col-xl-4">
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title fw-bold">{{ modulo.nome }}</h5>
-            <p class="text-secondary small mb-0">Acesse as funcionalidades disponíveis no menu de navegação.</p>
-          </div>
-        </div>
-      </div>
-      {% empty %}
-      <div class="col-12">
-        <div class="alert alert-light border mb-0">Nenhum módulo configurado.</div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</div>
+<div class="app-page-heading d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="text-uppercase small fw-bold text-primary mb-1">Área de trabalho</div><h1 class="h3 fw-bold mb-1">{{ sistema.nome }}</h1><p class="text-secondary mb-0">{{ sistema.descricao|default:'Acesse os módulos e funcionalidades disponíveis para seu perfil.' }}</p></div><a href="{% url 'dashboard' %}" class="btn btn-primary"><i class="bi bi-bar-chart-line me-1"></i>Dashboard</a></div>
+<div class="row g-3">{% for modulo in modulos %}<div class="col-md-6 col-xl-4"><div class="app-card h-100 p-4 app-card-hover"><div class="app-icon bg-primary-subtle text-primary mb-3"><i class="bi bi-grid"></i></div><h5 class="fw-bold mb-1">{{ modulo.nome }}</h5><p class="text-secondary small mb-0">Acesse as funcionalidades disponíveis pelo menu principal.</p></div></div>{% empty %}<div class="col-12"><div class="app-card p-5 text-center"><div class="app-empty-icon mb-3"><i class="bi bi-grid-3x3-gap"></i></div><h5 class="fw-bold">Nenhum módulo configurado</h5><p class="text-secondary mb-0">Ainda não há áreas funcionais disponíveis.</p></div></div>{% endfor %}</div>
 {% endblock %}

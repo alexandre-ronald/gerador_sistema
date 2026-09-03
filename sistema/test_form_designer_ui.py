@@ -14,7 +14,8 @@ class FormDesignerUITests(SimpleTestCase):
     def test_exposes_form_designer_shell(self):
         source = self.source()
         self.assertIn("Form Designer", source)
-        self.assertIn("System Builder · GEN-050", source)
+        self.assertIn("Design · GEN-050", source)
+        self.assertIn("Voltar ao Workspace", source)
         self.assertIn('id="entity"', source)
         self.assertIn('id="form-title"', source)
         self.assertIn('id="canvas"', source)

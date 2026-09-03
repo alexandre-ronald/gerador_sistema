@@ -37,10 +37,36 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertNotIn('bi bi-circle-fill', base)
 
     def test_generated_runtime_includes_profile_and_staff_user_management(self):
-        base = self._source("gerador/snippets/base_html.txt"); urls = self._source("gerador/snippets/urls_root_v2.txt"); navigation = self._source("gerador/snippets/navigation_context.txt")
-        self.assertIn("url 'profile'", base); self.assertIn("url 'user_list'", base); self.assertIn("Meu perfil", base); self.assertIn("Novo usuário", base); self.assertIn("user.is_staff", base)
-        self.assertIn("profile_view", urls); self.assertIn("user_list_view", urls); self.assertIn("user_create_view", urls); self.assertIn("user_update_view", urls); self.assertIn("UserCreationForm", urls); self.assertIn("get_object_or_404", urls); self.assertIn("_staff_required", urls)
-        self.assertIn('current_url_name == "profile"', navigation); self.assertIn('current_url_name in {"user_list", "user_create", "user_update"}', navigation)
+        base = self._source("gerador/snippets/base_html.txt"); urls = self._source("gerador/snippets/urls_root_v2.txt"); navigation = self._source("gerador/snippets/navigation_context.txt"); user_form = self._source("gerador/snippets/user_form_html.txt"); user_list = self._source("gerador/snippets/user_list_html.txt")
+        self.assertIn("url 'profile'", base); self.assertIn("url 'user_list'", base); self.assertIn("Meu perfil", base); self.assertIn("user.is_staff", base)
+        self.assertIn("profile_view", urls); self.assertIn("password_change_view", urls); self.assertIn("user_list_view", urls); self.assertIn("user_create_view", urls); self.assertIn("user_update_view", urls); self.assertIn("UserCreationForm", urls); self.assertIn("get_object_or_404", urls); self.assertIn("_staff_required", urls)
+        self.assertIn("Novo usuário", user_list); self.assertIn("Perfis de acesso", user_form); self.assertIn('current_url_name in {"profile", "password_change"}', navigation); self.assertIn('current_url_name in {"user_list", "user_create", "user_update"}', navigation)
+
+    def test_generated_rbac_profiles_sync_django_groups_and_permissions(self):
+        urls = self._source("gerador/snippets/urls_root_v2.txt"); base = self._source("gerador/snippets/base_html.txt"); user_form = self._source("gerador/snippets/user_form_html.txt"); user_list = self._source("gerador/snippets/user_list_html.txt")
+        self.assertIn("rbac_system_runtime_config", urls)
+        self.assertIn("RBAC_ROLE_GROUPS", urls)
+        self.assertIn("Group.objects.get_or_create", urls)
+        self.assertIn("Permission.objects.filter", urls)
+        self.assertIn("group.permissions.set", urls)
+        self.assertIn("_save_user_role_groups", urls)
+        self.assertIn("request.POST.getlist('groups')", urls)
+        self.assertIn("name=\"groups\"", user_form)
+        self.assertIn("role_groups", user_form)
+        self.assertIn("role_mode", user_list)
+        self.assertIn("url 'role_list'", base)
+        self.assertIn("Perfis de acesso", base)
+
+    def test_base_is_layout_only_and_account_pages_extend_it(self):
+        base = self._source("gerador/snippets/base_html.txt")
+        profile = self._source("gerador/snippets/profile_html.txt")
+        password = self._source("gerador/snippets/password_change_html.txt")
+        user_form = self._source("gerador/snippets/user_form_html.txt")
+        user_list = self._source("gerador/snippets/user_list_html.txt")
+        self.assertIn("{% templatetag openblock %} block content {% templatetag closeblock %}", base)
+        self.assertNotIn("request.resolver_match.url_name == 'profile'", base)
+        for content in (profile, password, user_form, user_list):
+            self.assertIn('{% templatetag openblock %} extends "base.html" {% templatetag closeblock %}', content)
 
     def test_generated_ui_uses_modern_feedback_without_browser_dialogs(self):
         base = self._source("gerador/snippets/base_html.txt"); form = self._source("gerador/snippets/html_form.txt"); login = self._source("gerador/snippets/login_html.txt"); index = self._source("gerador/snippets/index_html.txt"); detail = self._source("gerador/snippets/html_detail.txt"); dashboard = self._source("gerador/snippets/dashboard_html.txt"); home = self._source("gerador/snippets/home_html.txt")

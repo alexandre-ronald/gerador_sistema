@@ -147,6 +147,8 @@ Opcionalmente, em evolução compatível:
 
 Os campos de credencial contêm somente nomes seguros de variáveis de ambiente (`[A-Z][A-Z0-9_]*`).
 
+Na entrega inicial da GEN-057, SSH permanece como contrato declarativo validado. A execução efetiva está habilitada apenas para o executor `local`; planos SSH falham fechados até uma evolução específica do runtime remoto.
+
 ## Plano de Deploy
 
 Um plano é uma representação persistida e auditável da intenção de implantação.
@@ -202,6 +204,8 @@ Cancelamento só é permitido antes de `RUNNING`.
 
 Estados finais (`SUCCEEDED`, `FAILED`, `CANCELLED`) são imutáveis.
 
+A entrada em `RUNNING` usa claim atômico no banco para que duas requisições concorrentes não executem o mesmo plano simultaneamente.
+
 ## Etapas da estratégia Docker Compose
 
 A GEN-057 não aceita texto de shell arbitrário. O executor monta internamente uma sequência fechada.
@@ -216,15 +220,14 @@ A GEN-057 não aceita texto de shell arbitrário. O executor monta internamente 
 
 ### deploy
 
-Sequência conceitual:
+Sequência da implementação local inicial:
 
-1. materializar/obter o artefato da release;
-2. posicionar artefato no diretório configurado;
-3. executar `docker compose pull` quando aplicável;
-4. executar `docker compose build` quando aplicável;
-5. executar `docker compose up -d`;
+1. usar um workspace previamente materializado no `working_directory` configurado;
+2. executar `docker compose pull`;
+3. executar `docker compose build`;
+4. executar `docker compose up -d`.
 
-A definição exata de artefato e política pull/build será fechada na fase de runtime sem permitir comandos livres.
+A materialização automática de `VersaoGeracao.arquivo_zip` não faz parte do executor local inicial. Quando incorporada, deverá usar staging e extração segura contra path traversal, sem sobrescrever secrets/configuração externa de forma implícita.
 
 ### verify
 
@@ -268,9 +271,10 @@ Falha de verificação não apaga o fato de que os comandos de implantação for
 - credenciais somente por env vars;
 - nunca registrar conteúdo de chave/token/senha;
 - mensagens de erro devem ser sanitizadas;
+- stdout/stderr de processos externos não são persistidos no plano;
 - nenhum parâmetro do usuário vira comando shell livre;
-- subprocess deve usar lista de argumentos e `shell=False` no executor local;
-- SSH deve executar somente comandos construídos pelo contrato fechado;
+- subprocess usa lista de argumentos e `shell=False` no executor local;
+- SSH deve executar somente comandos construídos pelo contrato fechado quando sua execução for habilitada;
 - timeout obrigatório por etapa;
 - host, caminhos e compose file validados antes da execução;
 - Production exige confirmação explícita na UI antes de iniciar execução.
@@ -320,10 +324,11 @@ A configuração de executor deve ficar separada da ação de executar deploy.
 ### GEN-057.3 — Deployment Runtime
 
 - executor local controlado;
-- executor SSH;
-- estratégia Docker Compose;
+- contrato SSH com execução remota fail-closed nesta versão;
+- estratégia Docker Compose sobre workspace previamente materializado;
 - timeouts;
-- captura/sanitização de resultado;
+- sanitização de resultado;
+- proteção contra dupla execução concorrente;
 - verificação via Runtime Agent;
 - estados RUNNING/VERIFYING/SUCCEEDED/FAILED.
 
@@ -335,6 +340,16 @@ A configuração de executor deve ficar separada da ação de executar deploy.
 - teste de drift pós-deploy;
 - validação manual;
 - promoção para master.
+
+## Status de validação — 03/09/2026
+
+- contrato, persistência, UI e runtime com executores fake: validados pelas suítes automatizadas executadas durante o desenvolvimento;
+- geração do AprovaFlow e artefatos Docker: validada até a presença e leitura do `docker-compose.yml`;
+- `docker compose config --quiet`: executado com sucesso no host local;
+- execução real `docker compose up -d --build`: não validada por falha do backend Docker Desktop/WSL do host Windows utilizado no desenvolvimento;
+- a limitação foi classificada como externa ao DjangoForge: o próprio `docker run --rm hello-world` não funciona nesse host;
+- por decisão de desenvolvimento, a validação Docker real fica **adiada para outro ambiente compatível**;
+- esta pendência não deve ser registrada como teste aprovado. Antes da promoção definitiva da GEN-057 para master, deve ser executado ao menos um smoke test real com Docker Engine funcional, incluindo Runtime Agent e confirmação da release observada.
 
 ## Critérios de aceite da GEN-057.1
 

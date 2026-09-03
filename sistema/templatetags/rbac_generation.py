@@ -35,6 +35,24 @@ def _metadata(entities):
     ]
 
 
+def _system_entities(sistema):
+    if sistema is None:
+        return []
+    result = []
+    for modulo in sistema.modulos.prefetch_related("entidades").all():
+        result.extend(list(modulo.entidades.all()))
+    return result
+
+
+def _system_config(sistema):
+    structure = _stored_structure(sistema)
+    raw = structure.get("rbac")
+    if not isinstance(raw, dict):
+        return _empty_config()
+    workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
+    return normalize_rbac_config(_metadata(_system_entities(sistema)), workflows, raw, strict=True)
+
+
 def _config(entities):
     entities = list(entities or [])
     sistema = _system_from_entities(entities)
@@ -55,6 +73,11 @@ def _entity_policy(entities, entity_name):
 @register.simple_tag
 def rbac_generation_config(entities):
     return _config(entities)
+
+
+@register.simple_tag
+def rbac_system_config(sistema):
+    return _system_config(sistema)
 
 
 @register.simple_tag

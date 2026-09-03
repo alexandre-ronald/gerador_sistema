@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from .deployment_center import DeploymentCenterError
 from .deployment_executor import DeploymentExecutionError
 from .deployment_service import DeploymentService
 from .models import Ambiente, DeploymentPlan, Sistema, VersaoGeracao
@@ -130,12 +131,25 @@ class DeploymentRuntimeTests(TestCase):
     def test_execute_plan_rejects_non_ready_plan(self):
         self.plan.status = DeploymentPlan.STATUS_PLANNED
         self.plan.save(update_fields=["status"])
-        with self.assertRaises(Exception):
+        with self.assertRaises(DeploymentCenterError) as ctx:
             DeploymentService(self.sistema).execute_plan(
                 self.plan,
                 executor_factory=FakeExecutor,
                 runtime_service_factory=HealthyRuntimeService,
             )
+        self.assertEqual(ctx.exception.code, "invalid_transition")
+
+    def test_execute_plan_claim_fails_when_database_state_changed(self):
+        stale_plan = DeploymentPlan.objects.get(pk=self.plan.pk)
+        DeploymentPlan.objects.filter(pk=self.plan.pk).update(status=DeploymentPlan.STATUS_RUNNING)
+
+        with self.assertRaises(DeploymentCenterError) as ctx:
+            DeploymentService(self.sistema).execute_plan(
+                stale_plan,
+                executor_factory=FakeExecutor,
+                runtime_service_factory=HealthyRuntimeService,
+            )
+        self.assertEqual(ctx.exception.code, "plan_already_claimed")
 
     def test_execute_plan_rejects_ssh_executor(self):
         self.plan.executor = "ssh"

@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -58,3 +61,69 @@ class LayoutUXDeletionTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Sistema.objects.filter(pk=foreign_system.pk).exists())
+
+
+class LayoutUXNavigationContractTests(TestCase):
+    TOOL_TEMPLATES = (
+        "sistema/templates/sistema/form_designer.html",
+        "sistema/templates/sistema/crud_designer.html",
+        "sistema/templates/sistema/business_rules_designer.html",
+        "sistema/templates/sistema/workflow_designer.html",
+        "sistema/templates/sistema/permission_designer.html",
+        "sistema/templates/sistema/api_designer.html",
+        "sistema/templates/sistema/integration_center.html",
+        "sistema/templates/sistema/dashboard_builder.html",
+        "sistema/templates/sistema/validation_center.html",
+        "sistema/templates/sistema/release_manager.html",
+        "sistema/templates/sistema/environment_manager.html",
+        "sistema/templates/sistema/deployment_center.html",
+        "sistema/templates/sistema/health_monitoring.html",
+        "sistema/templates/sistema/gerar_sistema.html",
+    )
+
+    def _read(self, relative_path):
+        return (Path(settings.BASE_DIR) / relative_path).read_text(encoding="utf-8")
+
+    def test_shared_header_component_defines_standard_visual_contract(self):
+        source = self._read("templates/sistema/_page_header.html")
+
+        self.assertIn("df-page-header", source)
+        self.assertIn("linear-gradient", source)
+        self.assertIn("back_url", source)
+        self.assertIn("secondary_url", source)
+        self.assertIn("bi-arrow-left", source)
+
+    def test_system_tools_use_shared_header_and_return_to_workspace(self):
+        for template_path in self.TOOL_TEMPLATES:
+            with self.subTest(template=template_path):
+                source = self._read(template_path)
+                self.assertIn("sistema/_page_header.html", source)
+                self.assertIn("sistema:workspace", source)
+                self.assertIn("Voltar ao Workspace", source)
+
+    def test_designers_no_longer_use_legacy_builder_or_fake_workspace_back(self):
+        for template_path in (
+            "sistema/templates/sistema/form_designer.html",
+            "sistema/templates/sistema/crud_designer.html",
+            "sistema/templates/sistema/dashboard_builder.html",
+        ):
+            with self.subTest(template=template_path):
+                self.assertNotIn("Voltar ao Builder", self._read(template_path))
+
+        for template_path in (
+            "sistema/templates/sistema/business_rules_designer.html",
+            "sistema/templates/sistema/workflow_designer.html",
+            "sistema/templates/sistema/permission_designer.html",
+            "sistema/templates/sistema/api_designer.html",
+            "sistema/templates/sistema/integration_center.html",
+        ):
+            with self.subTest(template=template_path):
+                source = self._read(template_path)
+                self.assertNotIn("href=\"{% url 'sistema:lista' %}\" class=\"btn btn-outline-secondary\">Workspace", source)
+
+    def test_generation_success_returns_to_generation_parent(self):
+        source = self._read("sistema/templates/sistema/gerar_sucesso.html")
+
+        self.assertIn("sistema:gerar_sistema", source)
+        self.assertIn("Voltar para Gerar aplicação", source)
+        self.assertIn("sistema:workspace", source)

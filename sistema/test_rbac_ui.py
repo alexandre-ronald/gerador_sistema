@@ -112,7 +112,7 @@ class PermissionDesignerUITests(TestCase):
         self.assertEqual(self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json").status_code, 404)
 
     def test_workspace_lists_permission_designer_link(self):
-        response = self.client.get(reverse("sistema:lista"))
+        response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Permission Designer")
         self.assertContains(response, self.url)

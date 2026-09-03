@@ -13,7 +13,7 @@ class GeneratedProjectRuntimeValidator:
     """Valida o projeto gerado por contratos independentes e progressivos."""
 
     REQUIRED_ROOT_FILES = ("manage.py", "templates/base.html", "templates/index.html", "templates/registration/login.html", "requirements.txt")
-    BASE_CONTRACT = {"login": "{% url 'login' %}", "logout": "{% url 'logout' %}", "csrf": "{% csrf_token %}", "content": "{% block content %}"}
+    BASE_CONTRACT = {"logout": "{% url 'logout' %}", "csrf": "{% csrf_token %}", "content": "{% block content %}"}
     NAVIGATION_CONTRACT = {"navigation": "navigation_modules", "active_item": "item.is_active", "dynamic_url": "url item.url_name", "permission": 'data-permission="{{ item.permission }}"'}
 
     def __init__(self, root):
@@ -23,12 +23,13 @@ class GeneratedProjectRuntimeValidator:
 
     def validate(self):
         if not self.root.exists(): raise ValidationError([f"Diretório gerado não existe: {self.root}"])
-        self._validate_required_files(); self._validate_python_files(); self._validate_templates(); self._validate_base_contract(); self._validate_navigation_contract(); self._validate_dependency_contract(); self._validate_django_check()
+        self._validate_required_files(); self._validate_python_files(); self._validate_templates(); self._validate_base_contract(); self._validate_auth_contract(); self._validate_navigation_contract(); self._validate_dependency_contract(); self._validate_django_check()
         if self.errors: raise ValidationError(self.errors)
         return {"checked": self.checked, "warnings": list(self.warnings), "messages": list(self._loggable)}
 
     def _message(self, message): self._loggable.append(message)
     def _read_generated_settings(self): return next(iter(self.root.glob("*/settings.py")), None)
+    def _read_generated_urls(self): return next(iter(self.root.glob("*/urls.py")), None)
     def _read_generated_context_processor(self): return next(iter(self.root.glob("*/context_processors.py")), None)
 
     def _validate_required_files(self):
@@ -57,7 +58,21 @@ class GeneratedProjectRuntimeValidator:
         if not base.is_file(): return
         missing = [name for name, token in self.BASE_CONTRACT.items() if token not in base.read_text(encoding="utf-8")]
         if missing: self.errors.append("Contrato do template base incompleto: " + ", ".join(missing)); return
-        self.checked += len(self.BASE_CONTRACT); self._message("✅ Contrato de autenticação e layout base validado")
+        self.checked += len(self.BASE_CONTRACT); self._message("✅ Contrato de layout base e logout validado")
+
+    def _validate_auth_contract(self):
+        login = self.root / "templates/registration/login.html"
+        urls = self._read_generated_urls()
+        missing = []
+        if not login.is_file(): missing.append("template de login")
+        if urls is None:
+            missing.append("urls.py")
+        else:
+            content = urls.read_text(encoding="utf-8")
+            if "django.contrib.auth.urls" not in content: missing.append("rotas de autenticação")
+            if "login_required" not in content: missing.append("proteção de rotas")
+        if missing: self.errors.append("Contrato de autenticação incompleto: " + ", ".join(missing)); return
+        self.checked += 3; self._message("✅ Contrato de autenticação, login e proteção de rotas validado")
 
     def _validate_navigation_contract(self):
         base = self.root / "templates/base.html"

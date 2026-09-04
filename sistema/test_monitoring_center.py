@@ -40,6 +40,7 @@ class MonitoringCenterTests(TestCase):
             sistema=self.other_system,
             event_name="security.private",
             message="Evento privado de outro sistema",
+            correlation_id=self.correlation_id,
         )
 
     def test_monitoring_center_requires_owner(self):
@@ -53,14 +54,27 @@ class MonitoringCenterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "runtime.check.offline")
         self.assertNotContains(response, "security.private")
+        self.assertEqual(response.context["total"], 2)
+        self.assertEqual(response.context["errors"], 1)
+        self.assertEqual(response.context["warnings"], 0)
 
-    def test_monitoring_center_filters_level_and_category(self):
+    def test_monitoring_center_filters_level_category_environment_source_and_text(self):
         self.client.force_login(self.owner)
-        response = self.client.get(reverse("sistema:monitoring_center", args=[self.sistema.pk]), {
-            "period": "all", "level": "ERROR", "category": "RUNTIME"
-        })
+        response = self.client.get(
+            reverse("sistema:monitoring_center", args=[self.sistema.pk]),
+            {
+                "period": "all",
+                "level": "ERROR",
+                "category": "RUNTIME",
+                "environment": str(self.ambiente.pk),
+                "source": "runtime_agent",
+                "q": "indisponível",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "runtime.check.offline")
         self.assertNotContains(response, "runtime.check.started")
+        self.assertEqual(response.context["total"], 1)
 
     def test_event_detail_shows_correlated_timeline(self):
         self.client.force_login(self.owner)
@@ -70,6 +84,8 @@ class MonitoringCenterTests(TestCase):
         self.assertContains(response, "runtime.check.started")
         self.assertContains(response, str(self.correlation_id))
         self.assertContains(response, '"reason": "offline"')
+        self.assertNotContains(response, "security.private")
+        self.assertEqual(response.context["timeline"].count(), 2)
 
     def test_event_detail_cannot_cross_system_boundary(self):
         foreign = ObservabilityEvent.objects.filter(sistema=self.other_system).first()

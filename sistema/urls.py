@@ -15,6 +15,7 @@ from . import environment_manager_views
 from . import health_monitoring_views
 from . import deployment_center_views
 from . import observability_views
+from . import interface_designer_views
 
 app_name = 'sistema'
 
@@ -24,6 +25,7 @@ urlpatterns = [
     path('excluir/<int:sistema_id>/', views.excluir_sistema, name='excluir_sistema'),
     path('sistemas/<int:sistema_id>/workspace/', views.sistema_workspace, name='workspace'),
     path('sistemas/<int:sistema_id>/editar/', views.editar_sistema, name='editar_sistema'),
+    path('sistemas/<int:sistema_id>/interface/', interface_designer_views.interface_designer, name='interface_designer'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),
     path('api/sistemas/<int:sistema_id>/', views.atualizar_sistema, name='atualizar_sistema'),
     path('gerar/<int:pk>/', views.gerar_sistema_view, name='gerar_sistema'),

@@ -8,11 +8,35 @@ from django.views.decorators.http import require_POST
 from .models import Entidade, Sistema, VersaoGeracao
 
 
+TEXT_TYPES = {"CharField", "TextField", "EmailField", "SlugField", "URLField"}
+NUMBER_TYPES = {"IntegerField", "BigIntegerField", "SmallIntegerField", "PositiveIntegerField", "PositiveSmallIntegerField", "FloatField", "DecimalField"}
+DATE_TYPES = {"DateField", "DateTimeField", "TimeField"}
+BOOLEAN_TYPES = {"BooleanField", "NullBooleanField"}
+RELATION_TYPES = {"ForeignKey", "OneToOneField", "ManyToManyField"}
+
+
+def _filter_options(field_type):
+    if field_type in NUMBER_TYPES:
+        return ["exact", "gte", "lte", "range"]
+    if field_type in DATE_TYPES:
+        return ["exact", "gte", "lte", "range"]
+    if field_type in BOOLEAN_TYPES or field_type in RELATION_TYPES:
+        return ["exact"]
+    return ["contains", "exact", "startswith"]
+
+
+def _default_filter_type(field_type):
+    return "contains" if field_type in TEXT_TYPES or field_type not in NUMBER_TYPES | DATE_TYPES | BOOLEAN_TYPES | RELATION_TYPES else "exact"
+
+
 def _field_metadata(field):
+    options = _filter_options(field.tipo)
     return {
         "name": field.nome,
         "label": field.verbose_name or field.nome.replace("_", " ").title(),
         "type": field.tipo,
+        "filter_options": options,
+        "default_filter_type": _default_filter_type(field.tipo),
     }
 
 
@@ -34,14 +58,34 @@ def _draft_reports(sistema):
 
 def _normalize_report(entity_name, metadata, raw, strict=False):
     raw = raw if isinstance(raw, dict) else {}
-    available_fields = {field["name"] for field in metadata["fields"]}
+    field_map = {field["name"]: field for field in metadata["fields"]}
+    available_fields = set(field_map)
     fields = raw.get("fields") if isinstance(raw.get("fields"), list) else []
     fields = [name for name in fields if name in available_fields]
     if not fields:
         fields = [field["name"] for field in metadata["fields"][:5]]
 
-    filters = raw.get("filters") if isinstance(raw.get("filters"), list) else []
-    filters = [name for name in filters if name in available_fields]
+    raw_filters = raw.get("filters") if isinstance(raw.get("filters"), list) else []
+    filters = []
+    for item in raw_filters:
+        if isinstance(item, str):
+            name, filter_type = item, field_map.get(item, {}).get("default_filter_type", "contains")
+        elif isinstance(item, dict):
+            name = item.get("field", "")
+            filter_type = item.get("type", "")
+        else:
+            continue
+        if name not in available_fields:
+            if strict:
+                raise ValueError(f"Filtro não disponível no relatório: {name}")
+            continue
+        allowed = field_map[name]["filter_options"]
+        if filter_type not in allowed:
+            if strict:
+                raise ValueError(f"Tipo de filtro não disponível para {field_map[name]['label']}: {filter_type}")
+            filter_type = field_map[name]["default_filter_type"]
+        filters.append({"field": name, "type": filter_type})
+
     order_by = raw.get("order_by", "")
     order_field = order_by.lstrip("-") if isinstance(order_by, str) else ""
     if order_field not in available_fields:

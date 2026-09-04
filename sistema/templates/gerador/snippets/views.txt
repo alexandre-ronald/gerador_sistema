@@ -163,9 +163,9 @@ def {{ entidade.codigo_nome }}_transition(request, pk, transition_id):
 
 {% endif %}{% endfor %}
 
-{% for entidade in entidades %}{% report_generation_config entidade as report %}{% if report.enabled %}@login_required
+{% for entidade in entidades %}{% report_generation_configs entidade as reports %}{% for report in reports %}@login_required
 @permission_required('{{ app_name }}.view_{{ entidade.codigo_nome }}', raise_exception=True)
-def {{ entidade.codigo_nome }}_report(request):
+def {{ report.view_name }}(request):
     from .models import {{ entidade.classe_nome }}
     queryset = {{ entidade.classe_nome }}.objects.all()
 {% for filtro in report.filters %}{% if filtro.type == 'range' %}    value_{{ filtro.code }}_from = request.GET.get('{{ filtro.param_from }}', '').strip()
@@ -196,10 +196,11 @@ def {{ entidade.codigo_nome }}_report(request):
         'page_obj': page_obj,
         'total_registros': total_registros,
         'querystring': params.urlencode(),
+        'report_id': '{{ report.id|escapejs }}',
 {% for filtro in report.filters %}{% if filtro.type == 'range' %}        '{{ filtro.param_from }}': request.GET.get('{{ filtro.param_from }}', '').strip(),
         '{{ filtro.param_to }}': request.GET.get('{{ filtro.param_to }}', '').strip(),
 {% else %}        '{{ filtro.param }}': request.GET.get('{{ filtro.param }}', '').strip(),
 {% endif %}{% endfor %}    }
     return render(request, '{{ app_name }}/{{ entidade.codigo_nome }}_report.html', context)
 
-{% endif %}{% endfor %}
+{% endfor %}{% endfor %}

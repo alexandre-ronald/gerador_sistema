@@ -56,6 +56,13 @@ class FormDesignerContractTests(SimpleTestCase):
         self.assertEqual(field["label"], "Objeto")
         self.assertEqual(field["placeholder"], "Informe")
 
+    def test_width_two_is_supported(self):
+        form = normalize_form_config("Pedido", self.metadata(), {
+            "fields": [{"name": "valor", "width": 2}]
+        })
+        field = next(item for item in form["fields"] if item["name"] == "valor")
+        self.assertEqual(field["width"], 2)
+
     def test_new_metadata_field_is_added_without_destroying_customization(self):
         metadata = self.metadata()
         config = {"fields": [{"name": "descricao", "label": "Objeto", "width": 6}]}

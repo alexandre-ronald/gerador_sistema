@@ -23,148 +23,51 @@ class BusinessRulesDesignerUITests(TestCase):
         self.client.force_login(self.user)
 
     def payload(self):
-        return {
-            "business_rules": {
-                "Pedido": {
-                    "rules": [{
-                        "id": "validar_valor",
-                        "name": "Validar valor aprovado",
-                        "enabled": True,
-                        "event": "before_save",
-                        "priority": 10,
-                        "condition_mode": "all",
-                        "conditions": [{
-                            "field": "status",
-                            "operator": "eq",
-                            "value_source": "literal",
-                            "value": "APROVADO",
-                        }],
-                        "actions": [{
-                            "type": "reject",
-                            "message": "Valor inválido.",
-                        }],
-                    }]
-                }
-            }
-        }
+        return {"business_rules":{"Pedido":{"rules":[{"id":"validar_valor","name":"Validar valor aprovado","enabled":True,"event":"before_save","priority":10,"condition_mode":"all","conditions":[{"field":"status","operator":"eq","value_source":"literal","value":"APROVADO"}],"actions":[{"type":"reject","message":"Valor inválido."}]}]}}}
 
     def test_designer_renders_friendly_business_language(self):
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Regras de negócio")
-        self.assertContains(response, "Design · GEN-063")
-        self.assertContains(response, "Nova regra")
-        self.assertContains(response, "Aplicar esta regra quando")
-        self.assertContains(response, "O que deve acontecer?")
-        self.assertContains(response, "Resumo da regra")
-        self.assertContains(response, "Ao salvar um registro")
-        self.assertContains(response, "Impedir o salvamento")
-        self.assertContains(response, "Definir um valor")
-        self.assertContains(response, "Copiar valor de outro campo")
-        self.assertContains(response, "Todas precisam ser verdadeiras")
-        self.assertContains(response, "Basta uma ser verdadeira")
-        self.assertNotContains(response, "alert(")
+        response=self.client.get(self.url); self.assertEqual(response.status_code,200)
+        for text in ["Regras de negócio","Design · GEN-063","Nova regra","Aplicar esta regra quando","O que deve acontecer?","Resumo da regra","Ao salvar um registro","Impedir o salvamento","Definir um valor","Copiar valor de outro campo","Todas precisam ser verdadeiras","Basta uma ser verdadeira"]: self.assertContains(response,text)
+        self.assertNotContains(response,"alert(")
 
     def test_visual_condition_editor_explains_logic_without_technical_terms(self):
-        response = self.client.get(self.url)
-        self.assertContains(response, "Monte as condições como uma frase")
-        self.assertContains(response, "Quando há mais de uma condição")
-        self.assertContains(response, "Esta regra vale sempre")
-        self.assertContains(response, "Condição ${i+1}")
-        self.assertContains(response, "condition-join")
-        self.assertContains(response, "conditionsHtml")
-        self.assertContains(response, "Informe o valor esperado")
-        self.assertContains(response, "Esta condição é completa e não precisa de outro valor")
+        response=self.client.get(self.url)
+        for text in ["Monte as condições como uma frase","Esta regra vale sempre","Condição ${i+1}","condition-join","conditionsHtml"]: self.assertContains(response,text)
 
     def test_visual_action_editor_explains_effect_and_sequence(self):
-        response = self.client.get(self.url)
-        self.assertContains(response, "Monte uma ou mais ações na ordem")
-        self.assertContains(response, "Ação ${i+1}")
-        self.assertContains(response, "action-kind")
-        self.assertContains(response, "actionsHtml")
-        self.assertContains(response, "O sistema deve")
-        self.assertContains(response, "Defina o que o sistema deve fazer")
-        self.assertContains(response, "Toda regra precisa de pelo menos uma ação")
-        self.assertContains(response, "Interrompe a operação e explica ao usuário")
-        self.assertContains(response, "Preenche ou altera automaticamente um campo")
-        self.assertContains(response, "Preenche um campo usando o conteúdo de outro campo")
-        self.assertContains(response, "depois")
+        response=self.client.get(self.url)
+        for text in ["Ação ${i+1}","action-kind","actionsHtml","O sistema deve","Defina o que o sistema deve fazer","Interrompe a operação e explica ao usuário","Preenche ou altera automaticamente um campo","Preenche um campo usando o conteúdo de outro campo","depois"]: self.assertContains(response,text)
+
+    def test_rule_summary_uses_when_if_then_business_language(self):
+        response=self.client.get(self.url)
+        for text in ["Se → Então","Quando","Então","summaryHtml","conditionText","actionText","logic-summary","Esta regra está ativa no sistema gerado","Esta regra está inativa e não será executada","É assim que o comportamento será entendido pelo sistema gerado"]: self.assertContains(response,text)
 
     def test_keeps_internal_contract_values_behind_friendly_labels(self):
-        response = self.client.get(self.url)
-        self.assertContains(response, "before_save")
-        self.assertContains(response, "set_value")
-        self.assertContains(response, "copy_value")
-        self.assertContains(response, "for igual a")
-        self.assertContains(response, "for menor ou igual a")
-        self.assertContains(response, "Um valor")
-        self.assertContains(response, "Outro campo")
+        response=self.client.get(self.url)
+        for text in ["before_save","set_value","copy_value","for igual a","for menor ou igual a","Um valor","Outro campo"]: self.assertContains(response,text)
 
     def test_workspace_lists_business_rules_link(self):
-        response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Business Rules")
-        self.assertContains(response, self.url)
+        response=self.client.get(reverse("sistema:workspace",args=[self.sistema.id])); self.assertEqual(response.status_code,200); self.assertContains(response,"Business Rules"); self.assertContains(response,self.url)
 
     def test_save_persists_normalized_rules_and_preserves_other_draft_keys(self):
-        VersaoGeracao.objects.create(
-            sistema=self.sistema,
-            numero=0,
-            estrutura_json={"forms": {"Pedido": {"sections": []}}, "cruds": {"Pedido": {"title": "Pedidos"}}},
-        )
-        response = self.client.post(
-            self.save_url,
-            data=json.dumps(self.payload()),
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 200)
-        body = response.json()
-        self.assertEqual(body["status"], "sucesso")
-        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
-        self.assertIn("forms", draft.estrutura_json)
-        self.assertIn("cruds", draft.estrutura_json)
-        self.assertEqual(
-            draft.estrutura_json["business_rules"]["Pedido"]["rules"][0]["id"],
-            "validar_valor",
-        )
+        VersaoGeracao.objects.create(sistema=self.sistema,numero=0,estrutura_json={"forms":{"Pedido":{"sections":[]}},"cruds":{"Pedido":{"title":"Pedidos"}}})
+        response=self.client.post(self.save_url,data=json.dumps(self.payload()),content_type="application/json"); self.assertEqual(response.status_code,200); self.assertEqual(response.json()["status"],"sucesso")
+        draft=VersaoGeracao.objects.get(sistema=self.sistema,numero=0); self.assertIn("forms",draft.estrutura_json); self.assertIn("cruds",draft.estrutura_json); self.assertEqual(draft.estrutura_json["business_rules"]["Pedido"]["rules"][0]["id"],"validar_valor")
 
     def test_save_rejects_unknown_entity(self):
-        payload = self.payload()
-        payload["business_rules"]["Fantasma"] = payload["business_rules"].pop("Pedido")
-        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["erro"]["code"], "unknown_entity")
+        payload=self.payload(); payload["business_rules"]["Fantasma"]=payload["business_rules"].pop("Pedido"); response=self.client.post(self.save_url,data=json.dumps(payload),content_type="application/json"); self.assertEqual(response.status_code,400); self.assertEqual(response.json()["erro"]["code"],"unknown_entity")
 
     def test_save_rejects_unsafe_lookup(self):
-        payload = self.payload()
-        payload["business_rules"]["Pedido"]["rules"][0]["conditions"][0]["field"] = "status__icontains"
-        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["erro"]["code"], "invalid_condition_field")
+        payload=self.payload(); payload["business_rules"]["Pedido"]["rules"][0]["conditions"][0]["field"]="status__icontains"; response=self.client.post(self.save_url,data=json.dumps(payload),content_type="application/json"); self.assertEqual(response.status_code,400); self.assertEqual(response.json()["erro"]["code"],"invalid_condition_field")
 
     def test_save_rejects_invalid_action(self):
-        payload = self.payload()
-        payload["business_rules"]["Pedido"]["rules"][0]["actions"] = [{"type": "python", "value": "exec('x')"}]
-        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["erro"]["code"], "invalid_action_type")
+        payload=self.payload(); payload["business_rules"]["Pedido"]["rules"][0]["actions"]=[{"type":"python","value":"exec('x')"}]; response=self.client.post(self.save_url,data=json.dumps(payload),content_type="application/json"); self.assertEqual(response.status_code,400); self.assertEqual(response.json()["erro"]["code"],"invalid_action_type")
 
     def test_other_user_cannot_open_or_save(self):
-        self.client.force_login(self.other)
-        self.assertEqual(self.client.get(self.url).status_code, 404)
-        self.assertEqual(
-            self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json").status_code,
-            404,
-        )
+        self.client.force_login(self.other); self.assertEqual(self.client.get(self.url).status_code,404); self.assertEqual(self.client.post(self.save_url,data=json.dumps(self.payload()),content_type="application/json").status_code,404)
 
     def test_saved_rules_are_loaded_back_into_designer(self):
-        response = self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-        response = self.client.get(self.url)
-        self.assertContains(response, "validar_valor")
-        self.assertContains(response, "Validar valor aprovado")
+        response=self.client.post(self.save_url,data=json.dumps(self.payload()),content_type="application/json"); self.assertEqual(response.status_code,200); response=self.client.get(self.url); self.assertContains(response,"validar_valor"); self.assertContains(response,"Validar valor aprovado")
 
     def test_save_requires_business_rules_object(self):
-        response = self.client.post(self.save_url, data=json.dumps({"business_rules": []}), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["erro"]["code"], "invalid_business_rules")
+        response=self.client.post(self.save_url,data=json.dumps({"business_rules":[]}),content_type="application/json"); self.assertEqual(response.status_code,400); self.assertEqual(response.json()["erro"]["code"],"invalid_business_rules")

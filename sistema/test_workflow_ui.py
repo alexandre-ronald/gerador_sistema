@@ -74,6 +74,22 @@ class WorkflowDesignerUITests(TestCase):
             self.assertContains(response, text)
         self.assertNotContains(response, "alert(")
 
+    def test_visual_stage_editor_exposes_order_initial_and_final_controls(self):
+        response = self.client.get(self.url)
+        for text in [
+            "wf-state-number",
+            "wf-state-head",
+            "wf-state-actions",
+            "moveState",
+            "setInitialState",
+            "Mover para cima",
+            "Mover para baixo",
+            "Definir como inicial",
+            "Começa aqui",
+            "Organize a sequência, escolha onde começa e marque quais etapas encerram o processo.",
+        ]:
+            self.assertContains(response, text)
+
     def test_designer_keeps_internal_workflow_contract(self):
         response = self.client.get(self.url)
         self.assertContains(response, "state_field")

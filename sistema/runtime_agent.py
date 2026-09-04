@@ -1,4 +1,5 @@
 import json
+import uuid
 from time import perf_counter
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -7,6 +8,8 @@ from urllib.request import Request, urlopen
 from django.core.exceptions import ValidationError
 
 from .models import RuntimeCheck, RuntimeSnapshot
+from .observability import emit_event
+from .observability_models import ObservabilityEvent
 
 
 class RuntimeAgentService:
@@ -20,6 +23,19 @@ class RuntimeAgentService:
         if ambiente.sistema_id != self.sistema.pk:
             raise ValidationError("O ambiente não pertence a este sistema.")
         url = self._status_url(ambiente.url_base)
+        correlation_id = uuid.uuid4()
+        emit_event(
+            sistema=self.sistema,
+            ambiente=ambiente,
+            event_name="runtime.check.started",
+            message="Verificação do Runtime Agent iniciada.",
+            category=ObservabilityEvent.CATEGORY_RUNTIME,
+            source="runtime_agent",
+            correlation_id=correlation_id,
+            object_type="Ambiente",
+            object_id=str(ambiente.pk),
+            context={"environment": ambiente.tipo, "url": url},
+        )
         started = perf_counter()
         try:
             request = Request(url, headers={"Accept": "application/json", "User-Agent": "DjangoForge/GEN-046"})
@@ -48,7 +64,7 @@ class RuntimeAgentService:
                     "erro": "",
                 },
             )
-            self._record_check(
+            check = self._record_check(
                 ambiente,
                 online=True,
                 health=health,
@@ -56,6 +72,25 @@ class RuntimeAgentService:
                 migrations_pending=migrations_pending,
                 latency_ms=latency_ms,
                 payload=payload,
+            )
+            degraded = health != "HEALTHY"
+            emit_event(
+                sistema=self.sistema,
+                ambiente=ambiente,
+                event_name="runtime.check.degraded" if degraded else "runtime.check.healthy",
+                message="Runtime Agent respondeu com degradação." if degraded else "Runtime Agent respondeu saudável.",
+                level=ObservabilityEvent.LEVEL_WARNING if degraded else ObservabilityEvent.LEVEL_INFO,
+                category=ObservabilityEvent.CATEGORY_RUNTIME,
+                source="runtime_agent",
+                correlation_id=correlation_id,
+                object_type="RuntimeCheck",
+                object_id=str(check.pk),
+                context={
+                    "health": health,
+                    "release": release_observada,
+                    "migrations_pending": migrations_pending,
+                    "latency_ms": latency_ms,
+                },
             )
             return snapshot
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
@@ -70,12 +105,25 @@ class RuntimeAgentService:
                     "erro": str(exc),
                 },
             )
-            self._record_check(
+            check = self._record_check(
                 ambiente,
                 online=False,
                 health="OFFLINE",
                 latency_ms=latency_ms,
                 erro=str(exc),
+            )
+            emit_event(
+                sistema=self.sistema,
+                ambiente=ambiente,
+                event_name="runtime.check.offline",
+                message="Runtime Agent indisponível.",
+                level=ObservabilityEvent.LEVEL_ERROR,
+                category=ObservabilityEvent.CATEGORY_RUNTIME,
+                source="runtime_agent",
+                correlation_id=correlation_id,
+                object_type="RuntimeCheck",
+                object_id=str(check.pk),
+                context={"latency_ms": latency_ms, "error": str(exc)},
             )
             return snapshot
 

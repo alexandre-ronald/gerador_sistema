@@ -59,27 +59,7 @@ A notificação referencia o ID estável da transição do Workflow, e não o la
 
 O Notification Designer lê a configuração persistida em `workflows` para a mesma entidade.
 
-Somente são oferecidas como eventos notificáveis transições que:
-
-- pertencem a workflow ativo;
-- estão habilitadas;
-- possuem origens válidas;
-- possuem destino válido.
-
-A interface apresenta linguagem de negócio, por exemplo:
-
-```text
-Quando avisar?
-
-Cadastro
-  Quando um registro for criado
-  Quando um registro for atualizado
-  Quando um registro for excluído
-
-Mudança de situação
-  Quando mudar de Rascunho para Em análise
-  Quando mudar de Em análise para Aprovado
-```
+Somente são oferecidas como eventos notificáveis transições que pertencem a workflow ativo, estão habilitadas, possuem origens válidas e possuem destino válido.
 
 O backend continua fail-closed. Ao salvar uma regra `workflow_transition`, rejeita workflow inexistente/desativado, transição inexistente/desabilitada e uso de `transition` fora de evento de workflow.
 
@@ -97,7 +77,7 @@ A primeira versão de destinatários usa um contrato simples, determinístico e 
 }
 ```
 
-Representa os usuários autorizados a visualizar a entidade. A resolução concreta será materializada no runtime gerado usando as permissões disponíveis.
+Representa os usuários autorizados a visualizar a entidade.
 
 ### Quem realizou a ação
 
@@ -120,30 +100,11 @@ Representa o usuário autenticado que provocou o acontecimento: criação, alter
 
 O campo `role` referencia o ID estável de um papel já definido em `estrutura_json["rbac"]["roles"]`. O Notification Designer não duplica nomes de Django Groups nem cria uma segunda definição de papéis.
 
-Para usar `audience = "role"`:
-
-- RBAC deve estar ativo;
-- o papel precisa existir;
-- o papel precisa possuir ID válido no contrato RBAC.
-
-O backend rejeita de forma fail-closed tipo de destinatário desconhecido, papel inexistente, papel com RBAC desativado e propriedade `role` enviada para outro tipo de destinatário.
-
-A interface mostra linguagem de negócio:
-
-```text
-Quem deve receber?
-
-  Quem pode visualizar esta informação
-  Quem realizou a ação
-  Usuários de um papel
-      Papel destinatário: Gestor
-```
-
 Destinatários baseados em campos do registro exigem metadata semântica própria para declarar que determinado relacionamento representa um usuário. Essa capacidade não deve ser inferida pelo nome do campo.
 
 ## Central no sistema gerado — GEN-066.4
 
-Quando existe ao menos uma regra de notificação ativa, o compilador passa a materializar um app interno reservado chamado `djangoforge_notifications`.
+Quando existe ao menos uma regra de notificação ativa, o compilador materializa um app interno reservado chamado `djangoforge_notifications`.
 
 A ausência de regras ativas preserva o runtime anterior: o app não é instalado, suas rotas não são emitidas e a central não aparece na navegação.
 
@@ -160,74 +121,141 @@ O runtime possui um modelo `Notification` com os campos:
 
 Foi escolhido `read_at` em vez de um booleano `is_read` para preservar informação temporal e permitir evolução posterior sem alterar o contrato básico.
 
-O app é acompanhado de migration inicial explícita. O sistema gerado não depende de `makemigrations` manual para materializar a tabela da central.
+O app é acompanhado de migration inicial explícita.
 
 ### Segurança da central
 
-Toda leitura é escopada ao usuário autenticado:
-
-```text
-Notification.objects.filter(recipient=request.user)
-```
-
-Marcar uma notificação como lida exige POST e busca simultaneamente por `pk` e `recipient=request.user`. Assim, conhecer o ID de uma notificação de outro usuário não concede acesso a ela.
-
-As mutações suportadas nesta fase são:
-
-- marcar uma notificação como lida;
-- marcar todas as notificações do próprio usuário como lidas.
+Toda leitura é escopada ao usuário autenticado. Marcar uma notificação como lida exige POST e busca simultaneamente por `pk` e `recipient=request.user`.
 
 ### Navegação e contador
 
-A central é publicada em:
+A central é publicada em `/notifications/`. A navegação global recebe a área `Comunicação` com o item `Notificações`, incluindo a quantidade não lida quando maior que zero.
+
+## Integração de runtime — GEN-066.5
+
+A GEN-066.5 fecha o circuito entre acontecimentos do sistema e a Central de Notificações.
+
+Fluxo materializado:
 
 ```text
-/notifications/
+ação de negócio
+    ↓
+Create / Update / Delete / WorkflowTransitionHistory
+    ↓
+signal do runtime gerado
+    ↓
+regra declarada no Notification Designer
+    ↓
+resolução dos destinatários
+    ↓
+Notification
+    ↓
+Central de notificações
 ```
 
-A navegação global recebe a área `Comunicação` com o item `Notificações`. Quando houver itens não lidos, o label inclui a quantidade, por exemplo:
+### Captura dos eventos
+
+Os CRUDs não recebem código específico de notificação. O app interno conecta `post_save` e `post_delete` aos modelos que possuem regras ativas.
+
+A semântica é:
+
+- `post_save(created=True)` → `created`;
+- `post_save(created=False)` → `updated`;
+- `post_delete` → `deleted`.
+
+A escolha por signals mantém o recurso transversal e também cobre alterações realizadas por outras superfícies do runtime, como API e administração, desde que usem o ORM Django.
+
+### Ator autenticado
+
+O app interno instala `NotificationActorMiddleware` imediatamente após `AuthenticationMiddleware`. O middleware mantém o usuário da requisição em `ContextVar`, permitindo que os signals resolvam `audience = "actor"` sem acoplar cada CRUD à infraestrutura de notificação.
+
+O contexto é sempre restaurado em `finally`, evitando vazamento do usuário entre requisições ou contextos concorrentes.
+
+Para eventos de Workflow, o usuário persistido em `WorkflowTransitionHistory.user` é a fonte preferencial do ator.
+
+### Eventos de Workflow
+
+O runtime observa a criação de `WorkflowTransitionHistory` e usa simultaneamente:
+
+- `app_label`;
+- `model_name`;
+- `transition_id`.
+
+Assim uma regra `workflow_transition` só dispara quando o ID da transição executada coincide exatamente com o ID persistido na regra.
+
+### Resolução dos destinatários
+
+`actor` resolve exclusivamente o usuário autenticado que provocou a ação, quando ativo.
+
+`role` consulta o contrato RBAC gerado, resolve o ID estável do papel para seu Django Group e seleciona usuários ativos pertencentes ao grupo. Se RBAC estiver desativado ou o papel estiver stale, a resolução retorna vazio.
+
+`users_with_view_permission` usa duas estratégias:
+
+- com RBAC ativo, considera superusuários e usuários ativos em papéis que possuam `list` ou `view` para a entidade;
+- sem RBAC ativo, considera superusuários e usuários ativos que possuam a permissão Django `view_<model>` direta ou por grupo.
+
+A resolução é fail-closed para audiência desconhecida ou metadata ausente.
+
+### Deduplicação
+
+A deduplicação ocorre por regra e usuário. Um usuário alcançado por mais de um grupo/permissão recebe somente uma instância daquela regra.
+
+Regras distintas continuam independentes. Portanto, duas regras diferentes para o mesmo evento podem produzir duas notificações diferentes para o mesmo usuário, preservando a intenção declarada pelo usuário no Designer.
+
+### Destino interno
+
+Quando a entidade possui página de detalhe gerada, eventos de criação, atualização e Workflow apontam para essa página. Caso contrário é utilizada a listagem quando disponível.
+
+Eventos de exclusão apontam para a listagem, pois o objeto já não existe.
+
+### Fail-closed na geração
+
+Além da validação do Designer, o template tag de geração ignora regras estruturalmente inválidas. Não entram no runtime regras com evento ou audiência desconhecidos, transição ausente para evento de Workflow, transição indevida em evento CRUD, papel ausente para audiência `role`, ou campos essenciais vazios.
+
+Não há `eval`, `exec` ou código configurável pelo usuário.
+
+## Limites mantidos após GEN-066.5
+
+A GEN-066 continua deliberadamente sem:
+
+- e-mail;
+- SMS;
+- push externo;
+- WebSocket;
+- Celery;
+- brokers ou filas;
+- endereço de destinatário digitado livremente;
+- destinatário inferido pelo nome de um campo do modelo.
+
+A primeira versão é uma central interna persistida no mesmo banco do sistema gerado.
+
+## Critério de freeze
+
+A GEN-066 pode ser congelada quando passarem:
 
 ```text
-Comunicação
-  Notificações (3)
+python manage.py check
+python manage.py test sistema.test_generated_notifications
+python manage.py test sistema.test_notification_designer_ui
+python manage.py test
 ```
 
-A contagem é sempre calculada para o usuário autenticado. Falha de acesso à tabela durante bootstrap/migration não derruba a navegação; nesse caso o contador degrada para zero.
+O freeze confirma o seguinte contrato:
 
-### Interface
-
-A central permite:
-
-- visualizar todas as notificações;
-- filtrar apenas não lidas;
-- distinguir visualmente itens novos;
-- marcar uma notificação como lida;
-- marcar todas como lidas;
-- abrir o destino relacionado quando `url` estiver preenchida.
-
-A listagem inicial é deliberadamente limitada no runtime desta fase. Paginação e políticas de retenção podem ser evoluídas sem alterar o contrato de emissão.
-
-## Limites da GEN-066.4
-
-A GEN-066.4 cria a infraestrutura funcional de armazenamento e leitura, mas ainda não produz notificações a partir das regras do Designer.
-
-Portanto ainda estão fora desta etapa:
-
-- interceptar Create/Update/Delete dos CRUDs;
-- interceptar transições de Workflow;
-- resolver `actor`, `role` e `users_with_view_permission` durante um acontecimento;
-- criar objetos `Notification` automaticamente;
-- deduplicação de destinatários durante o disparo;
-- e-mail, SMS, push, WebSocket, filas, Celery ou brokers.
-
-A integração efetiva das regras com CRUD/Workflow é responsabilidade exclusiva da GEN-066.5.
+- Designer e persistência estáveis;
+- eventos CRUD e Workflow estáveis;
+- destinatários `users_with_view_permission`, `actor` e `role` estáveis;
+- central gerada e protegida por usuário;
+- captura transversal por signals;
+- ator propagado por middleware/contexto seguro;
+- deduplicação por regra/destinatário;
+- ausência de infraestrutura externa de mensageria;
+- regressão global verde.
 
 ## Separação de responsabilidades
 
 - Workflow define **o que pode acontecer**.
 - RBAC define **quem pode executar e visualizar ações**.
 - Notification Designer define **sobre quais acontecimentos avisar e quem deve receber**.
-- GEN-066.4 fornece **onde a notificação é armazenada, consultada e marcada como lida**.
-- GEN-066.5 fará **quando criar a notificação, como resolver seus destinatários e o freeze**.
-
-Até a GEN-066.4 não há envio de e-mail, fila, Celery, WebSocket nem execução de código configurável.
+- Runtime de notificações detecta **quando o acontecimento realmente ocorreu** e resolve seus destinatários.
+- Central de notificações fornece **armazenamento, leitura e estado de lida**.

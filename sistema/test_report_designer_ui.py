@@ -54,6 +54,35 @@ class ReportDesignerUITests(TestCase):
             self.assertContains(response, text)
         self.assertNotContains(response, "alert(")
 
+    def test_visual_column_and_filter_organization_controls_are_available(self):
+        response = self.client.get(self.url)
+        for text in [
+            "Colunas escolhidas",
+            "Outras informações disponíveis",
+            "moveField",
+            "Mover coluna para cima",
+            "Mover coluna para baixo",
+            "Remover coluna",
+            "Adicionar",
+            "rp-column-order",
+            "rp-filter-grid",
+            "Disponível para filtrar",
+            "Não será exibido como filtro",
+            "A prévia respeita a ordem das colunas que você definiu.",
+        ]:
+            self.assertContains(response, text)
+
+    def test_save_preserves_selected_column_order(self):
+        payload = self.payload()
+        payload["reports"]["Contrato"]["fields"] = ["valor", "numero", "fornecedor"]
+        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        self.assertEqual(
+            draft.estrutura_json["reports"]["Contrato"]["fields"],
+            ["valor", "numero", "fornecedor"],
+        )
+
     def test_save_persists_reports_and_preserves_existing_draft_keys(self):
         VersaoGeracao.objects.create(
             sistema=self.sistema,

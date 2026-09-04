@@ -14,6 +14,7 @@ from . import release_manager_views
 from . import environment_manager_views
 from . import health_monitoring_views
 from . import deployment_center_views
+from . import observability_views
 
 app_name = 'sistema'
 
@@ -60,6 +61,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/validar/', deployment_center_views.validate_deployment_plan, name='validate_deployment_plan'),
     path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/executar/', deployment_center_views.execute_deployment_plan, name='execute_deployment_plan'),
     path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/cancelar/', deployment_center_views.cancel_deployment_plan, name='cancel_deployment_plan'),
+    path('sistemas/<int:sistema_id>/monitoring/', observability_views.monitoring_center, name='monitoring_center'),
+    path('sistemas/<int:sistema_id>/monitoring/events/<int:event_id>/', observability_views.monitoring_event_detail, name='monitoring_event_detail'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('users/', views.users_view, name='users'),

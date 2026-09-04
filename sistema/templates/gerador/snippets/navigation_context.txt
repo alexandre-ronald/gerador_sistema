@@ -1,4 +1,4 @@
-from django.apps import apps
+{% load report_generation %}from django.apps import apps
 
 # Generated from the persisted system specification. Keep URL/permission
 # identifiers here Python-safe; display labels may contain accents.
@@ -23,7 +23,17 @@ NAVIGATION_MODULES = [
                 "permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}",
                 "app_name": "{{ modulo.app_name }}",
             },
-{% endif %}{% endfor %}
+{% endif %}{% report_generation_configs entidade as reports %}{% for report in reports %}
+            {
+                "label": "{{ report.title|escapejs }}",
+                "model_name": "{{ entidade.classe_nome }}",
+                "url_name": "{{ modulo.app_name }}:{{ report.view_name }}",
+                "active_url_names": ["{{ report.view_name }}"],
+                "permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}",
+                "app_name": "{{ modulo.app_name }}",
+                "is_report": True,
+            },
+{% endfor %}{% endfor %}
         ],
     },
 {% endfor %}
@@ -64,7 +74,7 @@ def _current_navigation_context(request, modules):
     for module in modules:
         for item in module["items"]:
             if item.get("is_active"):
-                return {"module_label": module["label"], "item_label": item["label"]}
+                return {"module_label": "Relatórios" if item.get("is_report") else module["label"], "item_label": item["label"]}
     return {"module_label": "Área de trabalho", "item_label": "Visão geral"}
 
 

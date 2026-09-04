@@ -1,0 +1,54 @@
+{% templatetag openblock %} extends 'base.html' {% templatetag closeblock %}
+{% templatetag openblock %} block content {% templatetag closeblock %}
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+    <div>
+        <div class="text-uppercase small fw-bold text-secondary mb-1">Comunicação</div>
+        <h1 class="h3 fw-bold mb-1">Notificações</h1>
+        <div class="text-secondary">Acompanhe os avisos importantes do sistema.</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% templatetag openblock %} if unread_count {% templatetag closeblock %}
+        <span class="badge text-bg-primary rounded-pill px-3 py-2">{% templatetag openvariable %} unread_count {% templatetag closevariable %} não lida{% templatetag openblock %} if unread_count != 1 {% templatetag closeblock %}s{% templatetag openblock %} endif {% templatetag closeblock %}</span>
+        <form method="post" action="{% templatetag openblock %} url 'notifications:mark_all_read' {% templatetag closeblock %}">
+            {% templatetag openblock %} csrf_token {% templatetag closeblock %}
+            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-check2-all me-1"></i>Marcar todas como lidas</button>
+        </form>
+        {% templatetag openblock %} endif {% templatetag closeblock %}
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+    <a class="btn btn-sm {% templatetag openblock %} if status_filter != 'unread' {% templatetag closeblock %}btn-primary{% templatetag openblock %} else {% templatetag closeblock %}btn-outline-secondary{% templatetag openblock %} endif {% templatetag closeblock %}" href="{% templatetag openblock %} url 'notifications:list' {% templatetag closeblock %}">Todas</a>
+    <a class="btn btn-sm {% templatetag openblock %} if status_filter == 'unread' {% templatetag closeblock %}btn-primary{% templatetag openblock %} else {% templatetag closeblock %}btn-outline-secondary{% templatetag openblock %} endif {% templatetag closeblock %}" href="{% templatetag openblock %} url 'notifications:list' {% templatetag closeblock %}?status=unread">Não lidas</a>
+</div>
+
+<div class="app-card">
+    {% templatetag openblock %} for notification in notifications {% templatetag closeblock %}
+    <div class="p-3 p-md-4 border-bottom {% templatetag openblock %} if not notification.is_read {% templatetag closeblock %}bg-primary-subtle{% templatetag openblock %} endif {% templatetag closeblock %}">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div class="min-w-0">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    {% templatetag openblock %} if not notification.is_read {% templatetag closeblock %}<span class="badge text-bg-primary">Nova</span>{% templatetag openblock %} endif {% templatetag closeblock %}
+                    <h2 class="h6 fw-bold mb-0">{% templatetag openvariable %} notification.title {% templatetag closevariable %}</h2>
+                </div>
+                <div class="text-secondary mb-2">{% templatetag openvariable %} notification.message {% templatetag closevariable %}</div>
+                <div class="small text-secondary"><i class="bi bi-clock me-1"></i>{% templatetag openvariable %} notification.created_at|date:'d/m/Y H:i' {% templatetag closevariable %}</div>
+                {% templatetag openblock %} if notification.url {% templatetag closeblock %}<a class="btn btn-sm btn-link px-0 mt-2" href="{% templatetag openvariable %} notification.url {% templatetag closevariable %}">Abrir informação <i class="bi bi-arrow-right"></i></a>{% templatetag openblock %} endif {% templatetag closeblock %}
+            </div>
+            {% templatetag openblock %} if not notification.is_read {% templatetag closeblock %}
+            <form method="post" action="{% templatetag openblock %} url 'notifications:mark_read' notification.pk {% templatetag closeblock %}">
+                {% templatetag openblock %} csrf_token {% templatetag closeblock %}
+                <button class="btn btn-sm btn-outline-secondary" type="submit" title="Marcar como lida"><i class="bi bi-check2"></i></button>
+            </form>
+            {% templatetag openblock %} endif {% templatetag closeblock %}
+        </div>
+    </div>
+    {% templatetag openblock %} empty {% templatetag closeblock %}
+    <div class="empty-state">
+        <div class="app-empty-icon mb-3"><i class="bi bi-bell"></i></div>
+        <div class="fw-bold mb-1">Nenhuma notificação por aqui</div>
+        <div>Quando houver um aviso para você, ele aparecerá nesta central.</div>
+    </div>
+    {% templatetag openblock %} endfor {% templatetag closeblock %}
+</div>
+{% templatetag openblock %} endblock {% templatetag closeblock %}

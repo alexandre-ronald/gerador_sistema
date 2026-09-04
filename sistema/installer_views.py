@@ -1,4 +1,5 @@
 import os
+import uuid
 import zipfile
 from datetime import datetime
 
@@ -10,6 +11,8 @@ from django.urls import reverse
 from django.utils.text import slugify
 
 from .models import Sistema
+from .observability import emit_event
+from .observability_models import ObservabilityEvent
 from .services import GeradorService
 from .structure_service import serialize_system_structure
 
@@ -113,8 +116,22 @@ python manage.py runserver
 
 @login_required
 def processar_geracao_ajax(request, pk):
+    sistema = None
+    correlation_id = uuid.uuid4()
     try:
         sistema = get_object_or_404(Sistema, pk=pk, usuario=request.user)
+        emit_event(
+            sistema=sistema,
+            usuario=request.user,
+            event_name="generation.started",
+            message="Geração do sistema iniciada.",
+            category=ObservabilityEvent.CATEGORY_GENERATION,
+            source="installer_views",
+            correlation_id=correlation_id,
+            object_type="Sistema",
+            object_id=str(sistema.pk),
+            context={"database": sistema.banco_dados, "docker": sistema.gerar_docker},
+        )
         gerador = GeradorService(sistema.pk)
         logs = gerador.gerar_projeto_completo()
         versao = gerador.versao_gerada
@@ -149,8 +166,34 @@ def processar_geracao_ajax(request, pk):
         versao.save(update_fields=["descricao", "arquivo_zip"])
 
         logs.extend([f"Versão de geração consolidada: v{versao.numero}", f"ZIP gerado: {nome_zip}"])
+        emit_event(
+            sistema=sistema,
+            usuario=request.user,
+            event_name="generation.succeeded",
+            message="Geração do sistema concluída com sucesso.",
+            category=ObservabilityEvent.CATEGORY_GENERATION,
+            source="installer_views",
+            correlation_id=correlation_id,
+            object_type="VersaoGeracao",
+            object_id=str(versao.pk),
+            context={"version": versao.numero, "artifact": nome_zip},
+        )
         return JsonResponse({"status": "sucesso", "logs": logs, "versao": versao.numero, "url_zip": reverse("sistema:baixar_zip", kwargs={"pk": sistema.pk})})
     except Exception as exc:
+        if sistema is not None:
+            emit_event(
+                sistema=sistema,
+                usuario=request.user,
+                event_name="generation.failed",
+                message="Geração do sistema falhou.",
+                level=ObservabilityEvent.LEVEL_ERROR,
+                category=ObservabilityEvent.CATEGORY_GENERATION,
+                source="installer_views",
+                correlation_id=correlation_id,
+                object_type="Sistema",
+                object_id=str(sistema.pk),
+                context={"error": str(exc)},
+            )
         return JsonResponse({"status": "erro", "mensagem": str(exc)}, status=400)
 
 

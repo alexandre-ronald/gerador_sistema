@@ -13,8 +13,8 @@ class FormDesignerUITests(SimpleTestCase):
 
     def test_exposes_form_designer_shell(self):
         source = self.source()
-        self.assertIn("Form Designer", source)
-        self.assertIn("Design · GEN-050", source)
+        self.assertIn("Form Designer 2.0", source)
+        self.assertIn("Design · GEN-062", source)
         self.assertIn("Voltar ao Workspace", source)
         self.assertIn('id="entity"', source)
         self.assertIn('id="form-title"', source)
@@ -23,14 +23,29 @@ class FormDesignerUITests(SimpleTestCase):
 
     def test_exposes_grid_and_field_properties(self):
         source = self.source()
-        self.assertIn("const widths=[3,4,6,8,12]", source)
+        self.assertIn("const widths=[2,3,4,6,8,12]", source)
+        self.assertIn("const widthLabels={2:'1/6',3:'1/4',4:'1/3',6:'1/2',8:'2/3',12:'Linha'}", source)
         self.assertIn('data-p="label"', source)
         self.assertIn('data-p="placeholder"', source)
         self.assertIn('data-p="help_text"', source)
-        self.assertIn('data-p="width"', source)
+        self.assertIn('data-width="${w}"', source)
         self.assertIn('data-p="widget"', source)
         self.assertIn('data-p="visible"', source)
         self.assertIn('data-p="readonly"', source)
+        self.assertIn("Nome exibido", source)
+        self.assertIn("Texto de exemplo", source)
+        self.assertIn("Tipo de entrada", source)
+        self.assertIn("Mostrar no formulário", source)
+
+    def test_supports_friendly_widget_labels(self):
+        source = self.source()
+        self.assertIn("text:'Texto'", source)
+        self.assertIn("textarea:'Texto longo'", source)
+        self.assertIn("number:'Número'", source)
+        self.assertIn("date:'Data'", source)
+        self.assertIn("datetime:'Data e hora'", source)
+        self.assertIn("checkbox:'Sim / Não'", source)
+        self.assertIn("select:'Lista de opções'", source)
 
     def test_supports_sections(self):
         source = self.source()
@@ -51,7 +66,7 @@ class FormDesignerUITests(SimpleTestCase):
 
     def test_preview_is_local_only(self):
         source = self.source()
-        self.assertIn("Preview Mode", source)
+        self.assertIn("Visualização do formulário", source)
         self.assertIn("previewMode=true", source)
         self.assertIn("previewMode=false", source)
         self.assertNotIn('preview_mode', source)

@@ -135,9 +135,9 @@ def {{ entidade.codigo_nome }}_transition(request, pk, transition_id):
 {% if rbac_policy.enabled %}        require_transition(request.user, '{{ entidade.nome|escapejs }}', transition_id)
 {% endif %}        perform_transition(objeto, transition_id, user=request.user, history_model=WorkflowTransitionHistory, rule_runner={% if entidade.business_rules_ready %}run_business_rules{% else %}None{% endif %})
         messages.success(request, 'Transição executada com sucesso.')
-    except RBACRuntimeError as exc:
+{% if rbac_policy.enabled %}    except RBACRuntimeError as exc:
         raise PermissionDenied(str(exc))
-    except (WorkflowRuntimeError, ValidationError) as exc:
+{% endif %}    except (WorkflowRuntimeError, ValidationError) as exc:
         messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
     return redirect('{{ app_name }}:{{ entidade.codigo_nome }}_detail', pk=pk)
 

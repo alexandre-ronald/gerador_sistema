@@ -90,6 +90,24 @@ class WorkflowDesignerUITests(TestCase):
         ]:
             self.assertContains(response, text)
 
+    def test_visual_transition_editor_exposes_route_order_and_status(self):
+        response = self.client.get(self.url)
+        for text in [
+            "wf-transition-number",
+            "wf-transition-head",
+            "wf-transition-actions",
+            "wf-route",
+            "moveTransition",
+            "stateLabel",
+            "originLabel",
+            "Sai de",
+            "Pede confirmação",
+            "Mover mudança para cima",
+            "Mover mudança para baixo",
+            "Organize as ações e visualize claramente de onde o registro sai e para onde ele vai.",
+        ]:
+            self.assertContains(response, text)
+
     def test_designer_keeps_internal_workflow_contract(self):
         response = self.client.get(self.url)
         self.assertContains(response, "state_field")

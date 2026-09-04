@@ -31,18 +31,29 @@ class GeneratedReportTests(TestCase):
             numero=0,
             estrutura_json={
                 "reports": {
-                    "Contrato": {
-                        "enabled": True,
-                        "title": "Relatório de contratos",
-                        "description": "Acompanhe contratos cadastrados.",
-                        "fields": ["numero", "fornecedor", "valor"],
-                        "filters": [
-                            {"field": "fornecedor", "type": "contains"},
-                            {"field": "valor", "type": "gte"},
-                            {"field": "vigencia", "type": "range"},
-                        ],
-                        "order_by": "-valor",
-                    }
+                    "Contrato": [
+                        {
+                            "id": "por_fornecedor",
+                            "enabled": True,
+                            "title": "Contratos por fornecedor",
+                            "description": "Acompanhe contratos por fornecedor.",
+                            "fields": ["numero", "fornecedor", "valor"],
+                            "filters": [{"field": "fornecedor", "type": "contains"}],
+                            "order_by": "fornecedor",
+                        },
+                        {
+                            "id": "maiores_valores",
+                            "enabled": True,
+                            "title": "Contratos de maior valor",
+                            "description": "Liste contratos por valor.",
+                            "fields": ["numero", "valor", "vigencia"],
+                            "filters": [
+                                {"field": "valor", "type": "gte"},
+                                {"field": "vigencia", "type": "range"},
+                            ],
+                            "order_by": "-valor",
+                        },
+                    ]
                 }
             },
         )
@@ -62,22 +73,34 @@ class GeneratedReportTests(TestCase):
             },
         )
 
-    def test_generated_views_apply_report_filters_and_order(self):
+    def test_generated_views_apply_each_report_configuration(self):
         views = self.rendered("gerador/snippets/views.txt")
-        self.assertIn("def contrato_report(request):", views)
+        self.assertIn("def contrato_report_por_fornecedor(request):", views)
+        self.assertIn("def contrato_report_maiores_valores(request):", views)
         self.assertIn("fornecedor__icontains", views)
         self.assertIn("valor__gte", views)
         self.assertIn("vigencia__gte", views)
         self.assertIn("vigencia__lte", views)
         self.assertIn("queryset = queryset.order_by('-valor')", views)
-        self.assertIn("Paginator(queryset, 50)", views)
+        self.assertIn("'report_id': 'por_fornecedor'", views)
+        self.assertIn("'report_id': 'maiores_valores'", views)
 
-    def test_generated_urls_expose_report_route(self):
+    def test_generated_urls_expose_all_report_routes(self):
         urls = self.rendered("gerador/snippets/urls_app_v2.txt")
-        self.assertIn("contrato/relatorio/", urls)
-        self.assertIn("name='contrato_report'", urls)
+        self.assertIn("contrato/relatorios/por_fornecedor/", urls)
+        self.assertIn("contrato/relatorios/maiores_valores/", urls)
+        self.assertIn("name='contrato_report_por_fornecedor'", urls)
+        self.assertIn("name='contrato_report_maiores_valores'", urls)
 
-    def test_report_template_contains_configured_columns_filters_and_print(self):
+    def test_generated_navigation_exposes_report_links(self):
+        navigation = self.rendered("gerador/snippets/navigation_context.txt")
+        self.assertIn('"label": "Contratos por fornecedor"', navigation)
+        self.assertIn('"label": "Contratos de maior valor"', navigation)
+        self.assertIn('"url_name": "contratos:contrato_report_por_fornecedor"', navigation)
+        self.assertIn('"url_name": "contratos:contrato_report_maiores_valores"', navigation)
+        self.assertIn('"is_report": True', navigation)
+
+    def test_report_template_contains_all_report_variants(self):
         service = GeradorService(self.sistema.id)
         ctx = service._prepare_context()
         modulo = ctx["modulos"][0]
@@ -86,36 +109,38 @@ class GeneratedReportTests(TestCase):
             "gerador/snippets/html_report.txt",
             {**ctx, "app_name": modulo.app_name, "entidades": modulo.entidades_geracao, "entidade": entity},
         )
-        self.assertIn("Relatório de contratos", html)
-        self.assertIn("Fornecedor", html)
-        self.assertIn("Valor", html)
-        self.assertIn("report_fornecedor", html)
-        self.assertIn("report_vigencia_from", html)
+        self.assertIn("Contratos por fornecedor", html)
+        self.assertIn("Contratos de maior valor", html)
+        self.assertIn("report_id == 'por_fornecedor'", html)
+        self.assertIn("report_id == 'maiores_valores'", html)
         self.assertIn("window.print()", html)
 
-    def test_real_generation_creates_report_template_and_route(self):
+    def test_real_generation_creates_report_template_routes_and_navigation(self):
         logs = GeradorService(self.sistema.id).gerar_projeto_completo()
-        report_path = os.path.join(
-            self.tmp.name,
-            "contratos",
-            "templates",
-            "contratos",
-            "contrato_report.html",
-        )
+        report_path = os.path.join(self.tmp.name, "contratos", "templates", "contratos", "contrato_report.html")
         views_path = os.path.join(self.tmp.name, "contratos", "views.py")
         urls_path = os.path.join(self.tmp.name, "contratos", "urls.py")
+        navigation_path = os.path.join(self.tmp.name, "gestao_de_contratos", "context_processors.py")
         self.assertTrue(os.path.isfile(report_path))
         with open(views_path, encoding="utf-8") as f:
             views = f.read()
         with open(urls_path, encoding="utf-8") as f:
             urls = f.read()
-        self.assertIn("def contrato_report(request):", views)
-        self.assertIn("contrato/relatorio/", urls)
+        with open(navigation_path, encoding="utf-8") as f:
+            navigation = f.read()
+        self.assertIn("def contrato_report_por_fornecedor(request):", views)
+        self.assertIn("def contrato_report_maiores_valores(request):", views)
+        self.assertIn("contrato/relatorios/por_fornecedor/", urls)
+        self.assertIn("contrato/relatorios/maiores_valores/", urls)
+        self.assertIn("Contratos por fornecedor", navigation)
+        self.assertIn("Contratos de maior valor", navigation)
         self.assertTrue(any("Validação concluída" in item for item in logs))
 
-    def test_disabled_report_does_not_expose_route(self):
+    def test_disabled_reports_do_not_expose_routes_or_navigation(self):
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
-        draft.estrutura_json = {"reports": {"Contrato": {"enabled": False}}}
+        draft.estrutura_json = {"reports": {"Contrato": [{"id": "inativo", "enabled": False}]}}
         draft.save(update_fields=["estrutura_json"])
         urls = self.rendered("gerador/snippets/urls_app_v2.txt")
-        self.assertNotIn("contrato/relatorio/", urls)
+        navigation = self.rendered("gerador/snippets/navigation_context.txt")
+        self.assertNotIn("relatorios/inativo", urls)
+        self.assertNotIn("report_inativo", navigation)

@@ -65,6 +65,12 @@ class GeneratedWorkflowTests(TestCase):
         self.assertIn("perform_transition(objeto, transition_id", views)
         self.assertIn("workflow/<str:transition_id>/", urls)
 
+    def test_workflow_without_rbac_does_not_reference_rbac_runtime_error(self):
+        views = self.rendered("gerador/snippets/views.txt")
+        self.assertNotIn("RBACRuntimeError", views)
+        self.assertNotIn("require_transition(", views)
+        self.assertIn("except (WorkflowRuntimeError, ValidationError) as exc:", views)
+
     def test_real_generation_creates_workflow_runtime_and_history_model(self):
         logs = GeradorService(self.sistema.id).gerar_projeto_completo()
         workflow_path = os.path.join(self.tmp.name, "core", "workflow.py")

@@ -188,6 +188,7 @@ urlpatterns = [
     path('dashboard/', login_required(TemplateView.as_view(template_name='dashboard.html')), name='dashboard'),
     path('dashboard/data/', dashboard_data, name='dashboard_data'),
     path('__djangoforge__/status/', runtime_status, name='djangoforge_runtime_status'),
-{% if api.enabled %}{% for modulo in modulos %}{% if modulo.entidades_api %}    path('{{ api.prefix }}/{{ api.version }}/', include('{{ modulo.app_name }}.api_urls')),
+{% if notifications.enabled %}    path('notifications/', include('djangoforge_notifications.urls')),
+{% endif %}{% if api.enabled %}{% for modulo in modulos %}{% if modulo.entidades_api %}    path('{{ api.prefix }}/{{ api.version }}/', include('{{ modulo.app_name }}.api_urls')),
 {% endif %}{% endfor %}{% endif %}{% for modulo in modulos %}    path('{{ modulo.app_name }}/', include(('{{ modulo.app_name }}.urls', '{{ modulo.app_name }}'), namespace='{{ modulo.app_name }}')),
 {% endfor %}]

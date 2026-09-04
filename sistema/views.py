@@ -37,6 +37,24 @@ class RegistroUsuarioForm(forms.ModelForm):
             self.add_error("confirm_password", "As senhas não coincidem.")
         return cleaned
 
+
+class NovoSistemaForm(forms.ModelForm):
+    class Meta:
+        model = Sistema
+        fields = ["nome", "descricao", "tipo_sistema"]
+        widgets = {
+            "nome": forms.TextInput(attrs={"class": "form-control form-control-lg", "placeholder": "Ex.: Gestão de Contratos", "autofocus": True}),
+            "descricao": forms.Textarea(attrs={"class": "form-control", "rows": 5, "placeholder": "Descreva, em linguagem simples, o que este sistema precisa resolver..."}),
+            "tipo_sistema": forms.RadioSelect(),
+        }
+
+    def clean_nome(self):
+        nome = self.cleaned_data["nome"].strip()
+        if Sistema.objects.filter(nome__iexact=nome).exists():
+            raise forms.ValidationError("Já existe um sistema com este nome.")
+        return nome
+
+
 @login_required
 def registrar_usuario_view(request):
     if request.method == "POST":
@@ -69,9 +87,18 @@ def sistema_workspace(request, sistema_id):
 
 @login_required
 def criar_sistema(request):
-    caminho_padrao = os.path.join(str(settings.BASE_DIR), "projetos_gerados")
-    estrutura = {"sistema": {"caminho": caminho_padrao}, "modulos": []}
-    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(estrutura, ensure_ascii=False), "sistema_id": None, "sistema": None, "caminho_geracao_padrao": caminho_padrao})
+    if request.method == "POST":
+        form = NovoSistemaForm(request.POST)
+        if form.is_valid():
+            sistema = form.save(commit=False)
+            sistema.usuario = request.user
+            sistema.caminho_geracao = os.path.join(str(settings.BASE_DIR), "projetos_gerados")
+            sistema.save()
+            messages.success(request, f"Sistema '{sistema.nome}' criado. Agora defina sua estrutura.")
+            return redirect("sistema:editar_sistema", sistema_id=sistema.pk)
+    else:
+        form = NovoSistemaForm(initial={"tipo_sistema": Sistema.TIPO_CADASTRO})
+    return render(request, "sistema/novo_sistema.html", {"form": form})
 
 @login_required
 def editar_sistema(request, sistema_id):

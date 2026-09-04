@@ -70,6 +70,26 @@ class GeradorService:
     def _business_rules_config(self):
         rules = self._draft_structure().get("business_rules"); return rules if isinstance(rules, dict) else {}
 
+    def _notifications_config(self):
+        raw = self._draft_structure().get("notifications")
+        if not isinstance(raw, dict):
+            return {"enabled": False, "entities": {}}
+        entities = {}
+        enabled = False
+        for entity_name, rules in raw.items():
+            if not isinstance(rules, list):
+                continue
+            normalized_rules = []
+            for rule in rules:
+                if not isinstance(rule, dict):
+                    continue
+                item = dict(rule)
+                normalized_rules.append(item)
+                if item.get("enabled", True) is True:
+                    enabled = True
+            entities[str(entity_name)] = normalized_rules
+        return {"enabled": enabled, "entities": entities}
+
     def _integrations_config(self):
         integrations = self._draft_structure().get("integrations")
         if not isinstance(integrations, dict): return {"enabled": False, "items": []}
@@ -148,10 +168,11 @@ class GeradorService:
         entidade.api_http_methods = sorted(methods); entidade.api_fields = [code(n) for n in saved["fields"]]; entidade.api_read_only_fields = [code(n) for n in saved["read_only_fields"]]; entidade.api_search_fields = [code(n) for n in saved["search_fields"]]; entidade.api_ordering_fields = [code(n) for n in saved["ordering_fields"]]; entidade.api_default_ordering = [("-" if n.startswith("-") else "") + code(n[1:] if n.startswith("-") else n) for n in saved["default_ordering"]]; entidade.api_page_size = saved["page_size"]; workflow = workflows.get(entidade.nome) if isinstance(workflows.get(entidade.nome), dict) else {}; entidade.api_has_workflow = bool(workflow.get("enabled"))
 
     def _prepare_context(self):
-        modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); integrations_config = self._integrations_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
+        modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); integrations_config = self._integrations_config(); notifications_config = self._notifications_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
         for widget in dashboard.get("widgets", []): widget["grid_column_start"] = int(widget.get("x", 0)) + 1; widget["grid_row_start"] = int(widget.get("y", 0)) + 1
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
+            if notifications_config["enabled"] and modulo.app_name == "djangoforge_notifications": raise ValueError("O nome de módulo 'djangoforge_notifications' é reservado para a Central de Notificações.")
             if modulo.app_name in app_names: raise ValueError(f"Módulos '{app_names[modulo.app_name]}' e '{modulo.nome}' geram o mesmo app Python '{modulo.app_name}'. Renomeie um deles.")
             app_names[modulo.app_name] = modulo.nome; modulo.entidades_geracao = list(modulo.entidades.all()); modulo.entidades_crud = []; modulo.entidades_api = []; class_names = {}
             for entidade in modulo.entidades_geracao:
@@ -168,7 +189,7 @@ class GeradorService:
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
                 self._prepare_form_generation(entidade, forms_config); self._prepare_crud_generation(entidade, cruds_config); self._prepare_business_rules_generation(entidade, rules_config); self._prepare_api_generation(entidade, api_config, workflows)
                 if entidade.api_enabled: modulo.entidades_api.append(entidade)
-        return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config)}
+        return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config),"notifications": notifications_config}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada")
@@ -205,6 +226,17 @@ class GeradorService:
 
     def _gerar_core(self, ctx):
         for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"), (f"{self.nome_projeto}/dashboard_data.py", "dashboard_data_views.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        if ctx.get("notifications", {}).get("enabled"):
+            for path, template in (
+                ("djangoforge_notifications/__init__.py", "init.txt"),
+                ("djangoforge_notifications/apps.py", "notification_apps.txt"),
+                ("djangoforge_notifications/models.py", "notification_models.txt"),
+                ("djangoforge_notifications/views.py", "notification_views.txt"),
+                ("djangoforge_notifications/urls.py", "notification_urls.txt"),
+                ("djangoforge_notifications/admin.py", "notification_admin.txt"),
+                ("djangoforge_notifications/migrations/__init__.py", "init.txt"),
+                ("djangoforge_notifications/migrations/0001_initial.py", "notification_migration_0001.txt"),
+            ): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         if ctx.get("integrations", {}).get("enabled"):
             for path, template in (("integrations/__init__.py", "integration_init.txt"), ("integrations/config.py", "integration_config.txt"), ("integrations/client.py", "integration_client.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
         self._gerar_requirements(ctx); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True); self.log("✅ Diretórios static/ e media/ preparados")
@@ -223,7 +255,7 @@ class GeradorService:
             self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_report.html", "gerador/snippets/html_report.txt", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
-        for path, template in (
+        templates = [
             ("templates/base.html", "base_html.txt"),
             ("templates/index.html", "index_html.txt"),
             ("templates/home.html", "home_html.txt"),
@@ -233,7 +265,10 @@ class GeradorService:
             ("templates/accounts/password_change.html", "password_change_html.txt"),
             ("templates/accounts/user_list.html", "user_list_html.txt"),
             ("templates/accounts/user_form.html", "user_form_html.txt"),
-        ):
+        ]
+        if ctx.get("notifications", {}).get("enabled"):
+            templates.append(("templates/notifications/list.html", "notification_list_html.txt"))
+        for path, template in templates:
             self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
 
     def _gerar_docker(self):

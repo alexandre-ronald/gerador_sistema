@@ -147,6 +147,40 @@ class NotificationDesignerUITests(TestCase):
         self.assertEqual(rule["event"], "created")
         self.assertEqual(rule["title"], "Novo contrato")
         self.assertEqual(rule["audience"], "users_with_view_permission")
+        self.assertEqual(rule["channels"], ["in_app"])
+
+    def test_gen0671_persists_explicit_in_app_channel_and_deduplicates(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["channels"] = ["in_app", "in_app"]
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        saved = VersaoGeracao.objects.get(sistema=self.sistema, numero=0).estrutura_json["notifications"]["Contrato"][0]
+        self.assertEqual(saved["channels"], ["in_app"])
+
+    def test_gen0671_rejects_unknown_channel(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["channels"] = ["fax"]
+        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Canal de notificação inválido", response.json()["mensagem"])
+
+    def test_gen0671_rejects_empty_channels(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["channels"] = []
+        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ao menos um canal", response.json()["mensagem"])
+
+    def test_gen0671_rejects_non_list_channels(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["channels"] = "in_app"
+        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("esperado uma lista", response.json()["mensagem"])
 
     def test_save_persists_actor_recipient(self):
         payload = self.payload()

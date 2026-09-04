@@ -16,6 +16,7 @@ class NotificationDesignerUITests(TestCase):
         modulo = Modulo.objects.create(sistema=self.sistema, nome="core")
         self.entidade = Entidade.objects.create(modulo=modulo, nome="Contrato")
         Campo.objects.create(entidade=self.entidade, nome="numero", tipo="CharField", max_length=30)
+        Campo.objects.create(entidade=self.entidade, nome="status", tipo="CharField", max_length=30)
         self.url = reverse("sistema:notification_designer", args=[self.sistema.id])
         self.save_url = reverse("sistema:salvar_notifications", args=[self.sistema.id])
         self.client.force_login(self.user)
@@ -36,6 +37,40 @@ class NotificationDesignerUITests(TestCase):
             }
         }
 
+    def workflow(self):
+        return {
+            "enabled": True,
+            "state_field": "status",
+            "initial_state": "rascunho",
+            "states": [
+                {"id": "rascunho", "label": "Rascunho", "final": False, "order": 0},
+                {"id": "analise", "label": "Em análise", "final": False, "order": 1},
+                {"id": "aprovado", "label": "Aprovado", "final": True, "order": 2},
+            ],
+            "transitions": [
+                {
+                    "id": "enviar_analise",
+                    "label": "Enviar para análise",
+                    "from": ["rascunho"],
+                    "to": "analise",
+                    "enabled": True,
+                    "confirm": False,
+                    "confirm_message": "",
+                    "order": 0,
+                },
+                {
+                    "id": "aprovar",
+                    "label": "Aprovar",
+                    "from": ["analise"],
+                    "to": "aprovado",
+                    "enabled": True,
+                    "confirm": True,
+                    "confirm_message": "Confirmar aprovação?",
+                    "order": 1,
+                },
+            ],
+        }
+
     def test_designer_renders_friendly_language(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -47,9 +82,25 @@ class NotificationDesignerUITests(TestCase):
             "Título da notificação",
             "Mensagem",
             "Salvar notificações",
+            "Mudança de situação",
         ]:
             self.assertContains(response, text)
         self.assertNotContains(response, "alert(")
+
+    def test_designer_exposes_enabled_workflow_transitions_as_business_events(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"workflows": {"Contrato": self.workflow()}},
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "enviar_analise")
+        self.assertContains(response, "Enviar para análise")
+        self.assertContains(response, "Rascunho")
+        self.assertContains(response, "Em análise")
+        self.assertContains(response, "aprovar")
+        self.assertContains(response, "Aprovado")
 
     def test_save_persists_notifications_and_preserves_existing_keys(self):
         VersaoGeracao.objects.create(
@@ -68,6 +119,71 @@ class NotificationDesignerUITests(TestCase):
         rule = draft.estrutura_json["notifications"]["Contrato"][0]
         self.assertEqual(rule["event"], "created")
         self.assertEqual(rule["title"], "Novo contrato")
+
+    def test_save_persists_workflow_transition_event(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"workflows": {"Contrato": self.workflow()}},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["id"] = "contrato_aprovado"
+        rule["event"] = "workflow_transition"
+        rule["transition"] = "aprovar"
+        rule["title"] = "Contrato aprovado"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        saved = draft.estrutura_json["notifications"]["Contrato"][0]
+        self.assertEqual(saved["event"], "workflow_transition")
+        self.assertEqual(saved["transition"], "aprovar")
+        self.assertIn("workflows", draft.estrutura_json)
+
+    def test_save_rejects_unknown_workflow_transition(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"workflows": {"Contrato": self.workflow()}},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["event"] = "workflow_transition"
+        rule["transition"] = "transicao_inexistente"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Transição de workflow inválida", response.json()["mensagem"])
+
+    def test_save_rejects_workflow_event_when_workflow_is_disabled(self):
+        workflow = self.workflow()
+        workflow["enabled"] = False
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"workflows": {"Contrato": workflow}},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["event"] = "workflow_transition"
+        rule["transition"] = "aprovar"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Workflow não está ativo", response.json()["mensagem"])
 
     def test_save_rejects_invalid_event(self):
         payload = self.payload()

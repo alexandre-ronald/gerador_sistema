@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .models import Entidade, Modulo, Sistema
@@ -79,11 +80,7 @@ def sistema_workspace(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
     total_modulos = Modulo.objects.filter(sistema=sistema).count()
     total_entidades = Entidade.objects.filter(modulo__sistema=sistema).count()
-    return render(request, "sistema/workspace.html", {
-        "sistema": sistema,
-        "total_modulos": total_modulos,
-        "total_entidades": total_entidades,
-    })
+    return render(request, "sistema/workspace.html", {"sistema": sistema, "total_modulos": total_modulos, "total_entidades": total_entidades})
 
 @login_required
 def criar_sistema(request):
@@ -94,8 +91,9 @@ def criar_sistema(request):
             sistema.usuario = request.user
             sistema.caminho_geracao = os.path.join(str(settings.BASE_DIR), "projetos_gerados")
             sistema.save()
-            messages.success(request, f"Sistema '{sistema.nome}' criado. Agora defina sua estrutura.")
-            return redirect("sistema:editar_sistema", sistema_id=sistema.pk)
+            messages.success(request, f"{sistema.nome} foi criado como {sistema.get_tipo_sistema_display()}. Próxima etapa: organize os módulos e defina as informações que o sistema precisa guardar.")
+            editor_url = reverse("sistema:editar_sistema", args=[sistema.pk])
+            return redirect(f"{editor_url}?novo=1")
     else:
         form = NovoSistemaForm(initial={"tipo_sistema": Sistema.TIPO_CADASTRO})
     return render(request, "sistema/novo_sistema.html", {"form": form})
@@ -103,7 +101,15 @@ def criar_sistema(request):
 @login_required
 def editar_sistema(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    return render(request, "sistema/editor.html", {"estrutura_json": json.dumps(serialize_system_structure(sistema), ensure_ascii=False), "sistema_id": sistema.id, "sistema": sistema, "caminho_geracao_padrao": sistema.caminho_geracao})
+    primeira_configuracao = request.GET.get("novo") == "1" and not sistema.modulos.exists()
+    return render(request, "sistema/editor.html", {
+        "estrutura_json": json.dumps(serialize_system_structure(sistema), ensure_ascii=False),
+        "sistema_id": sistema.id,
+        "sistema": sistema,
+        "caminho_geracao_padrao": sistema.caminho_geracao,
+        "primeira_configuracao": primeira_configuracao,
+        "tipo_sistema_label": sistema.get_tipo_sistema_display(),
+    })
 
 @login_required
 @require_http_methods(["POST"])

@@ -48,18 +48,32 @@ class BusinessRulesDesignerUITests(TestCase):
             }
         }
 
-    def test_designer_renders_workspace_and_contract_tools(self):
+    def test_designer_renders_friendly_business_language(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Business Rules Designer")
-        self.assertContains(response, "Nova")
-        self.assertContains(response, "Condições")
-        self.assertContains(response, "Ações")
-        self.assertContains(response, "Resumo da lógica")
+        self.assertContains(response, "Regras de negócio")
+        self.assertContains(response, "Design · GEN-063")
+        self.assertContains(response, "Nova regra")
+        self.assertContains(response, "Aplicar esta regra quando")
+        self.assertContains(response, "O que deve acontecer?")
+        self.assertContains(response, "Resumo da regra")
+        self.assertContains(response, "Ao salvar um registro")
+        self.assertContains(response, "Impedir o salvamento")
+        self.assertContains(response, "Definir um valor")
+        self.assertContains(response, "Copiar valor de outro campo")
+        self.assertContains(response, "Todas as condições")
+        self.assertContains(response, "Qualquer condição")
+        self.assertNotContains(response, "alert(")
+
+    def test_keeps_internal_contract_values_behind_friendly_labels(self):
+        response = self.client.get(self.url)
         self.assertContains(response, "before_save")
         self.assertContains(response, "set_value")
         self.assertContains(response, "copy_value")
-        self.assertNotContains(response, "alert(")
+        self.assertContains(response, "for igual a")
+        self.assertContains(response, "for menor ou igual a")
+        self.assertContains(response, "Um valor")
+        self.assertContains(response, "Outro campo")
 
     def test_workspace_lists_business_rules_link(self):
         response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))

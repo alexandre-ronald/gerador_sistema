@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Sistema
+from .models import Modulo, Sistema
 from .structure_service import serialize_system_structure
 
 
@@ -25,45 +25,53 @@ class NovoSistemaTests(TestCase):
         self.assertContains(response, "Gestão e Acompanhamento")
         self.assertContains(response, "Começar vazio")
 
-    def test_creates_system_and_redirects_to_existing_editor(self):
+    def test_creates_system_and_redirects_to_contextual_editor(self):
         response = self.client.post(reverse("sistema:criar"), {
             "nome": "Gestão de Contratos",
             "descricao": "Controlar contratos, fiscais e vencimentos.",
             "tipo_sistema": Sistema.TIPO_CADASTRO,
         })
         sistema = Sistema.objects.get(nome="Gestão de Contratos")
-        self.assertRedirects(response, reverse("sistema:editar_sistema", args=[sistema.pk]))
+        expected = reverse("sistema:editar_sistema", args=[sistema.pk]) + "?novo=1"
+        self.assertRedirects(response, expected)
         self.assertEqual(sistema.usuario, self.user)
         self.assertEqual(sistema.tipo_sistema, Sistema.TIPO_CADASTRO)
         self.assertEqual(sistema.descricao, "Controlar contratos, fiscais e vencimentos.")
         self.assertEqual(sistema.caminho_geracao, os.path.join(str(settings.BASE_DIR), "projetos_gerados"))
 
+    def test_first_editor_entry_exposes_user_context(self):
+        sistema = Sistema.objects.create(
+            usuario=self.user,
+            nome="Gestão de Contratos",
+            descricao="Controlar contratos e vencimentos",
+            tipo_sistema=Sistema.TIPO_GESTAO,
+            caminho_geracao="/tmp/projeto",
+        )
+        response = self.client.get(reverse("sistema:editar_sistema", args=[sistema.pk]) + "?novo=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["primeira_configuracao"])
+        self.assertEqual(response.context["tipo_sistema_label"], "Gestão e Acompanhamento")
+        self.assertEqual(response.context["sistema"].descricao, "Controlar contratos e vencimentos")
+
+    def test_existing_system_does_not_enter_first_configuration_mode(self):
+        sistema = Sistema.objects.create(usuario=self.user, nome="Existente", caminho_geracao="/tmp/projeto")
+        Modulo.objects.create(sistema=sistema, nome="cadastros")
+        response = self.client.get(reverse("sistema:editar_sistema", args=[sistema.pk]) + "?novo=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["primeira_configuracao"])
+
     def test_invalid_type_does_not_create_system(self):
-        response = self.client.post(reverse("sistema:criar"), {
-            "nome": "Sistema Inválido",
-            "descricao": "Teste",
-            "tipo_sistema": "nao-existe",
-        })
+        response = self.client.post(reverse("sistema:criar"), {"nome": "Sistema Inválido", "descricao": "Teste", "tipo_sistema": "nao-existe"})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Sistema.objects.filter(nome="Sistema Inválido").exists())
 
     def test_name_is_required(self):
-        response = self.client.post(reverse("sistema:criar"), {
-            "nome": "",
-            "descricao": "Sem nome",
-            "tipo_sistema": Sistema.TIPO_VAZIO,
-        })
+        response = self.client.post(reverse("sistema:criar"), {"nome": "", "descricao": "Sem nome", "tipo_sistema": Sistema.TIPO_VAZIO})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Sistema.objects.count(), 0)
 
     def test_purpose_is_preserved_by_structure_serialization(self):
-        sistema = Sistema.objects.create(
-            usuario=self.user,
-            nome="Solicitações",
-            descricao="Fluxo de solicitações internas",
-            tipo_sistema=Sistema.TIPO_WORKFLOW,
-            caminho_geracao="/tmp/projeto",
-        )
+        sistema = Sistema.objects.create(usuario=self.user, nome="Solicitações", descricao="Fluxo de solicitações internas", tipo_sistema=Sistema.TIPO_WORKFLOW, caminho_geracao="/tmp/projeto")
         estrutura = serialize_system_structure(sistema)
         self.assertEqual(estrutura["sistema"]["tipo_sistema"], Sistema.TIPO_WORKFLOW)
         self.assertEqual(estrutura["sistema"]["descricao"], "Fluxo de solicitações internas")

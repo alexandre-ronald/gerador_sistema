@@ -1,5 +1,5 @@
 {% load workflow_generation report_generation %}from django.urls import path
-from . import views, report_views
+from . import views
 
 app_name = '{{ app_name }}'
 
@@ -12,5 +12,4 @@ urlpatterns = [
 {% endif %}{% if workflow.enabled %}    path('{{ entidade.codigo_nome }}/<int:pk>/workflow/<str:transition_id>/', views.{{ entidade.codigo_nome }}_transition, name='{{ entidade.codigo_nome }}_transition'),
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.delete %}    path('{{ entidade.codigo_nome }}/<int:pk>/deletar/', views.{{ entidade.classe_nome }}DeleteView.as_view(), name='{{ entidade.codigo_nome }}_delete'),
 {% endif %}{% endfor %}{% for entidade in entidades %}{% report_generation_config entidade as report %}{% if report.enabled %}    path('{{ entidade.codigo_nome }}/relatorio/', views.{{ entidade.codigo_nome }}_report, name='{{ entidade.codigo_nome }}_report'),
-{% endif %}{% report_generation_configs entidade as report_list %}{% for item in report_list %}    path('{{ entidade.codigo_nome }}/relatorio/{{ item.id }}/', report_views.{{ entidade.codigo_nome }}_report_{{ item.id }}, name='{{ entidade.codigo_nome }}_report_{{ item.id }}'),
-{% endfor %}{% endfor %}]
+{% endif %}{% endfor %}]

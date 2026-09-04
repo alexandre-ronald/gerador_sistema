@@ -218,6 +218,9 @@ class GeradorService:
             ent_ctx = {**local_ctx,"entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
             for suffix, template in (("list", "html_list.txt"),("form", "html_form.txt"),("confirm_delete", "html_delete.txt")): self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
             if entidade.crud_designer_ready and entidade.crud_actions.view: self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_detail.html", "gerador/snippets/html_detail.txt", ent_ctx)
+        for entidade in modulo.entidades_geracao:
+            ent_ctx = {**local_ctx,"entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_report.html", "gerador/snippets/html_report.txt", ent_ctx)
 
     def _gerar_templates_globais(self, ctx):
         for path, template in (

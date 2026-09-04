@@ -10,6 +10,8 @@ User = get_user_model()
 class Sistema(models.Model):
     BD_CHOICES = [("sqlite3", "SQLite"), ("postgresql", "PostgreSQL"), ("mysql", "MySQL"), ("sqlserver", "SQL Server"), ("oracle", "Oracle")]
     MENU_CHOICES = [("lateral", "Menu Lateral (Sidebar)"), ("superior", "Menu Superior (Navbar)")]
+    INTERFACE_MODO_CHOICES = [("automatico", "Automático"), ("claro", "Claro"), ("escuro", "Escuro")]
+    INTERFACE_DENSIDADE_CHOICES = [("compacta", "Compacta"), ("confortavel", "Confortável"), ("espacosa", "Espaçosa")]
     TIPO_CADASTRO = "cadastro"
     TIPO_WORKFLOW = "workflow"
     TIPO_GESTAO = "gestao"
@@ -27,6 +29,14 @@ class Sistema(models.Model):
     caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
     banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados")
     tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu")
+    interface_modo = models.CharField(max_length=20, choices=INTERFACE_MODO_CHOICES, default="automatico", verbose_name="Modo da interface")
+    interface_densidade = models.CharField(max_length=20, choices=INTERFACE_DENSIDADE_CHOICES, default="confortavel", verbose_name="Densidade da interface")
+    interface_nome = models.CharField(max_length=100, blank=True, verbose_name="Nome exibido na interface")
+    interface_cor_primaria = models.CharField(max_length=7, default="#0d6efd", verbose_name="Cor principal")
+    interface_cor_destaque = models.CharField(max_length=7, default="#6f42c1", verbose_name="Cor de destaque")
+    interface_breadcrumb = models.BooleanField(default=True, verbose_name="Exibir breadcrumb")
+    interface_busca = models.BooleanField(default=True, verbose_name="Exibir busca")
+    interface_menu_usuario = models.BooleanField(default=True, verbose_name="Exibir menu do usuário")
     usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
     gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
     gerar_docker = models.BooleanField(default=False, verbose_name="Gerar Dockerfile e docker-compose?")

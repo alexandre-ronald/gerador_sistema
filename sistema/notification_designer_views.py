@@ -15,6 +15,8 @@ AUDIENCE_VIEW_PERMISSION = "users_with_view_permission"
 AUDIENCE_ACTOR = "actor"
 AUDIENCE_ROLE = "role"
 AUDIENCES = {AUDIENCE_VIEW_PERMISSION, AUDIENCE_ACTOR, AUDIENCE_ROLE}
+CHANNEL_IN_APP = "in_app"
+CHANNELS = {CHANNEL_IN_APP}
 
 
 def _draft_structure(sistema):
@@ -115,6 +117,32 @@ def _rbac_role_ids(rbac_metadata):
     return {item["id"] for item in rbac_metadata.get("roles", [])}
 
 
+def _normalize_channels(raw, entity_name, strict=False):
+    if "channels" not in raw:
+        return [CHANNEL_IN_APP]
+
+    channels = raw.get("channels")
+    if not isinstance(channels, list):
+        if strict:
+            raise ValueError(f"Canais da notificação inválidos em {entity_name}: esperado uma lista.")
+        return [CHANNEL_IN_APP]
+    if not channels:
+        if strict:
+            raise ValueError(f"A notificação em {entity_name} deve possuir ao menos um canal.")
+        return [CHANNEL_IN_APP]
+
+    normalized = []
+    for value in channels:
+        channel = str(value or "").strip()
+        if channel not in CHANNELS:
+            if strict:
+                raise ValueError(f"Canal de notificação inválido em {entity_name}: {channel}")
+            return [CHANNEL_IN_APP]
+        if channel not in normalized:
+            normalized.append(channel)
+    return normalized
+
+
 def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=None, rbac_metadata=None):
     raw = raw if isinstance(raw, dict) else {}
     workflow_metadata = workflow_metadata or {"enabled": False, "transitions": []}
@@ -124,6 +152,7 @@ def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=N
     audience = str(raw.get("audience") or AUDIENCE_VIEW_PERMISSION)
     transition = str(raw.get("transition") or "").strip()
     role = str(raw.get("role") or "").strip()
+    channels = _normalize_channels(raw, entity_name, strict=strict)
 
     if strict and event not in EVENTS:
         raise ValueError(f"Evento de notificação inválido em {entity_name}: {event}")
@@ -162,6 +191,7 @@ def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=N
         "title": str(raw.get("title") or f"Atualização em {entity_name}"),
         "message": str(raw.get("message") or f"Houve uma atualização em {entity_name}."),
         "audience": audience,
+        "channels": channels,
     }
     if event == WORKFLOW_EVENT:
         normalized["transition"] = transition

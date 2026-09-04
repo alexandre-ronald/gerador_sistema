@@ -71,6 +71,16 @@ class NotificationDesignerUITests(TestCase):
             ],
         }
 
+    def rbac(self):
+        return {
+            "enabled": True,
+            "roles": [
+                {"id": "operador", "label": "Operador", "group": "Operadores", "order": 0},
+                {"id": "gestor", "label": "Gestor", "group": "Gestores", "order": 1},
+            ],
+            "entities": {},
+        }
+
     def test_designer_renders_friendly_language(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -79,6 +89,10 @@ class NotificationDesignerUITests(TestCase):
             "Notificações",
             "Nova notificação",
             "Quando avisar",
+            "Quem deve receber?",
+            "Quem pode visualizar esta informação",
+            "Quem realizou a ação",
+            "Usuários de um papel",
             "Título da notificação",
             "Mensagem",
             "Salvar notificações",
@@ -102,6 +116,19 @@ class NotificationDesignerUITests(TestCase):
         self.assertContains(response, "aprovar")
         self.assertContains(response, "Aprovado")
 
+    def test_designer_exposes_rbac_roles_as_recipient_options(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"rbac": self.rbac()},
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "operador")
+        self.assertContains(response, "Operador")
+        self.assertContains(response, "gestor")
+        self.assertContains(response, "Gestor")
+
     def test_save_persists_notifications_and_preserves_existing_keys(self):
         VersaoGeracao.objects.create(
             sistema=self.sistema,
@@ -119,6 +146,95 @@ class NotificationDesignerUITests(TestCase):
         rule = draft.estrutura_json["notifications"]["Contrato"][0]
         self.assertEqual(rule["event"], "created")
         self.assertEqual(rule["title"], "Novo contrato")
+        self.assertEqual(rule["audience"], "users_with_view_permission")
+
+    def test_save_persists_actor_recipient(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["audience"] = "actor"
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        saved = draft.estrutura_json["notifications"]["Contrato"][0]
+        self.assertEqual(saved["audience"], "actor")
+        self.assertNotIn("role", saved)
+
+    def test_save_persists_rbac_role_recipient(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"rbac": self.rbac()},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["audience"] = "role"
+        rule["role"] = "gestor"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        saved = draft.estrutura_json["notifications"]["Contrato"][0]
+        self.assertEqual(saved["audience"], "role")
+        self.assertEqual(saved["role"], "gestor")
+        self.assertIn("rbac", draft.estrutura_json)
+
+    def test_save_rejects_unknown_role_recipient(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"rbac": self.rbac()},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["audience"] = "role"
+        rule["role"] = "papel_inexistente"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Papel destinatário inválido", response.json()["mensagem"])
+
+    def test_save_rejects_role_recipient_when_rbac_is_disabled(self):
+        rbac = self.rbac()
+        rbac["enabled"] = False
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={"rbac": rbac},
+        )
+        payload = self.payload()
+        rule = payload["notifications"]["Contrato"][0]
+        rule["audience"] = "role"
+        rule["role"] = "gestor"
+
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("RBAC não está ativo", response.json()["mensagem"])
+
+    def test_save_rejects_role_when_audience_is_not_role(self):
+        payload = self.payload()
+        payload["notifications"]["Contrato"][0]["role"] = "gestor"
+        response = self.client.post(
+            self.save_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Papel só pode ser informado", response.json()["mensagem"])
 
     def test_save_persists_workflow_transition_event(self):
         VersaoGeracao.objects.create(

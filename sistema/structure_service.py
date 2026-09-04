@@ -33,6 +33,17 @@ def _text(value, default=""):
     return str(value if value is not None else default).strip()
 
 
+def _hex_color(value, default):
+    value = _text(value, default)
+    if len(value) != 7 or not value.startswith("#"):
+        raise ValidationError(f"Cor inválida: {value}. Use o formato #RRGGBB.")
+    try:
+        int(value[1:], 16)
+    except ValueError:
+        raise ValidationError(f"Cor inválida: {value}. Use o formato #RRGGBB.")
+    return value.lower()
+
+
 def _entity_key(modulo_nome, entidade_nome):
     return (_text(modulo_nome).casefold(), _text(entidade_nome).casefold())
 
@@ -71,6 +82,37 @@ def save_system_structure(*, user, payload, sistema_id=None):
         sistema.caminho_geracao = caminho
         sistema.tipo_menu = tipo_menu
         sistema.banco_dados = banco
+
+        interface_modo = _text(data.get("interface_modo"), sistema.interface_modo or "automatico")
+        interface_densidade = _text(data.get("interface_densidade"), sistema.interface_densidade or "confortavel")
+        if interface_modo not in dict(Sistema.INTERFACE_MODO_CHOICES):
+            raise ValidationError("Modo da interface inválido.")
+        if interface_densidade not in dict(Sistema.INTERFACE_DENSIDADE_CHOICES):
+            raise ValidationError("Densidade da interface inválida.")
+        sistema.interface_modo = interface_modo
+        sistema.interface_densidade = interface_densidade
+        sistema.interface_nome = _text(data.get("interface_nome"), sistema.interface_nome or nome)
+        sistema.interface_cor_primaria = _hex_color(
+            data.get("interface_cor_primaria"),
+            sistema.interface_cor_primaria or "#0d6efd",
+        )
+        sistema.interface_cor_destaque = _hex_color(
+            data.get("interface_cor_destaque"),
+            sistema.interface_cor_destaque or "#6f42c1",
+        )
+        sistema.interface_breadcrumb = _bool(
+            data.get("interface_breadcrumb"),
+            sistema.interface_breadcrumb,
+        )
+        sistema.interface_busca = _bool(
+            data.get("interface_busca"),
+            sistema.interface_busca,
+        )
+        sistema.interface_menu_usuario = _bool(
+            data.get("interface_menu_usuario"),
+            sistema.interface_menu_usuario,
+        )
+
         sistema.usar_custom_user = _bool(data.get("usar_custom_user"), False)
         sistema.gerar_api_rest = _bool(data.get("gerar_api_rest"), False)
         sistema.gerar_docker = _bool(data.get("gerar_docker"), False)
@@ -182,6 +224,14 @@ def serialize_system_structure(sistema):
             "caminho": caminho,
             "caminho_geracao": caminho,
             "tipo_menu": sistema.tipo_menu,
+            "interface_modo": sistema.interface_modo,
+            "interface_densidade": sistema.interface_densidade,
+            "interface_nome": sistema.interface_nome or sistema.nome,
+            "interface_cor_primaria": sistema.interface_cor_primaria,
+            "interface_cor_destaque": sistema.interface_cor_destaque,
+            "interface_breadcrumb": sistema.interface_breadcrumb,
+            "interface_busca": sistema.interface_busca,
+            "interface_menu_usuario": sistema.interface_menu_usuario,
             "banco_dados": sistema.banco_dados,
             "usar_custom_user": sistema.usar_custom_user,
             "gerar_api_rest": sistema.gerar_api_rest,

@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 
-ALLOWED_WIDTHS = (3, 4, 6, 8, 12)
+ALLOWED_WIDTHS = (2, 3, 4, 6, 8, 12)
 ALLOWED_WIDGETS = ("text", "textarea", "number", "date", "datetime", "checkbox", "select")
 
 TEXT_TYPES = {"CharField", "TextField", "EmailField", "SlugField", "URLField", "UUIDField"}
@@ -124,7 +124,7 @@ def _normalize_field(item, metadata, fallback_order, section_ids):
     except (TypeError, ValueError):
         raise FormDesignerError("invalid_width", "Largura inválida.", field=name)
     if width not in ALLOWED_WIDTHS:
-        raise FormDesignerError("invalid_width", "Largura deve ser 3, 4, 6, 8 ou 12.", field=name)
+        raise FormDesignerError("invalid_width", "Largura deve ser 2, 3, 4, 6, 8 ou 12.", field=name)
 
     section = str(item.get("section") or "").strip()
     if section:

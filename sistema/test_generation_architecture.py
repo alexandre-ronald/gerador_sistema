@@ -108,11 +108,13 @@ class GenerationArchitectureTests(TestCase):
         self.assertTrue(rel["null"])
         self.assertTrue(rel["blank"])
 
-    def test_crud_entity_requires_at_least_one_field(self):
+    def test_crud_entity_may_be_created_before_fields_are_defined(self):
         payload = self.payload()
         payload["modulos"][0]["entidades"][0]["campos"] = []
-        with self.assertRaises(Exception):
-            save_system_structure(user=self.user, payload=payload)
+        sistema = save_system_structure(user=self.user, payload=payload)
+        entidade = sistema.modulos.get().entidades.get()
+        self.assertTrue(entidade.gerar_crud_views)
+        self.assertEqual(entidade.campos.count(), 0)
 
     def test_existing_entities_are_crud_enabled_after_migration_contract(self):
         self.assertTrue(Entidade._meta.get_field("gerar_crud_views").default)

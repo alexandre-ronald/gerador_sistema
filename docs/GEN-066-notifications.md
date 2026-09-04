@@ -126,12 +126,7 @@ Para usar `audience = "role"`:
 - o papel precisa existir;
 - o papel precisa possuir ID válido no contrato RBAC.
 
-O backend rejeita de forma fail-closed:
-
-- tipo de destinatário desconhecido;
-- papel inexistente;
-- papel usado com RBAC desativado;
-- propriedade `role` enviada para outro tipo de destinatário.
+O backend rejeita de forma fail-closed tipo de destinatário desconhecido, papel inexistente, papel com RBAC desativado e propriedade `role` enviada para outro tipo de destinatário.
 
 A interface mostra linguagem de negócio:
 
@@ -144,28 +139,95 @@ Quem deve receber?
       Papel destinatário: Gestor
 ```
 
-## Limites da GEN-066.3
-
-Não fazem parte desta etapa:
-
-- destinatário por campo do registro, como `responsavel` ou `solicitante`;
-- `created_by` implícito quando o modelo não declara essa semântica;
-- endereço de e-mail informado manualmente;
-- grupos digitados livremente;
-- canais de entrega;
-- templates de e-mail;
-- filas, Celery ou brokers;
-- WebSocket;
-- entrega efetiva da notificação.
-
 Destinatários baseados em campos do registro exigem metadata semântica própria para declarar que determinado relacionamento representa um usuário. Essa capacidade não deve ser inferida pelo nome do campo.
+
+## Central no sistema gerado — GEN-066.4
+
+Quando existe ao menos uma regra de notificação ativa, o compilador passa a materializar um app interno reservado chamado `djangoforge_notifications`.
+
+A ausência de regras ativas preserva o runtime anterior: o app não é instalado, suas rotas não são emitidas e a central não aparece na navegação.
+
+### Modelo gerado
+
+O runtime possui um modelo `Notification` com os campos:
+
+- `recipient` — usuário destinatário, ligado a `settings.AUTH_USER_MODEL`;
+- `title` — título do aviso;
+- `message` — mensagem;
+- `url` — destino interno opcional para abrir a informação relacionada;
+- `read_at` — instante em que a notificação foi lida;
+- `created_at` — instante de criação.
+
+Foi escolhido `read_at` em vez de um booleano `is_read` para preservar informação temporal e permitir evolução posterior sem alterar o contrato básico.
+
+O app é acompanhado de migration inicial explícita. O sistema gerado não depende de `makemigrations` manual para materializar a tabela da central.
+
+### Segurança da central
+
+Toda leitura é escopada ao usuário autenticado:
+
+```text
+Notification.objects.filter(recipient=request.user)
+```
+
+Marcar uma notificação como lida exige POST e busca simultaneamente por `pk` e `recipient=request.user`. Assim, conhecer o ID de uma notificação de outro usuário não concede acesso a ela.
+
+As mutações suportadas nesta fase são:
+
+- marcar uma notificação como lida;
+- marcar todas as notificações do próprio usuário como lidas.
+
+### Navegação e contador
+
+A central é publicada em:
+
+```text
+/notifications/
+```
+
+A navegação global recebe a área `Comunicação` com o item `Notificações`. Quando houver itens não lidos, o label inclui a quantidade, por exemplo:
+
+```text
+Comunicação
+  Notificações (3)
+```
+
+A contagem é sempre calculada para o usuário autenticado. Falha de acesso à tabela durante bootstrap/migration não derruba a navegação; nesse caso o contador degrada para zero.
+
+### Interface
+
+A central permite:
+
+- visualizar todas as notificações;
+- filtrar apenas não lidas;
+- distinguir visualmente itens novos;
+- marcar uma notificação como lida;
+- marcar todas como lidas;
+- abrir o destino relacionado quando `url` estiver preenchida.
+
+A listagem inicial é deliberadamente limitada no runtime desta fase. Paginação e políticas de retenção podem ser evoluídas sem alterar o contrato de emissão.
+
+## Limites da GEN-066.4
+
+A GEN-066.4 cria a infraestrutura funcional de armazenamento e leitura, mas ainda não produz notificações a partir das regras do Designer.
+
+Portanto ainda estão fora desta etapa:
+
+- interceptar Create/Update/Delete dos CRUDs;
+- interceptar transições de Workflow;
+- resolver `actor`, `role` e `users_with_view_permission` durante um acontecimento;
+- criar objetos `Notification` automaticamente;
+- deduplicação de destinatários durante o disparo;
+- e-mail, SMS, push, WebSocket, filas, Celery ou brokers.
+
+A integração efetiva das regras com CRUD/Workflow é responsabilidade exclusiva da GEN-066.5.
 
 ## Separação de responsabilidades
 
 - Workflow define **o que pode acontecer**.
 - RBAC define **quem pode executar e visualizar ações**.
 - Notification Designer define **sobre quais acontecimentos avisar e quem deve receber**.
-- GEN-066.4 materializará a central de notificações no sistema gerado.
-- GEN-066.5 fará a integração efetiva com CRUD/Workflow e o freeze.
+- GEN-066.4 fornece **onde a notificação é armazenada, consultada e marcada como lida**.
+- GEN-066.5 fará **quando criar a notificação, como resolver seus destinatários e o freeze**.
 
-A GEN-066.3 continua sem enviar e-mail, sem criar fila, sem Celery, sem WebSocket e sem executar código configurável.
+Até a GEN-066.4 não há envio de e-mail, fila, Celery, WebSocket nem execução de código configurável.

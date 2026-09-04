@@ -1,4 +1,9 @@
+import uuid
+
 from django.utils import timezone
+
+from .observability import emit_event
+from .observability_models import ObservabilityEvent
 
 
 class ValidationCenterService:
@@ -11,30 +16,81 @@ class ValidationCenterService:
         self.version = version
 
     def validate(self):
+        correlation_id = uuid.uuid4()
         version = self.version or self.sistema.versoes.order_by("-numero").first()
-        checks = [
-            self._definition_check(),
-            self._relationships_check(),
-            self._generation_check(version),
-            self._dashboard_check(version),
-            self._runtime_check(version),
-        ]
-        counts = {status: sum(1 for check in checks if check["status"] == status) for status in self.STATUSES}
-        overall_status = "error" if counts["error"] else ("pending" if counts["pending"] else ("warning" if counts["warning"] else "success"))
-        release_ready = counts["error"] == 0 and counts["pending"] == 0
-        return {
-            "system": {"id": self.sistema.pk, "name": self.sistema.nome},
-            "version": version.numero if version else None,
-            "overall_status": overall_status,
-            "release_ready": release_ready,
-            "total": len(checks),
-            "successes": counts["success"],
-            "warnings": counts["warning"],
-            "errors": counts["error"],
-            "pending": counts["pending"],
-            "executed_at": timezone.now(),
-            "checks": checks,
-        }
+        emit_event(
+            sistema=self.sistema,
+            event_name="validation.started",
+            message="Validação do sistema iniciada.",
+            category=ObservabilityEvent.CATEGORY_VALIDATION,
+            source="validation_center",
+            correlation_id=correlation_id,
+            object_type="VersaoGeracao" if version else "",
+            object_id=str(version.pk) if version else "",
+            context={"version": version.numero if version else None},
+        )
+        try:
+            checks = [
+                self._definition_check(),
+                self._relationships_check(),
+                self._generation_check(version),
+                self._dashboard_check(version),
+                self._runtime_check(version),
+            ]
+            counts = {status: sum(1 for check in checks if check["status"] == status) for status in self.STATUSES}
+            overall_status = "error" if counts["error"] else ("pending" if counts["pending"] else ("warning" if counts["warning"] else "success"))
+            release_ready = counts["error"] == 0 and counts["pending"] == 0
+            report = {
+                "system": {"id": self.sistema.pk, "name": self.sistema.nome},
+                "version": version.numero if version else None,
+                "overall_status": overall_status,
+                "release_ready": release_ready,
+                "total": len(checks),
+                "successes": counts["success"],
+                "warnings": counts["warning"],
+                "errors": counts["error"],
+                "pending": counts["pending"],
+                "executed_at": timezone.now(),
+                "checks": checks,
+            }
+            level = ObservabilityEvent.LEVEL_ERROR if counts["error"] else (
+                ObservabilityEvent.LEVEL_WARNING if counts["warning"] or counts["pending"] else ObservabilityEvent.LEVEL_INFO
+            )
+            emit_event(
+                sistema=self.sistema,
+                event_name="validation.failed" if counts["error"] else "validation.completed",
+                message="Validação concluída com erros." if counts["error"] else "Validação concluída.",
+                level=level,
+                category=ObservabilityEvent.CATEGORY_VALIDATION,
+                source="validation_center",
+                correlation_id=correlation_id,
+                object_type="VersaoGeracao" if version else "",
+                object_id=str(version.pk) if version else "",
+                context={
+                    "version": report["version"],
+                    "overall_status": overall_status,
+                    "release_ready": release_ready,
+                    "successes": counts["success"],
+                    "warnings": counts["warning"],
+                    "errors": counts["error"],
+                    "pending": counts["pending"],
+                },
+            )
+            return report
+        except Exception as exc:
+            emit_event(
+                sistema=self.sistema,
+                event_name="validation.failed",
+                message="Falha inesperada durante a validação.",
+                level=ObservabilityEvent.LEVEL_ERROR,
+                category=ObservabilityEvent.CATEGORY_VALIDATION,
+                source="validation_center",
+                correlation_id=correlation_id,
+                object_type="VersaoGeracao" if version else "",
+                object_id=str(version.pk) if version else "",
+                context={"version": version.numero if version else None, "error": str(exc)},
+            )
+            raise
 
     def _check(self, key, label, status, summary, details=None):
         if status not in self.STATUSES:

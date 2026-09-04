@@ -76,6 +76,20 @@ class BusinessRulesDesignerUITests(TestCase):
         self.assertContains(response, "Informe o valor esperado")
         self.assertContains(response, "Esta condição é completa e não precisa de outro valor")
 
+    def test_visual_action_editor_explains_effect_and_sequence(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Monte uma ou mais ações na ordem")
+        self.assertContains(response, "Ação ${i+1}")
+        self.assertContains(response, "action-kind")
+        self.assertContains(response, "actionsHtml")
+        self.assertContains(response, "O sistema deve")
+        self.assertContains(response, "Defina o que o sistema deve fazer")
+        self.assertContains(response, "Toda regra precisa de pelo menos uma ação")
+        self.assertContains(response, "Interrompe a operação e explica ao usuário")
+        self.assertContains(response, "Preenche ou altera automaticamente um campo")
+        self.assertContains(response, "Preenche um campo usando o conteúdo de outro campo")
+        self.assertContains(response, "depois")
+
     def test_keeps_internal_contract_values_behind_friendly_labels(self):
         response = self.client.get(self.url)
         self.assertContains(response, "before_save")

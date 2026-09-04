@@ -80,6 +80,7 @@ class GeneratedNotificationCenterTests(TestCase):
                             "title": "Contrato atualizado",
                             "message": "O contrato foi atualizado.",
                             "audience": "actor",
+                            "channels": ["in_app"],
                         },
                         {
                             "id": "contrato_excluido",
@@ -156,6 +157,12 @@ class GeneratedNotificationCenterTests(TestCase):
         self.assertNotIn("eval(", runtime)
         self.assertNotIn("exec(", runtime)
 
+    def test_gen0671_defaults_legacy_rules_to_in_app_channel(self):
+        runtime = render_to_string("gerador/snippets/notification_apps.txt", self.context())
+        self.assertIn('"id": "contrato_criado"', runtime)
+        self.assertIn('"channels": ["in_app"]', runtime)
+        self.assertIn('if "in_app" not in rule.get("channels", ["in_app"]):', runtime)
+
     def test_notification_rules_are_fail_closed_during_generation(self):
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
         structure = dict(draft.estrutura_json)
@@ -177,6 +184,24 @@ class GeneratedNotificationCenterTests(TestCase):
                     "message": "Não deve entrar no runtime.",
                     "audience": "role",
                 },
+                {
+                    "id": "canal_desconhecido",
+                    "enabled": True,
+                    "event": "created",
+                    "title": "Inválida",
+                    "message": "Não deve entrar no runtime.",
+                    "audience": "actor",
+                    "channels": ["fax"],
+                },
+                {
+                    "id": "sem_canal",
+                    "enabled": True,
+                    "event": "created",
+                    "title": "Inválida",
+                    "message": "Não deve entrar no runtime.",
+                    "audience": "actor",
+                    "channels": [],
+                },
             ]
         }
         draft.estrutura_json = structure
@@ -184,6 +209,8 @@ class GeneratedNotificationCenterTests(TestCase):
         runtime = render_to_string("gerador/snippets/notification_apps.txt", self.context())
         self.assertNotIn("regra_invalida", runtime)
         self.assertNotIn("papel_sem_role", runtime)
+        self.assertNotIn("canal_desconhecido", runtime)
+        self.assertNotIn("sem_canal", runtime)
 
     def test_real_generation_emits_center_model_migration_template_and_dispatch_runtime(self):
         logs = GeradorService(self.sistema.id).gerar_projeto_completo()
@@ -206,6 +233,8 @@ class GeneratedNotificationCenterTests(TestCase):
         self.assertIn("class Notification(models.Model):", models_runtime)
         self.assertIn("read_at = models.DateTimeField", models_runtime)
         self.assertIn("dispatch_notifications", dispatch_runtime)
+        self.assertIn('"channels": ["in_app"]', dispatch_runtime)
+        self.assertIn('if "in_app" not in rule.get("channels", ["in_app"]):', dispatch_runtime)
         self.assertIn("post_save.connect", dispatch_runtime)
         self.assertIn("post_delete.connect", dispatch_runtime)
         self.assertNotIn("Notification.objects.create", crud_views)

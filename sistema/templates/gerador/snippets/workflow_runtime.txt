@@ -1,6 +1,8 @@
-{% load workflow_generation %}from django.core.exceptions import ValidationError
+{% load workflow_generation notification_generation %}from django.core.exceptions import ValidationError
 from django.db import transaction
 
+{% module_has_notifications entidades as has_notifications %}{% if has_notifications %}from djangoforge_notifications.apps import suppress_updated_notifications
+{% endif %}
 WORKFLOWS = {
 {% for entidade in entidades %}{% workflow_generation_config entidade as workflow %}{% if workflow.enabled %}    "{{ entidade.classe_nome }}": {
         "state_field": "{{ workflow.state_field_code }}",
@@ -69,8 +71,10 @@ def perform_transition(instance, transition_id, *, user=None, history_model=None
         setattr(instance, state_field, to_state)
         if rule_runner:
             rule_runner(instance, "before_update")
-        instance.save()
-        if history_model is not None:
+{% if has_notifications %}        with suppress_updated_notifications():
+            instance.save()
+{% else %}        instance.save()
+{% endif %}        if history_model is not None:
             history_model.objects.create(
                 model_name=instance.__class__.__name__, object_id=str(instance.pk),
                 transition_id=transition_id, from_state=str(from_state or ""), to_state=str(to_state), user=user,

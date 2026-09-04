@@ -6,6 +6,8 @@ CRUD_EVENTS = {"created", "updated", "deleted"}
 WORKFLOW_EVENT = "workflow_transition"
 EVENTS = CRUD_EVENTS | {WORKFLOW_EVENT}
 AUDIENCES = {"users_with_view_permission", "actor", "role"}
+CHANNEL_IN_APP = "in_app"
+CHANNELS = {CHANNEL_IN_APP}
 
 
 def _system_from_entities(entities):
@@ -22,6 +24,22 @@ def _stored_structure(sistema):
         return {}
     versao = sistema.versoes.filter(numero=0).first()
     return versao.estrutura_json if versao and isinstance(versao.estrutura_json, dict) else {}
+
+
+def _normalize_channels(raw):
+    if "channels" not in raw:
+        return [CHANNEL_IN_APP]
+    channels = raw.get("channels")
+    if not isinstance(channels, list) or not channels:
+        return []
+    result = []
+    for value in channels:
+        channel = str(value or "").strip()
+        if channel not in CHANNELS:
+            return []
+        if channel not in result:
+            result.append(channel)
+    return result
 
 
 def _entity_rules(entities, entity_name):
@@ -44,7 +62,8 @@ def _entity_rules(entities, entity_name):
         message = str(raw.get("message") or "").strip()
         transition = str(raw.get("transition") or "").strip()
         role = str(raw.get("role") or "").strip()
-        if not rule_id or event not in EVENTS or audience not in AUDIENCES or not title or not message:
+        channels = _normalize_channels(raw)
+        if not rule_id or event not in EVENTS or audience not in AUDIENCES or not title or not message or not channels:
             continue
         if event == WORKFLOW_EVENT and not transition:
             continue
@@ -62,6 +81,7 @@ def _entity_rules(entities, entity_name):
             "message": message,
             "audience": audience,
             "role": role,
+            "channels": channels,
         })
     return result
 

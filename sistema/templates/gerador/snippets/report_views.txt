@@ -1,0 +1,44 @@
+{% load report_generation %}from django.contrib.auth.decorators import login_required, permission_required
+from django.core.paginator import Paginator
+from django.shortcuts import render
+
+{% for entidade in entidades %}{% report_generation_configs entidade as report_list %}{% for report in report_list %}@login_required
+@permission_required('{{ app_name }}.view_{{ entidade.codigo_nome }}', raise_exception=True)
+def {{ entidade.codigo_nome }}_report_{{ report.id }}(request):
+    from .models import {{ entidade.classe_nome }}
+    queryset = {{ entidade.classe_nome }}.objects.all()
+{% for filtro in report.filters %}{% if filtro.type == 'range' %}    value_{{ filtro.code }}_from = request.GET.get('{{ filtro.param_from }}', '').strip()
+    value_{{ filtro.code }}_to = request.GET.get('{{ filtro.param_to }}', '').strip()
+    if value_{{ filtro.code }}_from:
+        queryset = queryset.filter({{ filtro.code }}__gte=value_{{ filtro.code }}_from)
+    if value_{{ filtro.code }}_to:
+        queryset = queryset.filter({{ filtro.code }}__lte=value_{{ filtro.code }}_to)
+{% else %}    value_{{ filtro.code }} = request.GET.get('{{ filtro.param }}', '').strip()
+    if value_{{ filtro.code }}:
+{% if filtro.field_type == 'BooleanField' or filtro.field_type == 'NullBooleanField' %}        normalized_{{ filtro.code }} = value_{{ filtro.code }}.lower()
+        if normalized_{{ filtro.code }} in {'1', 'true', 'sim', 'yes'}:
+            queryset = queryset.filter({{ filtro.code }}=True)
+        elif normalized_{{ filtro.code }} in {'0', 'false', 'nao', 'não', 'no'}:
+            queryset = queryset.filter({{ filtro.code }}=False)
+{% elif filtro.type == 'contains' %}        queryset = queryset.filter({{ filtro.code }}__icontains=value_{{ filtro.code }})
+{% elif filtro.type == 'startswith' %}        queryset = queryset.filter({{ filtro.code }}__istartswith=value_{{ filtro.code }})
+{% elif filtro.type == 'gte' %}        queryset = queryset.filter({{ filtro.code }}__gte=value_{{ filtro.code }})
+{% elif filtro.type == 'lte' %}        queryset = queryset.filter({{ filtro.code }}__lte=value_{{ filtro.code }})
+{% else %}        queryset = queryset.filter({{ filtro.code }}=value_{{ filtro.code }})
+{% endif %}{% endif %}{% endfor %}{% if report.order_by_code %}    queryset = queryset.order_by('{{ report.order_by_code }}')
+{% endif %}    total_registros = queryset.count()
+    paginator = Paginator(queryset, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    params.pop('page', None)
+    context = {
+        'page_obj': page_obj,
+        'total_registros': total_registros,
+        'querystring': params.urlencode(),
+{% for filtro in report.filters %}{% if filtro.type == 'range' %}        '{{ filtro.param_from }}': request.GET.get('{{ filtro.param_from }}', '').strip(),
+        '{{ filtro.param_to }}': request.GET.get('{{ filtro.param_to }}', '').strip(),
+{% else %}        '{{ filtro.param }}': request.GET.get('{{ filtro.param }}', '').strip(),
+{% endif %}{% endfor %}    }
+    return render(request, '{{ app_name }}/{{ report.template_name }}', context)
+
+{% endfor %}{% endfor %}

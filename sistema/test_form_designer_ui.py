@@ -76,7 +76,7 @@ class FormDesignerUITests(SimpleTestCase):
 
     def test_supports_field_ordering_and_drag_drop(self):
         source = self.source()
-        self.assertIn('draggable="${previewMode?', source)
+        self.assertIn('draggable="true"', source)
         self.assertIn("dragstart", source)
         self.assertIn("dragover", source)
         self.assertIn("drop", source)
@@ -89,6 +89,17 @@ class FormDesignerUITests(SimpleTestCase):
         self.assertIn("previewMode=true", source)
         self.assertIn("previewMode=false", source)
         self.assertNotIn('preview_mode', source)
+
+    def test_preview_matches_generated_form_structure(self):
+        source = self.source()
+        self.assertIn("renderPreviewCanvas", source)
+        self.assertIn("fd-preview-page-heading", source)
+        self.assertIn("fd-preview-card", source)
+        self.assertIn("col-12 col-md-${f.width}", source)
+        self.assertIn("form-check form-switch fd-preview-boolean", source)
+        self.assertIn("Preencha os dados abaixo para cadastrar o registro.", source)
+        self.assertIn("Salvar registro", source)
+        self.assertIn("Nenhum campo visível configurado para esta entidade.", source)
 
     def test_save_uses_forms_contract(self):
         source = self.source()

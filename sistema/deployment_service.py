@@ -1,3 +1,4 @@
+import uuid
 from copy import deepcopy
 
 from django.core.exceptions import ValidationError
@@ -7,6 +8,8 @@ from django.utils import timezone
 from .deployment_center import DeploymentCenterError, normalize_deployment_config, validate_transition
 from .deployment_executor import DeploymentExecutionError, LocalDockerComposeExecutor
 from .models import DeploymentPlan, VersaoGeracao
+from .observability import emit_event
+from .observability_models import ObservabilityEvent
 from .runtime_agent import RuntimeAgentService
 
 
@@ -53,7 +56,7 @@ class DeploymentService:
         if env_config is None:
             raise ValidationError("O ambiente não possui configuração de deployment válida.")
 
-        return DeploymentPlan.objects.create(
+        plan = DeploymentPlan.objects.create(
             sistema=self.sistema,
             ambiente=ambiente,
             versao=versao,
@@ -62,10 +65,36 @@ class DeploymentService:
             strategy=env_config["strategy"],
             config_snapshot=deepcopy(env_config),
         )
+        emit_event(
+            sistema=self.sistema,
+            ambiente=ambiente,
+            usuario=user,
+            event_name="deployment.plan.created",
+            message="Plano de deployment criado.",
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+            context={"version": versao.numero, "executor": plan.executor, "strategy": plan.strategy},
+        )
+        return plan
 
     @transaction.atomic
     def validate_plan(self, plan):
         self._assert_plan(plan)
+        correlation_id = uuid.uuid4()
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name="deployment.validation.started",
+            message="Validação do plano de deployment iniciada.",
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            correlation_id=correlation_id,
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+        )
         validate_transition(plan.status, DeploymentPlan.STATUS_VALIDATING)
         plan.status = DeploymentPlan.STATUS_VALIDATING
         plan.erro = ""
@@ -84,10 +113,36 @@ class DeploymentService:
             plan.status = DeploymentPlan.STATUS_FAILED
             plan.erro = self._safe_error(exc)
             plan.save(update_fields=["status", "erro"])
+            emit_event(
+                sistema=self.sistema,
+                ambiente=plan.ambiente,
+                usuario=plan.criado_por,
+                event_name="deployment.validation.failed",
+                message="Validação do plano de deployment falhou.",
+                level=ObservabilityEvent.LEVEL_ERROR,
+                category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+                source="deployment_service",
+                correlation_id=correlation_id,
+                object_type="DeploymentPlan",
+                object_id=str(plan.pk),
+                context={"error": plan.erro},
+            )
             return plan
         validate_transition(plan.status, DeploymentPlan.STATUS_READY)
         plan.status = DeploymentPlan.STATUS_READY
         plan.save(update_fields=["status"])
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name="deployment.ready",
+            message="Plano de deployment validado e pronto para execução.",
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            correlation_id=correlation_id,
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+        )
         return plan
 
     def execute_plan(self, plan, *, executor_factory=LocalDockerComposeExecutor, runtime_service_factory=RuntimeAgentService):
@@ -100,6 +155,7 @@ class DeploymentService:
         if plan.ambiente.release_atual_id != plan.versao_id:
             raise ValidationError("A release promovida do ambiente mudou desde a validação do plano.")
 
+        correlation_id = uuid.uuid4()
         started_at = timezone.now()
         with transaction.atomic():
             claimed = DeploymentPlan.objects.filter(
@@ -125,21 +181,34 @@ class DeploymentService:
         plan.finalizado_em = None
         plan.erro = ""
         plan.etapas = []
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name="deployment.started",
+            message="Execução do deployment iniciada.",
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            correlation_id=correlation_id,
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+            context={"version": plan.versao.numero, "executor": plan.executor, "strategy": plan.strategy},
+        )
 
         try:
             executor = executor_factory(plan.config_snapshot)
-            self._step(plan, "prepare", "RUNNING", "Validando host local e Docker Compose.")
+            self._step(plan, "prepare", "RUNNING", "Validando host local e Docker Compose.", correlation_id=correlation_id)
             executor.prepare()
-            self._step(plan, "prepare", "SUCCEEDED", "Host local e Docker Compose validados.")
+            self._step(plan, "prepare", "SUCCEEDED", "Host local e Docker Compose validados.", correlation_id=correlation_id)
 
-            self._step(plan, "deploy", "RUNNING", "Executando Docker Compose.")
+            self._step(plan, "deploy", "RUNNING", "Executando Docker Compose.", correlation_id=correlation_id)
             executor.deploy()
-            self._step(plan, "deploy", "SUCCEEDED", "Docker Compose concluído.")
+            self._step(plan, "deploy", "SUCCEEDED", "Docker Compose concluído.", correlation_id=correlation_id)
 
             validate_transition(plan.status, DeploymentPlan.STATUS_VERIFYING)
             plan.status = DeploymentPlan.STATUS_VERIFYING
             plan.save(update_fields=["status"])
-            self._step(plan, "verify", "RUNNING", "Consultando Runtime Agent.")
+            self._step(plan, "verify", "RUNNING", "Consultando Runtime Agent.", correlation_id=correlation_id)
 
             snapshot = runtime_service_factory(self.sistema).check_environment(plan.ambiente)
             plan.release_observada = str(snapshot.release_observada or "")
@@ -152,17 +221,30 @@ class DeploymentService:
             if plan.release_observada != str(plan.versao.numero):
                 raise ValidationError("A release observada pelo Runtime Agent não corresponde à release do plano.")
 
-            self._step(plan, "verify", "SUCCEEDED", f"Runtime Agent confirmou a release v{plan.versao.numero}.")
+            self._step(plan, "verify", "SUCCEEDED", f"Runtime Agent confirmou a release v{plan.versao.numero}.", correlation_id=correlation_id)
             validate_transition(plan.status, DeploymentPlan.STATUS_SUCCEEDED)
             plan.status = DeploymentPlan.STATUS_SUCCEEDED
             plan.finalizado_em = timezone.now()
             plan.save(update_fields=["status", "release_observada", "finalizado_em", "etapas"])
+            emit_event(
+                sistema=self.sistema,
+                ambiente=plan.ambiente,
+                usuario=plan.criado_por,
+                event_name="deployment.succeeded",
+                message="Deployment concluído com sucesso.",
+                category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+                source="deployment_service",
+                correlation_id=correlation_id,
+                object_type="DeploymentPlan",
+                object_id=str(plan.pk),
+                context={"version": plan.versao.numero, "release_observed": plan.release_observada},
+            )
             return plan
         except (DeploymentExecutionError, ValidationError, DeploymentCenterError) as exc:
-            self._fail_execution(plan, exc)
+            self._fail_execution(plan, exc, correlation_id=correlation_id)
             return plan
         except Exception:
-            self._fail_execution(plan, ValidationError("Falha inesperada durante o deployment."))
+            self._fail_execution(plan, ValidationError("Falha inesperada durante o deployment."), correlation_id=correlation_id)
             return plan
 
     @transaction.atomic
@@ -172,9 +254,21 @@ class DeploymentService:
         plan.status = DeploymentPlan.STATUS_CANCELLED
         plan.finalizado_em = timezone.now()
         plan.save(update_fields=["status", "finalizado_em"])
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name="deployment.cancelled",
+            message="Plano de deployment cancelado.",
+            level=ObservabilityEvent.LEVEL_WARNING,
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+        )
         return plan
 
-    def _step(self, plan, name, status, message):
+    def _step(self, plan, name, status, message, *, correlation_id=None):
         etapas = list(plan.etapas or [])
         etapas.append({
             "name": str(name)[:50],
@@ -184,16 +278,44 @@ class DeploymentService:
         })
         plan.etapas = etapas[-100:]
         plan.save(update_fields=["etapas"])
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name=f"deployment.step.{str(status).lower()}",
+            message=str(message),
+            level=ObservabilityEvent.LEVEL_ERROR if str(status).upper() == "FAILED" else ObservabilityEvent.LEVEL_INFO,
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            correlation_id=correlation_id,
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+            context={"step": str(name), "status": str(status)},
+        )
 
-    def _fail_execution(self, plan, exc):
+    def _fail_execution(self, plan, exc, *, correlation_id=None):
         message = self._safe_error(exc)
-        self._step(plan, "failure", "FAILED", message)
+        self._step(plan, "failure", "FAILED", message, correlation_id=correlation_id)
         if plan.status in {DeploymentPlan.STATUS_RUNNING, DeploymentPlan.STATUS_VERIFYING}:
             validate_transition(plan.status, DeploymentPlan.STATUS_FAILED)
         plan.status = DeploymentPlan.STATUS_FAILED
         plan.erro = message
         plan.finalizado_em = timezone.now()
         plan.save(update_fields=["status", "erro", "finalizado_em", "etapas", "release_observada"])
+        emit_event(
+            sistema=self.sistema,
+            ambiente=plan.ambiente,
+            usuario=plan.criado_por,
+            event_name="deployment.failed",
+            message="Deployment finalizado com falha.",
+            level=ObservabilityEvent.LEVEL_ERROR,
+            category=ObservabilityEvent.CATEGORY_DEPLOYMENT,
+            source="deployment_service",
+            correlation_id=correlation_id,
+            object_type="DeploymentPlan",
+            object_id=str(plan.pk),
+            context={"error": message, "release_observed": plan.release_observada},
+        )
 
     def _assert_environment(self, ambiente):
         if ambiente.sistema_id != self.sistema.pk:

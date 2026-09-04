@@ -33,7 +33,7 @@ As notificações vivem no draft `VersaoGeracao.numero=0`, na chave `notificatio
 }
 ```
 
-Eventos CRUD suportados nesta fase:
+Eventos CRUD suportados:
 
 - `created`
 - `updated`
@@ -81,20 +81,91 @@ Mudança de situação
   Quando mudar de Em análise para Aprovado
 ```
 
-O backend continua fail-closed. Ao salvar uma regra `workflow_transition`, rejeita:
-
-- workflow inexistente ou desativado;
-- transição inexistente;
-- transição desabilitada;
-- uso de `transition` em evento que não seja de workflow.
+O backend continua fail-closed. Ao salvar uma regra `workflow_transition`, rejeita workflow inexistente/desativado, transição inexistente/desabilitada e uso de `transition` fora de evento de workflow.
 
 Configuração antiga ou stale pode ser exibida pelo Designer como indisponível, mas não pode ser salva novamente sem correção.
+
+## Destinatários — GEN-066.3
+
+A primeira versão de destinatários usa um contrato simples, determinístico e resolvível no runtime gerado.
+
+### Quem pode visualizar esta informação
+
+```json
+{
+  "audience": "users_with_view_permission"
+}
+```
+
+Representa os usuários autorizados a visualizar a entidade. A resolução concreta será materializada no runtime gerado usando as permissões disponíveis.
+
+### Quem realizou a ação
+
+```json
+{
+  "audience": "actor"
+}
+```
+
+Representa o usuário autenticado que provocou o acontecimento: criação, alteração, exclusão ou execução de transição.
+
+### Usuários de um papel RBAC
+
+```json
+{
+  "audience": "role",
+  "role": "gestor"
+}
+```
+
+O campo `role` referencia o ID estável de um papel já definido em `estrutura_json["rbac"]["roles"]`. O Notification Designer não duplica nomes de Django Groups nem cria uma segunda definição de papéis.
+
+Para usar `audience = "role"`:
+
+- RBAC deve estar ativo;
+- o papel precisa existir;
+- o papel precisa possuir ID válido no contrato RBAC.
+
+O backend rejeita de forma fail-closed:
+
+- tipo de destinatário desconhecido;
+- papel inexistente;
+- papel usado com RBAC desativado;
+- propriedade `role` enviada para outro tipo de destinatário.
+
+A interface mostra linguagem de negócio:
+
+```text
+Quem deve receber?
+
+  Quem pode visualizar esta informação
+  Quem realizou a ação
+  Usuários de um papel
+      Papel destinatário: Gestor
+```
+
+## Limites da GEN-066.3
+
+Não fazem parte desta etapa:
+
+- destinatário por campo do registro, como `responsavel` ou `solicitante`;
+- `created_by` implícito quando o modelo não declara essa semântica;
+- endereço de e-mail informado manualmente;
+- grupos digitados livremente;
+- canais de entrega;
+- templates de e-mail;
+- filas, Celery ou brokers;
+- WebSocket;
+- entrega efetiva da notificação.
+
+Destinatários baseados em campos do registro exigem metadata semântica própria para declarar que determinado relacionamento representa um usuário. Essa capacidade não deve ser inferida pelo nome do campo.
 
 ## Separação de responsabilidades
 
 - Workflow define **o que pode acontecer**.
-- Notification Designer define **sobre quais acontecimentos avisar**.
-- Destinatários serão tratados na GEN-066.3.
-- Entrega e central de notificações no runtime gerado serão tratadas nas GEN-066.4 e GEN-066.5.
+- RBAC define **quem pode executar e visualizar ações**.
+- Notification Designer define **sobre quais acontecimentos avisar e quem deve receber**.
+- GEN-066.4 materializará a central de notificações no sistema gerado.
+- GEN-066.5 fará a integração efetiva com CRUD/Workflow e o freeze.
 
-A GEN-066.2 não envia e-mail, não cria fila, não usa Celery, não cria WebSocket e não executa código configurável.
+A GEN-066.3 continua sem enviar e-mail, sem criar fila, sem Celery, sem WebSocket e sem executar código configurável.

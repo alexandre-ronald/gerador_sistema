@@ -61,9 +61,20 @@ class BusinessRulesDesignerUITests(TestCase):
         self.assertContains(response, "Impedir o salvamento")
         self.assertContains(response, "Definir um valor")
         self.assertContains(response, "Copiar valor de outro campo")
-        self.assertContains(response, "Todas as condições")
-        self.assertContains(response, "Qualquer condição")
+        self.assertContains(response, "Todas precisam ser verdadeiras")
+        self.assertContains(response, "Basta uma ser verdadeira")
         self.assertNotContains(response, "alert(")
+
+    def test_visual_condition_editor_explains_logic_without_technical_terms(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Monte as condições como uma frase")
+        self.assertContains(response, "Quando há mais de uma condição")
+        self.assertContains(response, "Esta regra vale sempre")
+        self.assertContains(response, "Condição ${i+1}")
+        self.assertContains(response, "condition-join")
+        self.assertContains(response, "conditionsHtml")
+        self.assertContains(response, "Informe o valor esperado")
+        self.assertContains(response, "Esta condição é completa e não precisa de outro valor")
 
     def test_keeps_internal_contract_values_behind_friendly_labels(self):
         response = self.client.get(self.url)

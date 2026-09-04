@@ -1,4 +1,5 @@
-{% load notification_generation %}from contextvars import ContextVar
+{% load notification_generation %}from contextlib import contextmanager
+from contextvars import ContextVar
 from importlib import import_module
 
 from django.apps import AppConfig, apps
@@ -8,6 +9,7 @@ from django.db.models.signals import post_delete, post_save
 from django.urls import NoReverseMatch, reverse
 
 _current_actor = ContextVar("djangoforge_notification_actor", default=None)
+_suppress_updated = ContextVar("djangoforge_notification_suppress_updated", default=0)
 
 ENTITY_CONFIG = {
 {% for modulo in modulos %}{% for entidade in modulo.entidades_geracao %}{% notification_entity_rules modulo.entidades_geracao entidade.nome as notification_rules %}{% if notification_rules %}    "{{ modulo.app_name }}.{{ entidade.classe_nome }}": {
@@ -32,6 +34,15 @@ def get_current_actor():
     if actor is None or not getattr(actor, "is_authenticated", False):
         return None
     return actor
+
+
+@contextmanager
+def suppress_updated_notifications():
+    token = _suppress_updated.set(_suppress_updated.get() + 1)
+    try:
+        yield
+    finally:
+        _suppress_updated.reset(token)
 
 
 class NotificationActorMiddleware:
@@ -151,6 +162,8 @@ def dispatch_notifications(config_key, event, *, actor=None, instance=None, tran
 
 
 def _model_saved(sender, instance, created, **kwargs):
+    if not created and _suppress_updated.get():
+        return
     event = "created" if created else "updated"
     dispatch_notifications(sender._meta.label, event, instance=instance)
 

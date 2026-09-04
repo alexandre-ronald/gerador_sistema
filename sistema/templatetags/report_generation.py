@@ -14,13 +14,26 @@ def _stored(entidade):
     return reports.get(getattr(entidade, "nome", ""))
 
 
-def _config(entidade):
+def _empty_config():
+    return {"enabled": False, "id": "", "title": "", "description": "", "columns": [], "filters": [], "order_by_code": ""}
+
+
+def _raw_items(entidade):
     raw = _stored(entidade)
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        return [raw]
+    return []
+
+
+def _config_from_raw(entidade, raw, index=1):
     if not isinstance(raw, dict) or not raw.get("enabled"):
-        return {"enabled": False, "title": "", "description": "", "columns": [], "filters": [], "order_by_code": ""}
+        return _empty_config()
 
     campos = getattr(entidade, "campos_geracao", None) or []
     source = {getattr(campo, "nome", ""): campo for campo in campos}
+    report_id = str(raw.get("id") or f"relatorio_{index}").strip().lower()
     columns = []
     for name in raw.get("fields", []):
         campo = source.get(name)
@@ -65,19 +78,37 @@ def _config(entidade):
 
     return {
         "enabled": True,
+        "id": report_id,
         "title": str(raw.get("title") or f"Relatório de {getattr(entidade, 'nome', '')}"),
         "description": str(raw.get("description") or ""),
         "columns": columns,
         "filters": filters,
         "order_by_code": order_code,
+        "view_name": f"{getattr(entidade, 'codigo_nome', '')}_report_{report_id}",
+        "template_name": f"{getattr(entidade, 'codigo_nome', '')}_report_{report_id}.html",
     }
+
+
+def _configs(entidade):
+    result = []
+    for index, raw in enumerate(_raw_items(entidade), start=1):
+        config = _config_from_raw(entidade, raw, index)
+        if config.get("enabled"):
+            result.append(config)
+    return result
 
 
 @register.simple_tag
 def report_generation_config(entidade):
-    return _config(entidade)
+    configs = _configs(entidade)
+    return configs[0] if configs else _empty_config()
+
+
+@register.simple_tag
+def report_generation_configs(entidade):
+    return _configs(entidade)
 
 
 @register.simple_tag
 def module_has_reports(entidades):
-    return any(_config(entidade).get("enabled") for entidade in entidades)
+    return any(_configs(entidade) for entidade in entidades)

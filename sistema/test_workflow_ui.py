@@ -49,16 +49,39 @@ class WorkflowDesignerUITests(TestCase):
             }
         }
 
-    def test_designer_renders_workflow_tools(self):
+    def test_designer_renders_friendly_workflow_language(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Workflow Designer")
-        self.assertContains(response, "Campo de estado")
-        self.assertContains(response, "Estados")
-        self.assertContains(response, "Transições")
-        self.assertContains(response, "Resumo do fluxo")
-        self.assertContains(response, "status")
+        for text in [
+            "Fluxo do processo",
+            "Design · GEN-064",
+            "Informações do sistema",
+            "Usar fluxo de etapas",
+            "Onde guardar a etapa atual",
+            "Etapa inicial",
+            "Etapas",
+            "Mudanças de etapa",
+            "Como o processo funciona",
+            "Adicionar etapa",
+            "Adicionar mudança",
+            "Nome da etapa",
+            "Nome da ação",
+            "Vai para",
+            "Pode acontecer quando estiver em",
+            "Pedir confirmação",
+            "Pergunta de confirmação",
+        ]:
+            self.assertContains(response, text)
         self.assertNotContains(response, "alert(")
+
+    def test_designer_keeps_internal_workflow_contract(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "state_field")
+        self.assertContains(response, "initial_state")
+        self.assertContains(response, "transitions")
+        self.assertContains(response, "estado_")
+        self.assertContains(response, "transicao_")
+        self.assertContains(response, "status")
 
     def test_workspace_lists_workflow_link(self):
         response = self.client.get(reverse("sistema:workspace", args=[self.sistema.id]))

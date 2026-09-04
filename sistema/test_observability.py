@@ -87,9 +87,11 @@ class ObservabilityEmitterTests(TestCase):
 
     def test_persistence_failure_does_not_break_primary_operation(self):
         with patch("sistema.observability.ObservabilityEvent.objects.create", side_effect=RuntimeError("db down")):
-            result = emit_event(
-                sistema=self.sistema,
-                event_name="generation.started",
-                message="Geração iniciada",
-            )
+            with self.assertLogs("sistema.observability", level="ERROR") as captured:
+                result = emit_event(
+                    sistema=self.sistema,
+                    event_name="generation.started",
+                    message="Geração iniciada",
+                )
         self.assertIsNone(result)
+        self.assertTrue(any("Falha ao persistir evento de observabilidade generation.started" in line for line in captured.output))

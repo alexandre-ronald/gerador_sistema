@@ -1,9 +1,25 @@
 {% load report_generation %}from django.apps import apps
-
+{% if notifications.enabled %}from djangoforge_notifications.models import Notification
+{% endif %}
 # Generated from the persisted system specification. Keep URL/permission
 # identifiers here Python-safe; display labels may contain accents.
 NAVIGATION_MODULES = [
-{% for modulo in modulos %}
+{% if notifications.enabled %}    {
+        "app_name": "notifications",
+        "label": "Comunicação",
+        "items": [
+            {
+                "label": "Notificações",
+                "model_name": "",
+                "url_name": "notifications:list",
+                "active_url_names": ["list", "mark_read", "mark_all_read"],
+                "permission": "",
+                "app_name": "notifications",
+                "is_notifications": True,
+            },
+        ],
+    },
+{% endif %}{% for modulo in modulos %}
     {
         "app_name": "{{ modulo.app_name }}",
         "label": "{{ modulo.nome|escapejs }}",
@@ -61,6 +77,9 @@ def _mark_active_items(request, items):
 def _current_navigation_context(request, modules):
     resolver_match = getattr(request, "resolver_match", None)
     current_url_name = getattr(resolver_match, "url_name", None)
+    current_app_name = getattr(resolver_match, "app_name", None)
+    if current_app_name == "notifications":
+        return {"module_label": "Comunicação", "item_label": "Notificações"}
     if current_url_name == "index":
         return {"module_label": "Início", "item_label": "Área de trabalho"}
     if current_url_name in {"dashboard", "dashboard_data"}:
@@ -99,7 +118,7 @@ def _relation_filter_choices(request):
     if user is None or not user.is_authenticated:
         return []
     item = _current_navigation_item(request)
-    if not item:
+    if not item or item.get("is_notifications"):
         return []
     try:
         model = apps.get_model(item["app_name"], item["model_name"])
@@ -120,10 +139,26 @@ def _relation_filter_choices(request):
     return result
 
 
-def navigation(request):
+{% if notifications.enabled %}def _notification_unread_count(request):
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return 0
+    try:
+        return Notification.objects.filter(recipient=user, read_at__isnull=True).count()
+    except Exception:
+        return 0
+
+
+{% endif %}def navigation(request):
     modules = []
-    for module in NAVIGATION_MODULES:
+{% if notifications.enabled %}    unread_count = _notification_unread_count(request)
+{% else %}    unread_count = 0
+{% endif %}    for module in NAVIGATION_MODULES:
         items = _allowed_items(request, module["items"])
         if items:
-            modules.append({**module, "items": _mark_active_items(request, items)})
-    return {"navigation_modules": modules, "navigation_current": _current_navigation_context(request, modules), "relation_filter_choices": _relation_filter_choices(request)}
+            marked = _mark_active_items(request, items)
+            for item in marked:
+                if item.get("is_notifications") and unread_count:
+                    item["label"] = f"Notificações ({unread_count})"
+            modules.append({**module, "items": marked})
+    return {"navigation_modules": modules, "navigation_current": _current_navigation_context(request, modules), "relation_filter_choices": _relation_filter_choices(request), "notification_unread_count": unread_count}

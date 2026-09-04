@@ -19,7 +19,7 @@ ENTITY_CONFIG = {
         "list_url_name": "{% if entidade.gerar_crud_views %}{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list{% endif %}",
         "detail_url_name": "{% if entidade.gerar_crud_views and entidade.crud_designer_ready and entidade.crud_actions.view %}{{ modulo.app_name }}:{{ entidade.codigo_nome }}_detail{% endif %}",
         "rules": [
-{% for rule in notification_rules %}            {"id": "{{ rule.id|escapejs }}", "event": "{{ rule.event|escapejs }}", "transition": "{{ rule.transition|escapejs }}", "title": "{{ rule.title|escapejs }}", "message": "{{ rule.message|escapejs }}", "audience": "{{ rule.audience|escapejs }}", "role": "{{ rule.role|escapejs }}"},
+{% for rule in notification_rules %}            {"id": "{{ rule.id|escapejs }}", "event": "{{ rule.event|escapejs }}", "transition": "{{ rule.transition|escapejs }}", "title": "{{ rule.title|escapejs }}", "message": "{{ rule.message|escapejs }}", "audience": "{{ rule.audience|escapejs }}", "role": "{{ rule.role|escapejs }}", "channels": [{% for channel in rule.channels %}"{{ channel|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]},
 {% endfor %}        ],
     },
 {% endif %}{% endfor %}{% endfor %}}
@@ -147,6 +147,8 @@ def dispatch_notifications(config_key, event, *, actor=None, instance=None, tran
         if rule.get("event") != event:
             continue
         if event == "workflow_transition" and rule.get("transition") != transition_id:
+            continue
+        if "in_app" not in rule.get("channels", ["in_app"]):
             continue
         recipient_ids = _recipient_ids(rule, config, actor)
         for recipient_id in recipient_ids:

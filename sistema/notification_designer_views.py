@@ -11,7 +11,10 @@ from .models import Entidade, Sistema, VersaoGeracao
 CRUD_EVENTS = {"created", "updated", "deleted"}
 WORKFLOW_EVENT = "workflow_transition"
 EVENTS = CRUD_EVENTS | {WORKFLOW_EVENT}
-AUDIENCES = {"users_with_view_permission"}
+AUDIENCE_VIEW_PERMISSION = "users_with_view_permission"
+AUDIENCE_ACTOR = "actor"
+AUDIENCE_ROLE = "role"
+AUDIENCES = {AUDIENCE_VIEW_PERMISSION, AUDIENCE_ACTOR, AUDIENCE_ROLE}
 
 
 def _draft_structure(sistema):
@@ -29,6 +32,35 @@ def _draft_notifications(sistema):
 def _draft_workflows(sistema):
     workflows = _draft_structure(sistema).get("workflows")
     return workflows if isinstance(workflows, dict) else {}
+
+
+def _draft_rbac(sistema):
+    rbac = _draft_structure(sistema).get("rbac")
+    return rbac if isinstance(rbac, dict) else {}
+
+
+def _rbac_recipient_metadata(raw_rbac):
+    if not isinstance(raw_rbac, dict) or raw_rbac.get("enabled") is not True:
+        return {"enabled": False, "roles": []}
+
+    roles = []
+    for item in raw_rbac.get("roles") or []:
+        if not isinstance(item, dict):
+            continue
+        role_id = str(item.get("id") or "").strip()
+        label = str(item.get("label") or "").strip()
+        group = str(item.get("group") or "").strip()
+        if not role_id or not label or not group:
+            continue
+        roles.append({
+            "id": role_id,
+            "label": label,
+            "group": group,
+            "order": item.get("order", 0) if isinstance(item.get("order", 0), int) else 0,
+        })
+
+    roles.sort(key=lambda item: (item["order"], item["id"]))
+    return {"enabled": True, "roles": roles}
 
 
 def _workflow_event_metadata(raw_workflow):
@@ -79,13 +111,19 @@ def _workflow_transition_ids(workflow_metadata):
     return {item["id"] for item in workflow_metadata.get("transitions", [])}
 
 
-def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=None):
+def _rbac_role_ids(rbac_metadata):
+    return {item["id"] for item in rbac_metadata.get("roles", [])}
+
+
+def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=None, rbac_metadata=None):
     raw = raw if isinstance(raw, dict) else {}
     workflow_metadata = workflow_metadata or {"enabled": False, "transitions": []}
+    rbac_metadata = rbac_metadata or {"enabled": False, "roles": []}
     rule_id = str(raw.get("id") or f"notificacao_{index}").strip().lower().replace(" ", "_")
     event = str(raw.get("event") or "created")
-    audience = str(raw.get("audience") or "users_with_view_permission")
+    audience = str(raw.get("audience") or AUDIENCE_VIEW_PERMISSION)
     transition = str(raw.get("transition") or "").strip()
+    role = str(raw.get("role") or "").strip()
 
     if strict and event not in EVENTS:
         raise ValueError(f"Evento de notificação inválido em {entity_name}: {event}")
@@ -101,11 +139,21 @@ def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=N
     elif strict and transition:
         raise ValueError(f"Transição só pode ser informada para evento de workflow em {entity_name}.")
 
+    if audience == AUDIENCE_ROLE:
+        valid_roles = _rbac_role_ids(rbac_metadata)
+        if strict and not rbac_metadata.get("enabled"):
+            raise ValueError(f"RBAC não está ativo para usar papel como destinatário em {entity_name}.")
+        if strict and role not in valid_roles:
+            raise ValueError(f"Papel destinatário inválido em {entity_name}: {role}")
+    elif strict and role:
+        raise ValueError(f"Papel só pode ser informado quando o destinatário for um papel em {entity_name}.")
+
     if event not in EVENTS:
         event = "created"
         transition = ""
     if audience not in AUDIENCES:
-        audience = "users_with_view_permission"
+        audience = AUDIENCE_VIEW_PERMISSION
+        role = ""
 
     normalized = {
         "id": rule_id,
@@ -117,10 +165,12 @@ def _normalize_rule(entity_name, raw, index=1, strict=False, workflow_metadata=N
     }
     if event == WORKFLOW_EVENT:
         normalized["transition"] = transition
+    if audience == AUDIENCE_ROLE:
+        normalized["role"] = role
     return normalized
 
 
-def _normalize_entity_rules(entity_name, raw, strict=False, workflow_metadata=None):
+def _normalize_entity_rules(entity_name, raw, strict=False, workflow_metadata=None, rbac_metadata=None):
     items = raw if isinstance(raw, list) else []
     result = []
     ids = set()
@@ -131,6 +181,7 @@ def _normalize_entity_rules(entity_name, raw, strict=False, workflow_metadata=No
             index=index,
             strict=strict,
             workflow_metadata=workflow_metadata,
+            rbac_metadata=rbac_metadata,
         )
         if rule["id"] in ids:
             if strict:
@@ -156,12 +207,14 @@ def notification_designer(request, sistema_id):
         entity.nome: _workflow_event_metadata(stored_workflows.get(entity.nome))
         for entity in entities
     }
+    rbac_metadata = _rbac_recipient_metadata(_draft_rbac(sistema))
     notifications = {
         entity.nome: _normalize_entity_rules(
             entity.nome,
             stored.get(entity.nome),
             strict=False,
             workflow_metadata=workflow_metadata[entity.nome],
+            rbac_metadata=rbac_metadata,
         )
         for entity in entities
     }
@@ -181,6 +234,7 @@ def notification_designer(request, sistema_id):
         "sistema": sistema,
         "notifications_json": json.dumps(notifications, ensure_ascii=False),
         "entity_metadata_json": json.dumps(metadata, ensure_ascii=False),
+        "recipient_metadata_json": json.dumps(rbac_metadata, ensure_ascii=False),
     })
 
 
@@ -204,12 +258,14 @@ def salvar_notifications(request, sistema_id):
             name: _workflow_event_metadata(stored_workflows.get(name))
             for name in entity_names
         }
+        rbac_metadata = _rbac_recipient_metadata(_draft_rbac(sistema))
         normalized = {
             name: _normalize_entity_rules(
                 name,
                 rules,
                 strict=True,
                 workflow_metadata=workflow_metadata[name],
+                rbac_metadata=rbac_metadata,
             )
             for name, rules in raw_notifications.items()
         }

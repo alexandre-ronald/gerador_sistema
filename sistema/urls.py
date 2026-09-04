@@ -7,6 +7,7 @@ from . import crud_designer_views
 from . import business_rules_views
 from . import workflow_views
 from . import report_designer_views
+from . import notification_designer_views
 from . import rbac_views
 from . import api_designer_views
 from . import integration_center_views
@@ -45,6 +46,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/workflow/salvar/', workflow_views.salvar_workflows, name='salvar_workflows'),
     path('sistemas/<int:sistema_id>/reports/', report_designer_views.report_designer, name='report_designer'),
     path('sistemas/<int:sistema_id>/reports/salvar/', report_designer_views.salvar_reports, name='salvar_reports'),
+    path('sistemas/<int:sistema_id>/notifications/', notification_designer_views.notification_designer, name='notification_designer'),
+    path('sistemas/<int:sistema_id>/notifications/salvar/', notification_designer_views.salvar_notifications, name='salvar_notifications'),
     path('sistemas/<int:sistema_id>/permissions/', rbac_views.permission_designer, name='permission_designer'),
     path('sistemas/<int:sistema_id>/permissions/salvar/', rbac_views.salvar_rbac, name='salvar_rbac'),
     path('sistemas/<int:sistema_id>/api-designer/', api_designer_views.api_designer, name='api_designer'),

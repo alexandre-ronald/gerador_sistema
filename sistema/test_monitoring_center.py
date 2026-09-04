@@ -83,7 +83,8 @@ class MonitoringCenterTests(TestCase):
         self.assertContains(response, "runtime.check.offline")
         self.assertContains(response, "runtime.check.started")
         self.assertContains(response, str(self.correlation_id))
-        self.assertContains(response, '"reason": "offline"')
+        self.assertIn('"reason": "offline"', response.context["context_json"])
+        self.assertContains(response, "&quot;reason&quot;: &quot;offline&quot;")
         self.assertNotContains(response, "security.private")
         self.assertEqual(response.context["timeline"].count(), 2)
 
@@ -96,5 +97,5 @@ class MonitoringCenterTests(TestCase):
     def test_workspace_exposes_monitoring_center(self):
         self.client.force_login(self.owner)
         response = self.client.get(reverse("sistema:workspace", args=[self.sistema.pk]))
-        self.assertContains(response, "Logs &amp; Observability")
+        self.assertContains(response, "Logs & Observability")
         self.assertContains(response, reverse("sistema:monitoring_center", args=[self.sistema.pk]))

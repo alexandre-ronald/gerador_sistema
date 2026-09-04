@@ -10,9 +10,20 @@ User = get_user_model()
 class Sistema(models.Model):
     BD_CHOICES = [("sqlite3", "SQLite"), ("postgresql", "PostgreSQL"), ("mysql", "MySQL"), ("sqlserver", "SQL Server"), ("oracle", "Oracle")]
     MENU_CHOICES = [("lateral", "Menu Lateral (Sidebar)"), ("superior", "Menu Superior (Navbar)")]
+    TIPO_CADASTRO = "cadastro"
+    TIPO_WORKFLOW = "workflow"
+    TIPO_GESTAO = "gestao"
+    TIPO_VAZIO = "vazio"
+    TIPO_SISTEMA_CHOICES = [
+        (TIPO_CADASTRO, "Cadastro e Controle"),
+        (TIPO_WORKFLOW, "Solicitações e Workflow"),
+        (TIPO_GESTAO, "Gestão e Acompanhamento"),
+        (TIPO_VAZIO, "Começar vazio"),
+    ]
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Sistema")
     descricao = models.TextField(blank=True, verbose_name="Descrição")
+    tipo_sistema = models.CharField(max_length=20, choices=TIPO_SISTEMA_CHOICES, default=TIPO_VAZIO, verbose_name="Tipo inicial")
     caminho_geracao = models.CharField(max_length=255, blank=True, verbose_name="Pasta onde gerar o projeto")
     banco_dados = models.CharField(max_length=50, choices=BD_CHOICES, default="sqlite3", verbose_name="Banco de dados")
     tipo_menu = models.CharField(max_length=20, choices=MENU_CHOICES, default="lateral", verbose_name="Estilo do Menu")

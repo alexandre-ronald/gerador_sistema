@@ -50,10 +50,29 @@ class FormDesignerUITests(SimpleTestCase):
     def test_supports_sections(self):
         source = self.source()
         self.assertIn('id="add-section"', source)
+        self.assertIn("Adicionar seção", source)
         self.assertIn("sectionId()", source)
         self.assertIn("data-section-title", source)
         self.assertIn("data-section-description", source)
         self.assertIn("data-remove-section", source)
+        self.assertIn("Seções do formulário", source)
+        self.assertIn('id="section-count"', source)
+        self.assertIn("Nenhuma seção criada", source)
+
+    def test_supports_section_ordering(self):
+        source = self.source()
+        self.assertIn("orderedSections()", source)
+        self.assertIn("normalizeSectionOrder()", source)
+        self.assertIn('data-move-section="-1"', source)
+        self.assertIn('data-move-section="1"', source)
+        self.assertIn("Mover seção para cima", source)
+        self.assertIn("Mover seção para baixo", source)
+
+    def test_exposes_section_field_counts_and_empty_state(self):
+        source = self.source()
+        self.assertIn("fieldsInSection", source)
+        self.assertIn("Nenhum campo nesta seção", source)
+        self.assertIn("Campos que ainda não foram associados a uma seção", source)
 
     def test_supports_field_ordering_and_drag_drop(self):
         source = self.source()

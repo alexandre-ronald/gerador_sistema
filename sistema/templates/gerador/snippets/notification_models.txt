@@ -1,0 +1,32 @@
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="djangoforge_notifications",
+        verbose_name="Destinatário",
+    )
+    title = models.CharField(max_length=200, verbose_name="Título")
+    message = models.TextField(verbose_name="Mensagem")
+    url = models.CharField(max_length=500, blank=True, verbose_name="Destino")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="Lida em")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Criada em")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Notificação"
+        verbose_name_plural = "Notificações"
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
+    def mark_read(self):
+        if self.read_at is None:
+            self.read_at = timezone.now()
+            self.save(update_fields=["read_at"])
+        return self

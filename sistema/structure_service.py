@@ -64,6 +64,10 @@ def save_system_structure(*, user, payload, sistema_id=None):
 
         sistema.nome = nome
         sistema.descricao = _text(data.get("descricao"))
+        tipo_sistema = _text(data.get("tipo_sistema"), sistema.tipo_sistema or Sistema.TIPO_VAZIO)
+        if tipo_sistema not in dict(Sistema.TIPO_SISTEMA_CHOICES):
+            raise ValidationError("Tipo inicial do sistema inválido.")
+        sistema.tipo_sistema = tipo_sistema
         sistema.caminho_geracao = caminho
         sistema.tipo_menu = tipo_menu
         sistema.banco_dados = banco
@@ -81,11 +85,7 @@ def save_system_structure(*, user, payload, sistema_id=None):
             if mod_name.casefold() in module_keys:
                 raise ValidationError(f"Módulo duplicado: {mod_name}.")
             module_keys.add(mod_name.casefold())
-            modulo = Modulo.objects.create(
-                sistema=sistema,
-                nome=mod_name,
-                descricao=_text(mod_data.get("descricao")),
-            )
+            modulo = Modulo.objects.create(sistema=sistema, nome=mod_name, descricao=_text(mod_data.get("descricao")))
             entity_keys = set()
             for ent_data in mod_data.get("entidades") or []:
                 ent_data = ent_data or {}
@@ -98,15 +98,7 @@ def save_system_structure(*, user, payload, sistema_id=None):
                 entity_keys.add(key)
                 if crud and not campos:
                     raise ValidationError(f"A entidade '{ent_name}' está com CRUD ativo, mas não possui campos.")
-                entidade = Entidade.objects.create(
-                    modulo=modulo,
-                    nome=ent_name,
-                    nome_plural=_text(ent_data.get("nome_plural")) or f"{ent_name}s",
-                    descricao=_text(ent_data.get("descricao")),
-                    gerar_admin=_bool(ent_data.get("gerar_admin"), True),
-                    gerar_crud_views=crud,
-                    gerar_endpoints_api=_bool(ent_data.get("gerar_endpoints_api"), False),
-                )
+                entidade = Entidade.objects.create(modulo=modulo, nome=ent_name, nome_plural=_text(ent_data.get("nome_plural")) or f"{ent_name}s", descricao=_text(ent_data.get("descricao")), gerar_admin=_bool(ent_data.get("gerar_admin"), True), gerar_crud_views=crud, gerar_endpoints_api=_bool(ent_data.get("gerar_endpoints_api"), False))
                 entity_map[_entity_key(mod_name, ent_name)] = entidade
                 pending.append((mod_name, ent_name, campos))
 
@@ -137,30 +129,11 @@ def save_system_structure(*, user, payload, sistema_id=None):
                 max_length = _int_or_none(raw.get("max_length")) if tipo not in NO_MAX_LENGTH_TYPES else None
                 if tipo in STRING_TYPES:
                     max_length = max_length or 255
-
-                kwargs = {
-                    "entidade": entidade,
-                    "nome": fname,
-                    "tipo": tipo,
-                    "null": _bool(raw.get("null")),
-                    "blank": _bool(raw.get("blank")),
-                    "unique": _bool(raw.get("unique")),
-                    "default_value": _text(raw.get("default_value", raw.get("default"))),
-                    "max_length": max_length,
-                    "max_digits": _int_or_none(raw.get("max_digits")) if tipo in DECIMAL_TYPES else None,
-                    "decimal_places": _int_or_none(raw.get("decimal_places")) if tipo in DECIMAL_TYPES else None,
-                    "upload_to": _text(raw.get("upload_to")),
-                    "entidade_relacionada": rel,
-                    "on_delete": _text(raw.get("on_delete"), "models.CASCADE"),
-                    "related_name_str": _text(raw.get("related_name")),
-                    "verbose_name": _text(raw.get("verbose_name")),
-                    "help_text": _text(raw.get("help_text")),
-                }
+                kwargs = {"entidade": entidade, "nome": fname, "tipo": tipo, "null": _bool(raw.get("null")), "blank": _bool(raw.get("blank")), "unique": _bool(raw.get("unique")), "default_value": _text(raw.get("default_value", raw.get("default"))), "max_length": max_length, "max_digits": _int_or_none(raw.get("max_digits")) if tipo in DECIMAL_TYPES else None, "decimal_places": _int_or_none(raw.get("decimal_places")) if tipo in DECIMAL_TYPES else None, "upload_to": _text(raw.get("upload_to")), "entidade_relacionada": rel, "on_delete": _text(raw.get("on_delete"), "models.CASCADE"), "related_name_str": _text(raw.get("related_name")), "verbose_name": _text(raw.get("verbose_name")), "help_text": _text(raw.get("help_text"))}
                 if tipo == "DecimalField":
                     kwargs["max_digits"] = kwargs["max_digits"] or 10
                     kwargs["decimal_places"] = kwargs["decimal_places"] if kwargs["decimal_places"] is not None else 2
                 Campo.objects.create(**kwargs)
-
         return sistema
 
 
@@ -170,6 +143,7 @@ def serialize_system_structure(sistema):
         "sistema": {
             "nome": sistema.nome,
             "descricao": sistema.descricao,
+            "tipo_sistema": sistema.tipo_sistema,
             "caminho": caminho,
             "caminho_geracao": caminho,
             "tipo_menu": sistema.tipo_menu,
@@ -181,40 +155,40 @@ def serialize_system_structure(sistema):
         },
         "modulos": [
             {
-                "nome": m.nome,
-                "descricao": m.descricao,
+                "nome": modulo.nome,
+                "descricao": modulo.descricao,
                 "entidades": [
                     {
-                        "nome": e.nome,
-                        "nome_plural": e.nome_plural,
-                        "descricao": e.descricao,
-                        "gerar_admin": e.gerar_admin,
-                        "gerar_crud_views": e.gerar_crud_views,
-                        "gerar_endpoints_api": e.gerar_endpoints_api,
+                        "nome": entidade.nome,
+                        "nome_plural": entidade.nome_plural,
+                        "descricao": entidade.descricao,
+                        "gerar_admin": entidade.gerar_admin,
+                        "gerar_crud_views": entidade.gerar_crud_views,
+                        "gerar_endpoints_api": entidade.gerar_endpoints_api,
                         "campos": [
                             {
-                                "nome": c.nome,
-                                "tipo": c.tipo,
-                                "max_length": c.max_length,
-                                "max_digits": c.max_digits,
-                                "decimal_places": c.decimal_places,
-                                "rel": c.entidade_relacionada.nome if c.entidade_relacionada else None,
-                                "null": c.null,
-                                "blank": c.blank,
-                                "unique": c.unique,
-                                "default_value": c.default_value,
-                                "upload_to": c.upload_to,
-                                "related_name": c.related_name_str,
-                                "on_delete": c.on_delete,
-                                "verbose_name": c.verbose_name,
-                                "help_text": c.help_text,
+                                "nome": campo.nome,
+                                "tipo": campo.tipo,
+                                "null": campo.null,
+                                "blank": campo.blank,
+                                "unique": campo.unique,
+                                "default_value": campo.default_value,
+                                "max_length": campo.max_length,
+                                "max_digits": campo.max_digits,
+                                "decimal_places": campo.decimal_places,
+                                "upload_to": campo.upload_to,
+                                "rel": campo.entidade_relacionada.nome if campo.entidade_relacionada else "",
+                                "on_delete": campo.on_delete,
+                                "related_name": campo.related_name_str,
+                                "verbose_name": campo.verbose_name,
+                                "help_text": campo.help_text,
                             }
-                            for c in e.campos.all()
+                            for campo in entidade.campos.all()
                         ],
                     }
-                    for e in m.entidades.all()
+                    for entidade in modulo.entidades.all()
                 ],
             }
-            for m in sistema.modulos.all()
+            for modulo in sistema.modulos.all()
         ],
     }

@@ -79,26 +79,44 @@ def save_system_structure(*, user, payload, sistema_id=None):
         sistema.modulos.all().delete()
 
         entity_map, pending, module_keys = {}, [], set()
-        for mod_data in payload.get("modulos") or []:
+        for index, mod_data in enumerate(payload.get("modulos") or [], start=1):
             mod_data = mod_data or {}
-            mod_name = _text(mod_data.get("nome")) or "Modulo"
+            mod_name = _text(mod_data.get("nome"))
+            if not mod_name:
+                raise ValidationError(f"Área {index}: informe o nome.")
             if mod_name.casefold() in module_keys:
-                raise ValidationError(f"Módulo duplicado: {mod_name}.")
+                raise ValidationError(f"Área duplicada: {mod_name}.")
             module_keys.add(mod_name.casefold())
-            modulo = Modulo.objects.create(sistema=sistema, nome=mod_name, descricao=_text(mod_data.get("descricao")))
+            modulo = Modulo.objects.create(
+                sistema=sistema,
+                nome=mod_name,
+                descricao=_text(mod_data.get("descricao")),
+            )
             entity_keys = set()
-            for ent_data in mod_data.get("entidades") or []:
+            for ent_index, ent_data in enumerate(mod_data.get("entidades") or [], start=1):
                 ent_data = ent_data or {}
-                ent_name = _text(ent_data.get("nome")) or "Entidade"
+                ent_name = _text(ent_data.get("nome"))
+                if not ent_name:
+                    raise ValidationError(
+                        f"Informação {mod_name} / {ent_index}: informe o nome."
+                    )
                 key = ent_name.casefold()
                 crud = _bool(ent_data.get("gerar_crud_views"), True)
                 campos = ent_data.get("campos") or []
                 if key in entity_keys:
-                    raise ValidationError(f"Entidade duplicada: {mod_name} / {ent_name}.")
+                    raise ValidationError(
+                        f"Informação duplicada na área {mod_name}: {ent_name}."
+                    )
                 entity_keys.add(key)
-                if crud and not campos:
-                    raise ValidationError(f"A entidade '{ent_name}' está com CRUD ativo, mas não possui campos.")
-                entidade = Entidade.objects.create(modulo=modulo, nome=ent_name, nome_plural=_text(ent_data.get("nome_plural")) or f"{ent_name}s", descricao=_text(ent_data.get("descricao")), gerar_admin=_bool(ent_data.get("gerar_admin"), True), gerar_crud_views=crud, gerar_endpoints_api=_bool(ent_data.get("gerar_endpoints_api"), False))
+                entidade = Entidade.objects.create(
+                    modulo=modulo,
+                    nome=ent_name,
+                    nome_plural=_text(ent_data.get("nome_plural")) or f"{ent_name}s",
+                    descricao=_text(ent_data.get("descricao")),
+                    gerar_admin=_bool(ent_data.get("gerar_admin"), True),
+                    gerar_crud_views=crud,
+                    gerar_endpoints_api=_bool(ent_data.get("gerar_endpoints_api"), False),
+                )
                 entity_map[_entity_key(mod_name, ent_name)] = entidade
                 pending.append((mod_name, ent_name, campos))
 
@@ -129,7 +147,24 @@ def save_system_structure(*, user, payload, sistema_id=None):
                 max_length = _int_or_none(raw.get("max_length")) if tipo not in NO_MAX_LENGTH_TYPES else None
                 if tipo in STRING_TYPES:
                     max_length = max_length or 255
-                kwargs = {"entidade": entidade, "nome": fname, "tipo": tipo, "null": _bool(raw.get("null")), "blank": _bool(raw.get("blank")), "unique": _bool(raw.get("unique")), "default_value": _text(raw.get("default_value", raw.get("default"))), "max_length": max_length, "max_digits": _int_or_none(raw.get("max_digits")) if tipo in DECIMAL_TYPES else None, "decimal_places": _int_or_none(raw.get("decimal_places")) if tipo in DECIMAL_TYPES else None, "upload_to": _text(raw.get("upload_to")), "entidade_relacionada": rel, "on_delete": _text(raw.get("on_delete"), "models.CASCADE"), "related_name_str": _text(raw.get("related_name")), "verbose_name": _text(raw.get("verbose_name")), "help_text": _text(raw.get("help_text"))}
+                kwargs = {
+                    "entidade": entidade,
+                    "nome": fname,
+                    "tipo": tipo,
+                    "null": _bool(raw.get("null")),
+                    "blank": _bool(raw.get("blank")),
+                    "unique": _bool(raw.get("unique")),
+                    "default_value": _text(raw.get("default_value", raw.get("default"))),
+                    "max_length": max_length,
+                    "max_digits": _int_or_none(raw.get("max_digits")) if tipo in DECIMAL_TYPES else None,
+                    "decimal_places": _int_or_none(raw.get("decimal_places")) if tipo in DECIMAL_TYPES else None,
+                    "upload_to": _text(raw.get("upload_to")),
+                    "entidade_relacionada": rel,
+                    "on_delete": _text(raw.get("on_delete"), "models.CASCADE"),
+                    "related_name_str": _text(raw.get("related_name")),
+                    "verbose_name": _text(raw.get("verbose_name")),
+                    "help_text": _text(raw.get("help_text")),
+                }
                 if tipo == "DecimalField":
                     kwargs["max_digits"] = kwargs["max_digits"] or 10
                     kwargs["decimal_places"] = kwargs["decimal_places"] if kwargs["decimal_places"] is not None else 2

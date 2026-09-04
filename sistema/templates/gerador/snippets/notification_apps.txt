@@ -1,7 +1,218 @@
-from django.apps import AppConfig
+{% load notification_generation %}from contextvars import ContextVar
+from importlib import import_module
+
+from django.apps import AppConfig, apps
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+from django.db.models.signals import post_delete, post_save
+from django.urls import NoReverseMatch, reverse
+
+_current_actor = ContextVar("djangoforge_notification_actor", default=None)
+
+ENTITY_CONFIG = {
+{% for modulo in modulos %}{% for entidade in modulo.entidades_geracao %}{% notification_entity_rules modulo.entidades_geracao entidade.nome as notification_rules %}{% if notification_rules %}    "{{ modulo.app_name }}.{{ entidade.classe_nome }}": {
+        "entity_name": "{{ entidade.nome|escapejs }}",
+        "app_label": "{{ modulo.app_name }}",
+        "model_name": "{{ entidade.codigo_nome }}",
+        "list_url_name": "{% if entidade.gerar_crud_views %}{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list{% endif %}",
+        "detail_url_name": "{% if entidade.gerar_crud_views and entidade.crud_designer_ready and entidade.crud_actions.view %}{{ modulo.app_name }}:{{ entidade.codigo_nome }}_detail{% endif %}",
+        "rules": [
+{% for rule in notification_rules %}            {"id": "{{ rule.id|escapejs }}", "event": "{{ rule.event|escapejs }}", "transition": "{{ rule.transition|escapejs }}", "title": "{{ rule.title|escapejs }}", "message": "{{ rule.message|escapejs }}", "audience": "{{ rule.audience|escapejs }}", "role": "{{ rule.role|escapejs }}"},
+{% endfor %}        ],
+    },
+{% endif %}{% endfor %}{% endfor %}}
+
+ENTITY_BY_HISTORY = {
+{% for modulo in modulos %}{% for entidade in modulo.entidades_geracao %}{% notification_entity_rules modulo.entidades_geracao entidade.nome as notification_rules %}{% if notification_rules %}    ("{{ modulo.app_name }}", "{{ entidade.classe_nome }}"): "{{ modulo.app_name }}.{{ entidade.classe_nome }}",
+{% endif %}{% endfor %}{% endfor %}}
+
+
+def get_current_actor():
+    actor = _current_actor.get()
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return None
+    return actor
+
+
+class NotificationActorMiddleware:
+    """Expõe o usuário autenticado aos signals sem acoplar os CRUDs ao runtime."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        actor = request.user if getattr(request.user, "is_authenticated", False) else None
+        token = _current_actor.set(actor)
+        try:
+            return self.get_response(request)
+        finally:
+            _current_actor.reset(token)
+
+
+def _rbac_runtime(config):
+    try:
+        return import_module(f"{config['app_label']}.rbac")
+    except (ImportError, AttributeError):
+        return None
+
+
+def _recipient_ids(rule, config, actor):
+    User = get_user_model()
+    audience = rule.get("audience")
+
+    if audience == "actor":
+        if actor is None or not getattr(actor, "is_active", False):
+            return set()
+        return {actor.pk}
+
+    rbac = _rbac_runtime(config)
+    if audience == "role":
+        if rbac is None or not getattr(rbac, "RBAC_ENABLED", False):
+            return set()
+        role = getattr(rbac, "RBAC_ROLES", {}).get(rule.get("role"))
+        group = role.get("group") if isinstance(role, dict) else ""
+        if not group:
+            return set()
+        return set(
+            User.objects.filter(is_active=True, groups__name=group)
+            .values_list("pk", flat=True)
+            .distinct()
+        )
+
+    if audience != "users_with_view_permission":
+        return set()
+
+    users = User.objects.filter(is_active=True)
+    if rbac is not None and getattr(rbac, "RBAC_ENABLED", False):
+        policy = getattr(rbac, "RBAC_ENTITIES", {}).get(config["entity_name"]) or {}
+        roles = getattr(rbac, "RBAC_ROLES", {})
+        allowed_groups = []
+        for role_id, actions in (policy.get("roles") or {}).items():
+            if "view" not in actions and "list" not in actions:
+                continue
+            role = roles.get(role_id)
+            group = role.get("group") if isinstance(role, dict) else ""
+            if group:
+                allowed_groups.append(group)
+        query = Q(is_superuser=True)
+        if allowed_groups:
+            query |= Q(groups__name__in=allowed_groups)
+        return set(users.filter(query).values_list("pk", flat=True).distinct())
+
+    codename = f"view_{config['model_name']}"
+    query = (
+        Q(is_superuser=True)
+        | Q(user_permissions__content_type__app_label=config["app_label"], user_permissions__codename=codename)
+        | Q(groups__permissions__content_type__app_label=config["app_label"], groups__permissions__codename=codename)
+    )
+    return set(users.filter(query).values_list("pk", flat=True).distinct())
+
+
+def _object_url(config, instance=None, *, deleted=False):
+    url_name = config.get("list_url_name", "")
+    kwargs = None
+    if not deleted and instance is not None and config.get("detail_url_name"):
+        url_name = config["detail_url_name"]
+        kwargs = {"pk": instance.pk}
+    if not url_name:
+        return ""
+    try:
+        return reverse(url_name, kwargs=kwargs)
+    except NoReverseMatch:
+        return ""
+
+
+def dispatch_notifications(config_key, event, *, actor=None, instance=None, transition_id="", deleted=False):
+    config = ENTITY_CONFIG.get(config_key)
+    if not config:
+        return 0
+
+    from .models import Notification
+
+    actor = actor or get_current_actor()
+    url = _object_url(config, instance, deleted=deleted)
+    pending = []
+    for rule in config.get("rules", []):
+        if rule.get("event") != event:
+            continue
+        if event == "workflow_transition" and rule.get("transition") != transition_id:
+            continue
+        recipient_ids = _recipient_ids(rule, config, actor)
+        for recipient_id in recipient_ids:
+            pending.append(Notification(
+                recipient_id=recipient_id,
+                title=rule["title"],
+                message=rule["message"],
+                url=url,
+            ))
+    if pending:
+        Notification.objects.bulk_create(pending)
+    return len(pending)
+
+
+def _model_saved(sender, instance, created, **kwargs):
+    event = "created" if created else "updated"
+    dispatch_notifications(sender._meta.label, event, instance=instance)
+
+
+def _model_deleted(sender, instance, **kwargs):
+    dispatch_notifications(sender._meta.label, "deleted", instance=instance, deleted=True)
+
+
+def _workflow_history_saved(sender, instance, created, **kwargs):
+    if not created:
+        return
+    config_key = ENTITY_BY_HISTORY.get((sender._meta.app_label, instance.model_name))
+    if not config_key:
+        return
+    config = ENTITY_CONFIG.get(config_key) or {}
+    model = apps.get_model(config.get("app_label"), instance.model_name)
+    objeto = None
+    if model is not None:
+        objeto = model._default_manager.filter(pk=instance.object_id).first()
+    dispatch_notifications(
+        config_key,
+        "workflow_transition",
+        actor=instance.user,
+        instance=objeto,
+        transition_id=instance.transition_id,
+    )
 
 
 class DjangoForgeNotificationsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "djangoforge_notifications"
     verbose_name = "Notificações"
+
+    def ready(self):
+        history_apps = set()
+        for config_key, config in ENTITY_CONFIG.items():
+            model = apps.get_model(config_key)
+            if model is None:
+                continue
+            post_save.connect(
+                _model_saved,
+                sender=model,
+                weak=False,
+                dispatch_uid=f"djangoforge_notifications.save.{config_key}",
+            )
+            post_delete.connect(
+                _model_deleted,
+                sender=model,
+                weak=False,
+                dispatch_uid=f"djangoforge_notifications.delete.{config_key}",
+            )
+            history_apps.add(config["app_label"])
+
+        for app_label in history_apps:
+            try:
+                history_model = apps.get_model(app_label, "WorkflowTransitionHistory")
+            except LookupError:
+                history_model = None
+            if history_model is not None:
+                post_save.connect(
+                    _workflow_history_saved,
+                    sender=history_model,
+                    weak=False,
+                    dispatch_uid=f"djangoforge_notifications.workflow.{app_label}",
+                )

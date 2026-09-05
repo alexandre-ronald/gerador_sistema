@@ -288,11 +288,15 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
         .order_by("nome", "id")
     )
 
+    stored_cruds, stored_forms, stored_dashboard, stored_reports = _draft_contracts(sistema)
+
+    all_entities = []
     available_entities = []
     navigation = []
     for module in modules:
         items = []
         for entity in module.entidades.all():
+            all_entities.append(entity)
             if not entity.gerar_crud_views:
                 continue
             available_entities.append(entity)
@@ -308,32 +312,81 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
         if items:
             navigation.append({"id": module.pk, "name": module.nome, "label": module.nome, "items": items})
 
-    selected_entity = None
-    if selected_entity_id is not None:
-        try:
-            selected_id = int(selected_entity_id)
-        except (TypeError, ValueError):
-            selected_id = None
-        selected_entity = next((entity for entity in available_entities if entity.pk == selected_id), None)
-    if selected_entity is None and available_entities:
-        selected_entity = available_entities[0]
+    system_reports = []
+    for entity in all_entities:
+        system_reports.extend(_reports_projection(entity, stored_reports))
+    system_reports.sort(key=lambda item: (item["title"].lower(), item["entity"].lower(), item["id"]))
 
     valid_page_kinds = {"list", "form", "dashboard", "report"}
     page_kind = page_kind if page_kind in valid_page_kinds else "list"
 
-    if selected_entity is not None and page_kind != "dashboard":
+    try:
+        selected_id = int(selected_entity_id) if selected_entity_id is not None else None
+    except (TypeError, ValueError):
+        selected_id = None
+
+    selected_entity = None
+    report_page = None
+
+    if page_kind == "report":
+        candidates = system_reports
+        if selected_id is not None:
+            entity_candidates = [item for item in candidates if item["entity_id"] == selected_id]
+            if entity_candidates:
+                candidates = entity_candidates
+        if selected_report_id:
+            report_page = next((item for item in candidates if item["id"] == selected_report_id), None)
+            if report_page is None:
+                report_page = next((item for item in system_reports if item["id"] == selected_report_id), None)
+        if report_page is None and candidates:
+            report_page = candidates[0]
+        if report_page is not None:
+            selected_entity = next(
+                (entity for entity in all_entities if entity.pk == report_page["entity_id"]),
+                None,
+            )
+    else:
+        if selected_id is not None:
+            selected_entity = next(
+                (entity for entity in available_entities if entity.pk == selected_id),
+                None,
+            )
+        if selected_entity is None and available_entities:
+            selected_entity = available_entities[0]
+
+    if selected_entity is not None and page_kind not in {"dashboard", "report"}:
         for module in navigation:
             for item in module["items"]:
                 item["active"] = item["id"] == selected_entity.pk
 
-    stored_cruds, stored_forms, stored_dashboard, stored_reports = _draft_contracts(sistema)
     dashboard_page = _dashboard_projection(stored_dashboard)
-    list_page = _list_projection(selected_entity, stored_cruds) if selected_entity else None
-    form_page = _form_projection(selected_entity, stored_forms) if selected_entity and page_kind == "form" else None
-    reports = _reports_projection(selected_entity, stored_reports) if selected_entity else []
-    report_page = None
-    if page_kind == "report" and reports:
-        report_page = next((item for item in reports if item["id"] == selected_report_id), reports[0])
+    list_page = _list_projection(selected_entity, stored_cruds) if selected_entity and selected_entity.gerar_crud_views else None
+    form_page = (
+        _form_projection(selected_entity, stored_forms)
+        if selected_entity and selected_entity.gerar_crud_views and page_kind == "form"
+        else None
+    )
+    entity_reports = (
+        [item for item in system_reports if item["entity_id"] == selected_entity.pk]
+        if selected_entity
+        else []
+    )
+
+    report_navigation = [
+        {
+            "id": item["id"],
+            "entity_id": item["entity_id"],
+            "entity": item["entity"],
+            "label": item["title"],
+            "icon": "bi-file-earmark-bar-graph",
+            "active": bool(
+                report_page
+                and item["id"] == report_page["id"]
+                and item["entity_id"] == report_page["entity_id"]
+            ),
+        }
+        for item in system_reports
+    ]
 
     if page_kind == "dashboard":
         content_title = dashboard_page["title"]
@@ -374,6 +427,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
                 "icon": "bi-bar-chart-line",
                 "active": page_kind == "dashboard",
             },
+            "reports": report_navigation,
             "modules": navigation,
         },
         "content": {"title": content_title, "subtitle": content_subtitle},
@@ -381,6 +435,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
         "list_page": list_page,
         "form_page": form_page,
         "dashboard_page": dashboard_page if page_kind == "dashboard" else None,
-        "reports": reports,
+        "reports": system_reports,
+        "entity_reports": entity_reports,
         "report_page": report_page,
     }

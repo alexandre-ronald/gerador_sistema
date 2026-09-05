@@ -2,9 +2,11 @@
 
 from django.db.models import Prefetch
 
+from .builder_contracts import normalize_dashboard_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
 from .models import Entidade, Modulo
+from .report_designer_views import _normalize_report_collection
 
 
 FIELD_KIND_LABELS = {
@@ -23,6 +25,35 @@ FORM_WIDGET_LABELS = {
     "datetime": "Data e hora",
     "checkbox": "Sim/Não",
     "select": "Seleção",
+}
+
+DASHBOARD_WIDGET_LABELS = {
+    "metric": "Indicador",
+    "table": "Tabela",
+    "bar": "Barras",
+    "line": "Linha",
+    "area": "Área",
+    "pie": "Pizza",
+    "donut": "Rosca",
+}
+
+DASHBOARD_WIDGET_ICONS = {
+    "metric": "bi-123",
+    "table": "bi-table",
+    "bar": "bi-bar-chart",
+    "line": "bi-graph-up",
+    "area": "bi-graph-up-arrow",
+    "pie": "bi-pie-chart",
+    "donut": "bi-circle-half",
+}
+
+REPORT_FILTER_LABELS = {
+    "contains": "Contém",
+    "exact": "Igual a",
+    "startswith": "Começa com",
+    "gte": "A partir de",
+    "lte": "Até",
+    "range": "Intervalo",
 }
 
 
@@ -48,12 +79,16 @@ def _entity_metadata(entity):
 def _draft_contracts(sistema):
     versao = sistema.versoes.filter(numero=0).first()
     if not versao or not isinstance(versao.estrutura_json, dict):
-        return {}, {}
-    cruds = versao.estrutura_json.get("cruds")
-    forms = versao.estrutura_json.get("forms")
+        return {}, {}, normalize_dashboard_config(), {}
+    estrutura = versao.estrutura_json
+    cruds = estrutura.get("cruds")
+    forms = estrutura.get("forms")
+    reports = estrutura.get("reports")
     return (
         cruds if isinstance(cruds, dict) else {},
         forms if isinstance(forms, dict) else {},
+        normalize_dashboard_config(estrutura.get("dashboard")),
+        reports if isinstance(reports, dict) else {},
     )
 
 
@@ -83,11 +118,7 @@ def _demo_value(metadata, row_number):
 
 def _list_projection(entity, stored_cruds):
     metadata = _entity_metadata(entity)
-    config = normalize_crud_config(
-        entity.nome,
-        metadata,
-        stored_cruds.get(entity.nome),
-    )
+    config = normalize_crud_config(entity.nome, metadata, stored_cruds.get(entity.nome))
     metadata_by_name = {item["name"]: item for item in metadata["fields"]}
     columns = [item for item in config["columns"] if item["visible"]]
 
@@ -99,19 +130,11 @@ def _list_projection(entity, stored_cruds):
                 column["field"],
                 {"name": column["field"], "label": column["label"], "type": "CharField"},
             )
-            values.append(
-                {
-                    "field": column["field"],
-                    "value": _demo_value(field_metadata, row_number),
-                }
-            )
+            values.append({"field": column["field"], "value": _demo_value(field_metadata, row_number)})
         rows.append({"number": row_number, "values": values})
 
     filters = [
-        {
-            **item,
-            "kind_label": FIELD_KIND_LABELS.get(item["type"], "Filtro"),
-        }
+        {**item, "kind_label": FIELD_KIND_LABELS.get(item["type"], "Filtro")}
         for item in config["filters"]
     ]
 
@@ -133,11 +156,7 @@ def _list_projection(entity, stored_cruds):
 
 def _form_projection(entity, stored_forms):
     metadata = _entity_metadata(entity)
-    config = normalize_form_config(
-        entity.nome,
-        metadata,
-        stored_forms.get(entity.nome),
-    )
+    config = normalize_form_config(entity.nome, metadata, stored_forms.get(entity.nome))
     metadata_by_name = {item["name"]: item for item in metadata["fields"]}
     visible_fields = []
     for field in config["fields"]:
@@ -168,14 +187,7 @@ def _form_projection(entity, stored_forms):
 
     blocks = []
     if general_fields:
-        blocks.append(
-            {
-                "id": "__general__",
-                "title": "Informações gerais",
-                "description": "",
-                "fields": general_fields,
-            }
-        )
+        blocks.append({"id": "__general__", "title": "Informações gerais", "description": "", "fields": general_fields})
     blocks.extend(section for section in sections if section["fields"])
 
     return {
@@ -189,7 +201,82 @@ def _form_projection(entity, stored_forms):
     }
 
 
-def build_preview_shell(sistema, selected_entity_id=None, page_kind="list"):
+def _dashboard_projection(config):
+    widgets = []
+    for index, widget in enumerate(config["widgets"]):
+        demo_values = [28 + index * 7, 42 + index * 6, 35 + index * 5, 58 + index * 4, 49 + index * 3]
+        widgets.append(
+            {
+                **widget,
+                "kind_label": DASHBOARD_WIDGET_LABELS.get(widget["type"], "Widget"),
+                "icon": DASHBOARD_WIDGET_ICONS.get(widget["type"], "bi-grid"),
+                "demo_metric": str(120 + index * 37),
+                "demo_values": demo_values,
+                "appearance": widget["config"].get("appearance", {}),
+            }
+        )
+    return {
+        "enabled": bool(config["enabled"]),
+        "title": config["title"],
+        "layout": config["layout"],
+        "refresh_seconds": config["refresh_seconds"],
+        "widgets": widgets,
+        "widget_count": len(widgets),
+    }
+
+
+def _reports_projection(entity, stored_reports):
+    metadata = _entity_metadata(entity)
+    field_map = {field["name"]: field for field in metadata["fields"]}
+    normalized = _normalize_report_collection(
+        entity.nome,
+        metadata,
+        stored_reports.get(entity.nome),
+        strict=False,
+    )
+    reports = []
+    for report in normalized:
+        if not report["enabled"]:
+            continue
+        fields = [
+            {"name": name, "label": field_map.get(name, {}).get("label", name)}
+            for name in report["fields"]
+        ]
+        filters = [
+            {
+                **item,
+                "label": field_map.get(item["field"], {}).get("label", item["field"]),
+                "type_label": REPORT_FILTER_LABELS.get(item["type"], item["type"]),
+            }
+            for item in report["filters"]
+        ]
+        rows = []
+        for row_number in range(1, 5):
+            rows.append(
+                {
+                    "number": row_number,
+                    "values": [
+                        _demo_value(field_map.get(field["name"], field), row_number)
+                        for field in fields
+                    ],
+                }
+            )
+        reports.append(
+            {
+                **report,
+                "entity_id": entity.pk,
+                "entity": entity.nome,
+                "area": entity.modulo.nome,
+                "fields_meta": fields,
+                "filters_meta": filters,
+                "rows": rows,
+            }
+        )
+    reports.sort(key=lambda item: (item["title"].lower(), item["id"]))
+    return reports
+
+
+def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", selected_report_id=None):
     """Projeta shell e página selecionada sem persistir configuração própria."""
     entity_queryset = Entidade.objects.prefetch_related("campos").order_by("nome", "id")
     modules = list(
@@ -216,14 +303,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list"):
                 }
             )
         if items:
-            navigation.append(
-                {
-                    "id": module.pk,
-                    "name": module.nome,
-                    "label": module.nome,
-                    "items": items,
-                }
-            )
+            navigation.append({"id": module.pk, "name": module.nome, "label": module.nome, "items": items})
 
     selected_entity = None
     if selected_entity_id is not None:
@@ -231,28 +311,34 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list"):
             selected_id = int(selected_entity_id)
         except (TypeError, ValueError):
             selected_id = None
-        selected_entity = next(
-            (entity for entity in available_entities if entity.pk == selected_id),
-            None,
-        )
+        selected_entity = next((entity for entity in available_entities if entity.pk == selected_id), None)
     if selected_entity is None and available_entities:
         selected_entity = available_entities[0]
 
-    if selected_entity is not None:
+    valid_page_kinds = {"list", "form", "dashboard", "report"}
+    page_kind = page_kind if page_kind in valid_page_kinds else "list"
+
+    if selected_entity is not None and page_kind not in {"dashboard"}:
         for module in navigation:
             for item in module["items"]:
                 item["active"] = item["id"] == selected_entity.pk
 
-    page_kind = "form" if page_kind == "form" else "list"
-    stored_cruds, stored_forms = _draft_contracts(sistema)
+    stored_cruds, stored_forms, stored_dashboard, stored_reports = _draft_contracts(sistema)
+    dashboard_page = _dashboard_projection(stored_dashboard)
     list_page = _list_projection(selected_entity, stored_cruds) if selected_entity else None
-    form_page = (
-        _form_projection(selected_entity, stored_forms)
-        if selected_entity and page_kind == "form"
-        else None
-    )
+    form_page = _form_projection(selected_entity, stored_forms) if selected_entity and page_kind == "form" else None
+    reports = _reports_projection(selected_entity, stored_reports) if selected_entity else []
+    report_page = None
+    if page_kind == "report" and reports:
+        report_page = next((item for item in reports if item["id"] == selected_report_id), reports[0])
 
-    if form_page:
+    if page_kind == "dashboard":
+        content_title = dashboard_page["title"]
+        content_subtitle = "Painel projetado pelo Dashboard Designer com dados demonstrativos."
+    elif report_page:
+        content_title = report_page["title"]
+        content_subtitle = f"Relatório de {report_page['entity']} projetado pelo Report Designer."
+    elif form_page:
         content_title = form_page["title"]
         content_subtitle = f"Formulário de {form_page['entity']} projetado pelo Form Designer."
     elif list_page:
@@ -280,14 +366,18 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list"):
         },
         "navigation": {
             "home": {"label": "Início", "icon": "bi-house-door"},
-            "dashboard": {"label": "Dashboard", "icon": "bi-bar-chart-line"},
+            "dashboard": {
+                "label": "Dashboard",
+                "icon": "bi-bar-chart-line",
+                "active": page_kind == "dashboard",
+            },
             "modules": navigation,
         },
-        "content": {
-            "title": content_title,
-            "subtitle": content_subtitle,
-        },
+        "content": {"title": content_title, "subtitle": content_subtitle},
         "page_kind": page_kind,
         "list_page": list_page,
         "form_page": form_page,
+        "dashboard_page": dashboard_page if page_kind == "dashboard" else None,
+        "reports": reports,
+        "report_page": report_page,
     }

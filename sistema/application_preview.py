@@ -1,11 +1,14 @@
 """Application Preview Studio — projeções visuais somente-leitura."""
 
+from copy import deepcopy
+
 from django.db.models import Prefetch
 
 from .builder_contracts import normalize_dashboard_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
 from .models import Entidade, Modulo
+from .rbac import CRUD_ACTIONS, normalize_rbac_config
 from .report_designer_views import (
     _entity_metadata as _report_entity_metadata,
     _normalize_report_collection,
@@ -81,22 +84,81 @@ def _entity_metadata(entity):
     }
 
 
+def _rbac_entity_metadata(entities):
+    return [
+        {
+            "name": entity.nome,
+            "label": entity.nome,
+            "module": entity.modulo.nome,
+        }
+        for entity in entities
+    ]
+
+
 def _draft_contracts(sistema):
     versao = sistema.versoes.filter(numero=0).first()
     if not versao or not isinstance(versao.estrutura_json, dict):
-        return {}, {}, normalize_dashboard_config(), {}, {}
+        return {}, {}, normalize_dashboard_config(), {}, {}, {}
     estrutura = versao.estrutura_json
     cruds = estrutura.get("cruds")
     forms = estrutura.get("forms")
     reports = estrutura.get("reports")
     workflows = estrutura.get("workflows")
+    rbac = estrutura.get("rbac")
     return (
         cruds if isinstance(cruds, dict) else {},
         forms if isinstance(forms, dict) else {},
         normalize_dashboard_config(estrutura.get("dashboard")),
         reports if isinstance(reports, dict) else {},
         workflows if isinstance(workflows, dict) else {},
+        rbac if isinstance(rbac, dict) else {},
     )
+
+
+def _role_simulation(entities, workflows, raw_rbac, selected_role_id=None):
+    """Projeta RBAC para o Preview sem inferir associação usuário→papel."""
+    config = normalize_rbac_config(
+        _rbac_entity_metadata(entities),
+        workflows,
+        raw_rbac,
+        strict=False,
+    )
+    requested_id = str(selected_role_id or "").strip()
+    roles = [deepcopy(role) for role in config.get("roles", [])]
+    selected_role = next((role for role in roles if role["id"] == requested_id), None) if requested_id else None
+    return {
+        "enabled": bool(config.get("enabled")),
+        "roles": roles,
+        "selected_role": deepcopy(selected_role) if selected_role else None,
+        "selected_role_id": selected_role["id"] if selected_role else "",
+        "requested_role_id": requested_id,
+        "active": bool(config.get("enabled") and selected_role),
+        "invalid_role": bool(requested_id and selected_role is None),
+        "entities": deepcopy(config.get("entities") or {}),
+        "mode_label": selected_role["label"] if selected_role else "Visão completa de design",
+    }
+
+
+def _entity_role_permissions(role_simulation, entity_name):
+    """Retorna capacidades do papel selecionado; sem simulação mantém visão completa."""
+    if not role_simulation.get("active"):
+        return {
+            "filtered": False,
+            **{action: True for action in CRUD_ACTIONS},
+            "transitions": None,
+        }
+    role_id = role_simulation["selected_role_id"]
+    policy = (role_simulation.get("entities") or {}).get(entity_name) or {}
+    allowed = set(((policy.get("roles") or {}).get(role_id)) or [])
+    transition_roles = policy.get("transitions") or {}
+    return {
+        "filtered": True,
+        **{action: action in allowed for action in CRUD_ACTIONS},
+        "transitions": {
+            transition_id: role_id in (role_ids or [])
+            for transition_id, role_ids in transition_roles.items()
+        },
+    }
 
 
 def _demo_value(metadata, row_number):
@@ -114,7 +176,7 @@ def _demo_value(metadata, row_number):
     return f"{label} {row_number:02d}"
 
 
-def _list_projection(entity, stored_cruds):
+def _list_projection(entity, stored_cruds, role_permissions=None):
     metadata = _entity_metadata(entity)
     config = normalize_crud_config(entity.nome, metadata, stored_cruds.get(entity.nome))
     metadata_by_name = {item["name"]: item for item in metadata["fields"]}
@@ -127,10 +189,19 @@ def _list_projection(entity, stored_cruds):
             values.append({"field": column["field"], "value": _demo_value(field_metadata, row_number)})
         rows.append({"number": row_number, "values": values})
     filters = [{**item, "kind_label": FIELD_KIND_LABELS.get(item["type"], "Filtro")} for item in config["filters"]]
-    return {"entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"title": config["title"],"page_size": config["page_size"],"default_order": config["default_order"],"columns": columns,"search": config["search"],"filters": filters,"actions": config["actions"],"rows": rows,"demo_count": len(rows)}
+    permissions = role_permissions or {action: True for action in CRUD_ACTIONS}
+    actions = dict(config["actions"])
+    for action in ("view", "create", "update", "delete"):
+        if action in actions:
+            actions[action] = bool(actions[action] and permissions.get(action, True))
+    return {
+        "entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"title": config["title"],"page_size": config["page_size"],"default_order": config["default_order"],"columns": columns,"search": config["search"],"filters": filters,"actions": actions,"rows": rows,"demo_count": len(rows),
+        "role_permissions": permissions,
+        "role_access": bool(permissions.get("list", True)),
+    }
 
 
-def _form_projection(entity, stored_forms):
+def _form_projection(entity, stored_forms, role_permissions=None):
     metadata = _entity_metadata(entity)
     config = normalize_form_config(entity.nome, metadata, stored_forms.get(entity.nome))
     metadata_by_name = {item["name"]: item for item in metadata["fields"]}
@@ -149,7 +220,12 @@ def _form_projection(entity, stored_forms):
     blocks = []
     if general_fields: blocks.append({"id": "__general__", "title": "Informações gerais", "description": "", "fields": general_fields})
     blocks.extend(section for section in sections if section["fields"])
-    return {"entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"title": config["title"],"sections": blocks,"visible_fields": visible_fields,"visible_count": len(visible_fields)}
+    permissions = role_permissions or {action: True for action in CRUD_ACTIONS}
+    return {
+        "entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"title": config["title"],"sections": blocks,"visible_fields": visible_fields,"visible_count": len(visible_fields),
+        "role_permissions": permissions,
+        "role_access": bool(permissions.get("create", True) or permissions.get("update", True)),
+    }
 
 
 def _dashboard_projection(config):
@@ -177,56 +253,29 @@ def _reports_projection(entity, stored_reports):
     return reports
 
 
-def _workflow_projection(entity, stored_workflows, selected_state_id=None):
+def _workflow_projection(entity, stored_workflows, selected_state_id=None, role_permissions=None):
     metadata = _entity_metadata(entity)
-    config = normalize_workflow_config(
-        entity.nome,
-        metadata,
-        stored_workflows.get(entity.nome),
-        strict=False,
-    )
+    config = normalize_workflow_config(entity.nome, metadata, stored_workflows.get(entity.nome), strict=False)
     if not config.get("enabled"):
         return None
-
     state_map = {state["id"]: state for state in config["states"]}
     current_state_id = str(selected_state_id or "").strip()
     if current_state_id not in state_map:
         current_state_id = config["initial_state"]
     current_state = state_map[current_state_id]
-
-    states = [
-        {
-            **state,
-            "active": state["id"] == current_state_id,
-            "initial": state["id"] == config["initial_state"],
-        }
-        for state in config["states"]
-    ]
+    states = [{**state,"active": state["id"] == current_state_id,"initial": state["id"] == config["initial_state"]} for state in config["states"]]
+    transition_permissions = (role_permissions or {}).get("transitions")
     transitions = []
     for transition in config["transitions"]:
         if not transition["enabled"] or current_state_id not in transition["from"]:
             continue
+        if transition_permissions is not None and not transition_permissions.get(transition["id"], False):
+            continue
         destination = state_map[transition["to"]]
-        transitions.append(
-            {
-                **transition,
-                "to_label": destination["label"],
-                "from_labels": [state_map[state_id]["label"] for state_id in transition["from"]],
-            }
-        )
-
+        transitions.append({**transition,"to_label": destination["label"],"from_labels": [state_map[state_id]["label"] for state_id in transition["from"]]})
     return {
-        "enabled": True,
-        "entity_id": entity.pk,
-        "entity": entity.nome,
-        "area": entity.modulo.nome,
-        "state_field": config["state_field"],
-        "initial_state": config["initial_state"],
-        "current_state": current_state,
-        "states": states,
-        "transitions": transitions,
-        "all_transitions": config["transitions"],
-        "is_final": bool(current_state["final"]),
+        "enabled": True,"entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"state_field": config["state_field"],"initial_state": config["initial_state"],"current_state": current_state,"states": states,"transitions": transitions,"all_transitions": config["transitions"],"is_final": bool(current_state["final"]),
+        "role_permissions": role_permissions or {"filtered": False, "transitions": None},
     }
 
 
@@ -237,22 +286,12 @@ def _report_navigation_rows(reports, report_page=None):
         for label in report.get("navigation", {}).get("path", []) or [report["entity"]]:
             node = node["groups"].setdefault(label, {"groups": {}, "reports": []})
         node["reports"].append(report)
-
     rows = []
     def visit(node, depth):
         for label in sorted(node["groups"], key=str.casefold):
-            rows.append({"kind": "group", "label": label, "depth": depth})
-            visit(node["groups"][label], depth + 1)
+            rows.append({"kind": "group", "label": label, "depth": depth}); visit(node["groups"][label], depth + 1)
         for report in sorted(node["reports"], key=lambda item: ((item.get("navigation", {}).get("label") or item["title"]).casefold(), item["id"])):
-            rows.append({
-                "kind": "report",
-                "id": report["id"],
-                "entity_id": report["entity_id"],
-                "label": report.get("navigation", {}).get("label") or report["title"],
-                "depth": depth,
-                "icon": "bi-file-earmark-bar-graph",
-                "active": bool(report_page and report["id"] == report_page["id"] and report["entity_id"] == report_page["entity_id"]),
-            })
+            rows.append({"kind": "report","id": report["id"],"entity_id": report["entity_id"],"label": report.get("navigation", {}).get("label") or report["title"],"depth": depth,"icon": "bi-file-earmark-bar-graph","active": bool(report_page and report["id"] == report_page["id"] and report["entity_id"] == report_page["entity_id"])})
     visit(root, 0)
     return rows
 
@@ -263,11 +302,12 @@ def build_preview_shell(
     page_kind="list",
     selected_report_id=None,
     selected_workflow_state=None,
+    selected_role_id=None,
 ):
     """Projeta shell e página selecionada sem persistir configuração própria."""
     entity_queryset = Entidade.objects.prefetch_related("campos").order_by("nome", "id")
     modules = list(Modulo.objects.filter(sistema=sistema).prefetch_related(Prefetch("entidades", queryset=entity_queryset)).order_by("nome", "id"))
-    stored_cruds, stored_forms, stored_dashboard, stored_reports, stored_workflows = _draft_contracts(sistema)
+    stored_cruds, stored_forms, stored_dashboard, stored_reports, stored_workflows, stored_rbac = _draft_contracts(sistema)
     all_entities = []; available_entities = []; navigation = []
     for module in modules:
         items = []
@@ -277,6 +317,8 @@ def build_preview_shell(
             available_entities.append(entity)
             items.append({"id": entity.pk,"name": entity.nome,"label": entity.nome_plural or entity.nome,"icon": "bi-table","active": False})
         if items: navigation.append({"id": module.pk,"name": module.nome,"label": module.nome,"items": items})
+
+    role_simulation = _role_simulation(all_entities, stored_workflows, stored_rbac, selected_role_id)
     system_reports = []
     for entity in all_entities: system_reports.extend(_reports_projection(entity, stored_reports))
     system_reports.sort(key=lambda item: (item["title"].lower(), item["entity"].lower(), item["id"]))
@@ -295,44 +337,30 @@ def build_preview_shell(
         if report_page is None and candidates: report_page = candidates[0]
         if report_page is not None: selected_entity = next((entity for entity in all_entities if entity.pk == report_page["entity_id"]), None)
     elif page_kind == "workflow":
-        if selected_id is not None:
-            selected_entity = next((entity for entity in all_entities if entity.pk == selected_id), None)
+        if selected_id is not None: selected_entity = next((entity for entity in all_entities if entity.pk == selected_id), None)
         if selected_entity is None:
-            selected_entity = next(
-                (
-                    entity for entity in all_entities
-                    if _workflow_projection(entity, stored_workflows) is not None
-                ),
-                None,
-            )
+            selected_entity = next((entity for entity in all_entities if _workflow_projection(entity, stored_workflows) is not None), None)
     else:
         if selected_id is not None: selected_entity = next((entity for entity in available_entities if entity.pk == selected_id), None)
         if selected_entity is None and available_entities: selected_entity = available_entities[0]
+
+    selected_permissions = _entity_role_permissions(role_simulation, selected_entity.nome) if selected_entity else None
     if selected_entity is not None and page_kind not in {"dashboard", "report", "workflow"}:
         for module in navigation:
             for item in module["items"]: item["active"] = item["id"] == selected_entity.pk
     dashboard_page = _dashboard_projection(stored_dashboard)
-    list_page = _list_projection(selected_entity, stored_cruds) if selected_entity and selected_entity.gerar_crud_views else None
-    form_page = _form_projection(selected_entity, stored_forms) if selected_entity and selected_entity.gerar_crud_views and page_kind == "form" else None
-    workflow_page = (
-        _workflow_projection(selected_entity, stored_workflows, selected_workflow_state)
-        if selected_entity and page_kind == "workflow"
-        else None
-    )
+    list_page = _list_projection(selected_entity, stored_cruds, selected_permissions) if selected_entity and selected_entity.gerar_crud_views else None
+    form_page = _form_projection(selected_entity, stored_forms, selected_permissions) if selected_entity and selected_entity.gerar_crud_views and page_kind == "form" else None
+    workflow_page = _workflow_projection(selected_entity, stored_workflows, selected_workflow_state, selected_permissions) if selected_entity and page_kind == "workflow" else None
     entity_reports = [item for item in system_reports if item["entity_id"] == selected_entity.pk] if selected_entity else []
     report_navigation = _report_navigation_rows(system_reports, report_page)
     workflow_navigation = []
     for entity in all_entities:
         workflow = _workflow_projection(entity, stored_workflows)
         if workflow is not None:
-            workflow_navigation.append({
-                "entity_id": entity.pk,
-                "entity": entity.nome,
-                "label": entity.nome_plural or entity.nome,
-                "icon": "bi-diagram-3",
-                "active": bool(workflow_page and workflow_page["entity_id"] == entity.pk),
-            })
+            workflow_navigation.append({"entity_id": entity.pk,"entity": entity.nome,"label": entity.nome_plural or entity.nome,"icon": "bi-diagram-3","active": bool(workflow_page and workflow_page["entity_id"] == entity.pk)})
     workflow_navigation.sort(key=lambda item: (item["label"].casefold(), item["entity_id"]))
+
     if page_kind == "dashboard":
         content_title = dashboard_page["title"]; content_subtitle = "Painel projetado pelo Dashboard Designer com dados demonstrativos."
     elif report_page:
@@ -345,10 +373,13 @@ def build_preview_shell(
         content_title = list_page["title"]; content_subtitle = f"Consulta de {list_page['entity']} projetada pelo CRUD Designer."
     else:
         content_title = "Visão geral"; content_subtitle = "Prévia do shell da aplicação gerada."
+
     return {
         "application": {"id": sistema.pk,"name": sistema.interface_nome or sistema.nome,"source_name": sistema.nome},
         "interface": {"menu": sistema.tipo_menu,"mode": sistema.interface_modo,"density": sistema.interface_densidade,"primary": sistema.interface_cor_primaria,"accent": sistema.interface_cor_destaque,"breadcrumb": bool(sistema.interface_breadcrumb),"search": bool(sistema.interface_busca),"user_menu": bool(sistema.interface_menu_usuario)},
         "navigation": {"home": {"label": "Início", "icon": "bi-house-door"},"dashboard": {"label": "Dashboard","icon": "bi-bar-chart-line","active": page_kind == "dashboard"},"reports": report_navigation,"workflows": workflow_navigation,"modules": navigation},
         "content": {"title": content_title, "subtitle": content_subtitle},
         "page_kind": page_kind,"list_page": list_page,"form_page": form_page,"dashboard_page": dashboard_page if page_kind == "dashboard" else None,"reports": system_reports,"entity_reports": entity_reports,"report_page": report_page,"workflow_page": workflow_page,
+        "role_simulation": role_simulation,
+        "selected_role_permissions": selected_permissions,
     }

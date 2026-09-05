@@ -89,7 +89,6 @@ def _process_projection(entities, structure):
         })
 
     rbac = normalize_rbac_config(metadata, normalized_workflows, structure.get("rbac"), strict=False)
-    role_lookup = {role["id"]: role for role in rbac["roles"]}
     responsibilities = []
     for role in rbac["roles"]:
         responsibility = {"id": role["id"], "name": role["label"], "description": role["description"], "information": [], "process_actions": []}
@@ -108,6 +107,78 @@ def _process_projection(entities, structure):
     return processes, responsibilities, rbac
 
 
+def _coverage_item(key, label, configured, total, *, applicable=True):
+    if not applicable:
+        return {"key": key, "label": label, "configured": 0, "total": 0, "percent": None, "status": "optional", "applicable": False}
+    percent = 100 if total == 0 else round((configured / total) * 100)
+    status = "complete" if configured == total else ("missing" if configured == 0 else "partial")
+    return {"key": key, "label": label, "configured": configured, "total": total, "percent": percent, "status": status, "applicable": True}
+
+
+def _readiness_projection(modules, entities, structure, normalized_rbac):
+    entity_names = [entity.nome for entity in entities]
+    forms = structure.get("forms") if isinstance(structure.get("forms"), dict) else {}
+    cruds = structure.get("cruds") if isinstance(structure.get("cruds"), dict) else {}
+    access_enabled = bool(normalized_rbac.get("enabled"))
+    policies = normalized_rbac.get("entities") if isinstance(normalized_rbac.get("entities"), dict) else {}
+
+    with_fields = sum(1 for entity in entities if len(entity.campos.all()) > 0)
+    form_count = sum(1 for name in entity_names if isinstance(forms.get(name), dict))
+    crud_count = sum(1 for name in entity_names if isinstance(cruds.get(name), dict))
+    access_count = sum(1 for name in entity_names if name in policies)
+
+    coverage = [
+        _coverage_item("information", "Informações estruturadas", with_fields, len(entities)),
+        _coverage_item("forms", "Cadastros revisados", form_count, len(entities)),
+        _coverage_item("listings", "Consultas revisadas", crud_count, len(entities)),
+        _coverage_item("access", "Responsabilidades definidas", access_count, len(entities), applicable=access_enabled),
+    ]
+
+    issues = []
+    if not modules:
+        issues.append({"severity": "blocking", "area": "Estrutura", "message": "A aplicação ainda não possui áreas configuradas."})
+    elif not entities:
+        issues.append({"severity": "blocking", "area": "Estrutura", "message": "As áreas ainda não possuem informações configuradas."})
+
+    for entity in entities:
+        if not entity.campos.all():
+            issues.append({"severity": "blocking", "area": entity.nome, "message": "A informação ainda não possui características configuradas."})
+        if not isinstance(forms.get(entity.nome), dict):
+            issues.append({"severity": "attention", "area": entity.nome, "message": "O cadastro ainda não foi revisado no Form Designer."})
+        if not isinstance(cruds.get(entity.nome), dict):
+            issues.append({"severity": "attention", "area": entity.nome, "message": "A consulta ainda não foi revisada no CRUD Designer."})
+        if access_enabled and entity.nome not in policies:
+            issues.append({"severity": "attention", "area": entity.nome, "message": "O controle de acesso está ativo, mas esta informação ainda não possui responsabilidades definidas."})
+        for field in entity.campos.all():
+            if field.tipo in RELATIONAL_FIELD_TYPES and not field.entidade_relacionada_id:
+                issues.append({"severity": "blocking", "area": entity.nome, "message": f"A conexão '{_field_label(field)}' ainda não possui informação de destino."})
+            elif field.tipo in RELATIONAL_FIELD_TYPES and field.entidade_relacionada.modulo.sistema_id != entity.modulo.sistema_id:
+                issues.append({"severity": "blocking", "area": entity.nome, "message": f"A conexão '{_field_label(field)}' aponta para outra aplicação."})
+
+    if access_enabled and not normalized_rbac.get("roles"):
+        issues.append({"severity": "blocking", "area": "Papéis e responsabilidades", "message": "O controle de acesso está ativo, mas nenhum papel de negócio foi definido."})
+
+    issues.sort(key=lambda item: (0 if item["severity"] == "blocking" else 1, item["area"], item["message"]))
+    blocking = sum(1 for item in issues if item["severity"] == "blocking")
+    attention = sum(1 for item in issues if item["severity"] == "attention")
+    status = "blocked" if blocking else ("attention" if attention else "ready")
+    label = {"blocked": "Requer correções", "attention": "Requer revisão", "ready": "Pronta para avançar"}[status]
+
+    applicable = [item for item in coverage if item["applicable"]]
+    completed = sum(item["configured"] for item in applicable)
+    expected = sum(item["total"] for item in applicable)
+    percent = 100 if expected == 0 and entities else (round((completed / expected) * 100) if expected else 0)
+    return {
+        "status": status,
+        "label": label,
+        "coverage_percent": percent,
+        "blocking": blocking,
+        "attention": attention,
+        "coverage": coverage,
+        "issues": issues,
+    }
+
+
 def build_application_inventory(sistema):
     """Retorna Blueprint determinístico sem persistir estado próprio."""
     modules = list(Modulo.objects.filter(sistema=sistema).prefetch_related("entidades__campos__entidade_relacionada__modulo").order_by("nome", "id"))
@@ -117,12 +188,13 @@ def build_application_inventory(sistema):
     structure = _draft_structure(sistema)
     experiences, dashboard = _experience_projection(entities, structure)
     processes, responsibilities, normalized_rbac = _process_projection(entities, structure)
+    readiness = _readiness_projection(modules, entities, structure, normalized_rbac)
     reports = structure.get("reports") or {}; notifications = structure.get("notifications") or []; integrations = structure.get("integrations") or []
     return {
         "application": {"id": sistema.pk, "name": sistema.nome, "description": sistema.descricao or "", "type": sistema.get_tipo_sistema_display()},
         "inventory": {"modules": len(modules), "entities": len(entities), "fields": len(fields), "relationships": len(relationships), "workflows": len(processes), "roles": len(normalized_rbac["roles"]), "reports": _report_count(reports), "notifications": len(notifications) if isinstance(notifications, list) else 0, "integrations": len(integrations) if isinstance(integrations, list) else 0},
         "modules": [{"id": module.pk, "name": module.nome, "description": module.descricao or "", "entities": len(module.entidades.all()), "fields": sum(len(entity.campos.all()) for entity in module.entidades.all())} for module in modules],
         "information": information, "relationships": relationships, "experiences": experiences, "dashboard": dashboard,
-        "processes": processes, "responsibilities": responsibilities,
+        "processes": processes, "responsibilities": responsibilities, "readiness": readiness,
         "sources": {"structure": "database", "draft": bool(structure)},
     }

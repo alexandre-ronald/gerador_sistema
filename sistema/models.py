@@ -36,6 +36,7 @@ class Sistema(models.Model):
     interface_cor_destaque = models.CharField(max_length=7, default="#6f42c1", verbose_name="Cor de destaque")
     interface_breadcrumb = models.BooleanField(default=True, verbose_name="Exibir breadcrumb")
     interface_busca = models.BooleanField(default=True, verbose_name="Exibir busca")
+    interface_notificacoes = models.BooleanField(default=True, verbose_name="Exibir notificações no cabeçalho")
     interface_menu_usuario = models.BooleanField(default=True, verbose_name="Exibir menu do usuário")
     usar_custom_user = models.BooleanField(default=True, verbose_name="Gerar Custom User Model?")
     gerar_api_rest = models.BooleanField(default=False, verbose_name="Configurar Django Rest Framework?")
@@ -135,7 +136,7 @@ class Ambiente(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.sistema.nome} · {self.get_tipo_display()}"
+        return f"{self.sistema.nome} · {self.nome}"
 
 
 class PromocaoAmbiente(models.Model):

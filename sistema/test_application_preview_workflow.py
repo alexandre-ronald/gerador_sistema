@@ -142,9 +142,23 @@ class ApplicationPreviewWorkflowTests(TestCase):
         response = self.client.get(reverse("sistema:application_preview", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Fluxos")
+        self.assertContains(response, 'data-preview-workflow-count="1"')
         self.assertContains(response, 'data-preview-workflow-nav')
         self.assertContains(response, f'data-workflow-entity-id="{self.pedido.pk}"')
         self.assertContains(response, 'pagina=workflow')
+
+    def test_main_preview_keeps_persisted_enabled_workflow_discoverable(self):
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        estrutura = draft.estrutura_json
+        estrutura["workflows"]["Pedido"]["state_field"] = "campo_antigo"
+        draft.estrutura_json = estrutura
+        draft.save(update_fields=["estrutura_json"])
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("sistema:application_preview", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-preview-workflow-count="1"')
+        self.assertContains(response, f'data-workflow-entity-id="{self.pedido.pk}"')
 
     def test_workflow_view_renders_state_actions_and_gen_069_7_notice(self):
         self.client.force_login(self.user)

@@ -5,15 +5,26 @@
 .perm-panel{border:1px solid var(--bs-border-color);border-radius:16px;background:var(--bs-body-bg);box-shadow:0 5px 18px rgba(0,0,0,.04)}
 .role-card{border:1px solid var(--bs-border-color);border-radius:14px;padding:1rem;background:var(--bs-tertiary-bg)}
 .role-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border-radius:999px;background:var(--bs-primary-bg-subtle);color:var(--bs-primary-text-emphasis);font-size:.78rem;font-weight:700}
-.matrix-wrap{overflow:auto}.matrix-table th,.matrix-table td{vertical-align:middle;white-space:nowrap}.matrix-table th:first-child,.matrix-table td:first-child{position:sticky;left:0;background:var(--bs-body-bg);z-index:1}
 .perm-empty{border:1px dashed var(--bs-border-color);border-radius:12px;padding:1.25rem;text-align:center;color:var(--bs-secondary-color)}
 .intent-card{border-radius:14px;background:var(--bs-primary-bg-subtle);padding:1rem}
+.capability-entity{border:1px solid var(--bs-border-color);border-radius:14px;overflow:hidden;margin-bottom:1rem}
+.capability-entity:last-child{margin-bottom:0}
+.capability-head{padding:.85rem 1rem;background:var(--bs-tertiary-bg);border-bottom:1px solid var(--bs-border-color)}
+.capability-role{padding:1rem;border-bottom:1px solid var(--bs-border-color)}
+.capability-role:last-child{border-bottom:0}
+.capability-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.65rem}
+.capability-item{display:flex;gap:.7rem;align-items:flex-start;border:1px solid var(--bs-border-color);border-radius:12px;padding:.75rem;background:var(--bs-body-bg);cursor:pointer;transition:.15s ease}
+.capability-item:hover{border-color:var(--bs-primary)}
+.capability-item .form-check-input{margin-top:.25rem;flex:0 0 auto}
+.capability-title{font-weight:650;line-height:1.2}
+.capability-help{font-size:.78rem;color:var(--bs-secondary-color);margin-top:.2rem;line-height:1.25}
+.matrix-wrap{overflow:auto}.matrix-table th,.matrix-table td{vertical-align:middle;white-space:nowrap}.matrix-table th:first-child,.matrix-table td:first-child{position:sticky;left:0;background:var(--bs-body-bg);z-index:1}
 </style>
 {% endblock %}
 {% block content %}
 <div class="container-fluid p-0">
   {% url 'sistema:workspace' sistema.id as workspace_url %}
-  {% include 'sistema/_page_header.html' with eyebrow='Design · GEN-067' title='Permission Designer' subtitle='Defina quem pode fazer o quê no sistema usando papéis e ações do negócio.' back_url=workspace_url back_label='Voltar ao Workspace' %}
+  {% include 'sistema/_page_header.html' with eyebrow='Design · GEN-067' title='Permission Designer' subtitle='Defina quem pode fazer o quê no sistema usando papéis e capacidades do negócio.' back_url=workspace_url back_label='Voltar ao Workspace' %}
 
   <div id="permMessage"></div>
 
@@ -45,11 +56,11 @@
 
   <section class="perm-panel p-3 mb-3">
     <div class="intent-card mb-3">
-      <div class="fw-semibold">Quem pode fazer o quê?</div>
-      <div class="small text-secondary">Marque as ações disponíveis para cada papel. Os detalhes técnicos de autorização são gerados automaticamente.</div>
+      <div class="fw-semibold">O que cada papel pode fazer?</div>
+      <div class="small text-secondary">Escolha capacidades reconhecíveis no dia a dia. O DjangoForge converte essas escolhas nas permissões internas necessárias.</div>
     </div>
-    <h5 class="fw-bold mb-1">Acesso às informações</h5>
-    <div class="small text-secondary mb-3">Defina o que cada papel pode consultar, cadastrar, alterar ou excluir.</div>
+    <h5 class="fw-bold mb-1">Capacidades sobre as informações</h5>
+    <div class="small text-secondary mb-3">Configure cada informação do sistema sem precisar conhecer ações técnicas de cadastro.</div>
     <div id="crudMatrix"></div>
   </section>
 
@@ -64,55 +75,27 @@ const actions={{ crud_actions_json|safe }};
 const entities={{ entities_json|safe }};
 const workflows={{ workflows_json|safe }};
 const rbac={{ rbac_json|safe }};
-const actionLabels={list:'Consultar',view:'Visualizar detalhes',create:'Cadastrar',update:'Alterar',delete:'Excluir'};
+const capabilities={
+  list:{label:'Consultar registros',help:'Encontrar e acompanhar os registros disponíveis.'},
+  view:{label:'Ver detalhes',help:'Abrir um registro e visualizar suas informações.'},
+  create:{label:'Cadastrar novo',help:'Criar novos registros desta informação.'},
+  update:{label:'Alterar registros',help:'Modificar informações já cadastradas.'},
+  delete:{label:'Excluir registros',help:'Remover registros existentes do sistema.'}
+};
 
 function esc(v){const d=document.createElement('div');d.textContent=v??'';return d.innerHTML;}
 function slug(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'papel';}
+function jsq(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function showMessage(text,type='success'){const el=document.getElementById('permMessage');el.className=`alert alert-${type}`;el.textContent=text;setTimeout(()=>{el.className='';el.textContent='';},4500);}
 function roleIds(){return rbac.roles.map(r=>r.id);}
 function ensurePolicy(entity){if(!rbac.entities[entity])rbac.entities[entity]={roles:{},transitions:{}};return rbac.entities[entity];}
 function nextRoleId(){let n=rbac.roles.length+1,id=`papel_${n}`;while(rbac.roles.some(r=>r.id===id)){n++;id=`papel_${n}`;}return id;}
 
-function addRole(){
-  const id=nextRoleId();
-  const n=rbac.roles.length+1;
-  rbac.roles.push({id,label:`Papel ${n}`,description:'',group:`Papel ${n}`,order:rbac.roles.length});
-  renderAll();
-}
-
-function updateRoleLabel(i,value){
-  const role=rbac.roles[i];
-  const oldLabel=role.label||'';
-  role.label=value;
-  if(!role.group || role.group===oldLabel) role.group=value;
-  renderMatrices();
-}
-
+function addRole(){const id=nextRoleId();const n=rbac.roles.length+1;rbac.roles.push({id,label:`Papel ${n}`,description:'',group:`Papel ${n}`,order:rbac.roles.length});renderAll();}
+function updateRoleLabel(i,value){const role=rbac.roles[i];const oldLabel=role.label||'';role.label=value;if(!role.group || role.group===oldLabel) role.group=value;renderAccess();renderWorkflow();}
 function updateRoleDescription(i,value){rbac.roles[i].description=value;}
-
-function removeRole(i){
-  const id=rbac.roles[i].id;
-  rbac.roles.splice(i,1);
-  Object.values(rbac.entities).forEach(p=>{
-    delete (p.roles||{})[id];
-    Object.keys(p.transitions||{}).forEach(t=>p.transitions[t]=(p.transitions[t]||[]).filter(x=>x!==id));
-  });
-  normalizeOrders();renderAll();
-}
-
-function duplicateRole(i){
-  const src=JSON.parse(JSON.stringify(rbac.roles[i]));
-  let base=slug(src.id+'_copia'),id=base,n=2;
-  while(rbac.roles.some(r=>r.id===id)){id=`${base}_${n++}`;}
-  src.id=id;
-  src.label+=' (cópia)';
-  src.description=src.description||'';
-  src.group=src.label;
-  src.order=rbac.roles.length;
-  rbac.roles.push(src);
-  renderAll();
-}
-
+function removeRole(i){const id=rbac.roles[i].id;rbac.roles.splice(i,1);Object.values(rbac.entities).forEach(p=>{delete (p.roles||{})[id];Object.keys(p.transitions||{}).forEach(t=>p.transitions[t]=(p.transitions[t]||[]).filter(x=>x!==id));});normalizeOrders();renderAll();}
+function duplicateRole(i){const src=JSON.parse(JSON.stringify(rbac.roles[i]));let base=slug(src.id+'_copia'),id=base,n=2;while(rbac.roles.some(r=>r.id===id)){id=`${base}_${n++}`;}src.id=id;src.label+=' (cópia)';src.description=src.description||'';src.group=src.label;src.order=rbac.roles.length;rbac.roles.push(src);renderAll();}
 function normalizeOrders(){rbac.roles.forEach((r,i)=>r.order=i);}
 function toggleCrud(entity,role,action,checked){const p=ensurePolicy(entity);if(!p.roles[role])p.roles[role]=[];const s=new Set(p.roles[role]);checked?s.add(action):s.delete(action);p.roles[role]=actions.filter(a=>s.has(a));}
 function toggleTransition(entity,transition,role,checked){const p=ensurePolicy(entity);if(!p.transitions[transition])p.transitions[transition]=[];const s=new Set(p.transitions[transition]);checked?s.add(role):s.delete(role);p.transitions[transition]=roleIds().filter(r=>s.has(r));}
@@ -120,60 +103,33 @@ function toggleTransition(entity,transition,role,checked){const p=ensurePolicy(e
 function renderRoles(){
   const root=document.getElementById('rolesRoot');
   if(!rbac.roles.length){root.innerHTML='<div class="col-12"><div class="perm-empty">Nenhum papel configurado. Crie um papel como Gestor, Operador, Fiscal ou outro nome usado pela sua organização.</div></div>';return;}
-  root.innerHTML=rbac.roles.map((r,i)=>`
-    <div class="col-12 col-xl-6">
-      <div class="role-card h-100">
-        <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
-          <span class="role-badge"><i class="bi bi-person-badge"></i>Papel ${i+1}</span>
-          <div>
-            <button class="btn btn-sm btn-outline-secondary" type="button" title="Duplicar papel" onclick="duplicateRole(${i})"><i class="bi bi-copy"></i></button>
-            <button class="btn btn-sm btn-outline-danger" type="button" title="Remover papel" onclick="removeRole(${i})"><i class="bi bi-trash"></i></button>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Nome do papel</label>
-          <input class="form-control" value="${esc(r.label)}" placeholder="Ex.: Gestor de Contratos" oninput="updateRoleLabel(${i},this.value)">
-          <div class="form-text">Use o nome que as pessoas reconhecem no dia a dia.</div>
-        </div>
-        <div>
-          <label class="form-label fw-semibold">O que este papel representa?</label>
-          <textarea class="form-control" rows="2" placeholder="Ex.: Responsável por acompanhar e aprovar contratos." oninput="updateRoleDescription(${i},this.value)">${esc(r.description||'')}</textarea>
-        </div>
-      </div>
-    </div>`).join('');
+  root.innerHTML=rbac.roles.map((r,i)=>`<div class="col-12 col-xl-6"><div class="role-card h-100"><div class="d-flex justify-content-between align-items-start gap-2 mb-3"><span class="role-badge"><i class="bi bi-person-badge"></i>Papel ${i+1}</span><div><button class="btn btn-sm btn-outline-secondary" type="button" title="Duplicar papel" onclick="duplicateRole(${i})"><i class="bi bi-copy"></i></button> <button class="btn btn-sm btn-outline-danger" type="button" title="Remover papel" onclick="removeRole(${i})"><i class="bi bi-trash"></i></button></div></div><div class="mb-3"><label class="form-label fw-semibold">Nome do papel</label><input class="form-control" value="${esc(r.label)}" placeholder="Ex.: Gestor de Contratos" oninput="updateRoleLabel(${i},this.value)"><div class="form-text">Use o nome que as pessoas reconhecem no dia a dia.</div></div><div><label class="form-label fw-semibold">O que este papel representa?</label><textarea class="form-control" rows="2" placeholder="Ex.: Responsável por acompanhar e aprovar contratos." oninput="updateRoleDescription(${i},this.value)">${esc(r.description||'')}</textarea></div></div></div>`).join('');
 }
 
-function renderCrud(){
+function renderAccess(){
   const root=document.getElementById('crudMatrix');
   if(!entities.length||!rbac.roles.length){root.innerHTML='<div class="perm-empty">Adicione informações ao sistema e crie ao menos um papel para configurar o acesso.</div>';return;}
-  let h='<div class="matrix-wrap"><table class="table table-sm matrix-table"><thead><tr><th>Informação / Ação</th>'+rbac.roles.map(r=>`<th class="text-center">${esc(r.label)}</th>`).join('')+'</tr></thead><tbody>';
-  entities.forEach(e=>{actions.forEach((a,idx)=>{h+='<tr><td>'+(idx===0?`<strong>${esc(e.label)}</strong><div class="small text-secondary">${esc(e.module)}</div>`:'')+`<span class="ms-${idx===0?'0':'3'}">${esc(actionLabels[a])}</span></td>`;rbac.roles.forEach(r=>{const checked=((rbac.entities[e.name]?.roles||{})[r.id]||[]).includes(a);h+=`<td class="text-center"><input class="form-check-input" type="checkbox" ${checked?'checked':''} onchange="toggleCrud('${esc(e.name)}','${esc(r.id)}','${a}',this.checked)"></td>`;});h+='</tr>';});});
-  h+='</tbody></table></div>';root.innerHTML=h;
+  root.innerHTML=entities.map(e=>{
+    const roles=rbac.roles.map(r=>{
+      const granted=new Set(((rbac.entities[e.name]?.roles||{})[r.id]||[]));
+      const items=actions.map(a=>{const c=capabilities[a];const checked=granted.has(a);return `<label class="capability-item"><input class="form-check-input" type="checkbox" ${checked?'checked':''} onchange="toggleCrud('${jsq(e.name)}','${jsq(r.id)}','${a}',this.checked)"><span><span class="capability-title">${esc(c.label)}</span><span class="capability-help d-block">${esc(c.help)}</span></span></label>`;}).join('');
+      return `<div class="capability-role"><div class="d-flex align-items-center gap-2 mb-3"><i class="bi bi-person-check"></i><strong>${esc(r.label)}</strong></div><div class="capability-grid">${items}</div></div>`;
+    }).join('');
+    return `<div class="capability-entity"><div class="capability-head"><div class="fw-bold">${esc(e.label)}</div><div class="small text-secondary">${esc(e.module)}</div></div>${roles}</div>`;
+  }).join('');
 }
 
 function renderWorkflow(){
-  const root=document.getElementById('workflowMatrix');
-  const rows=[];entities.forEach(e=>(workflows[e.name]||[]).forEach(t=>rows.push({entity:e,transition:t})));
+  const root=document.getElementById('workflowMatrix');const rows=[];entities.forEach(e=>(workflows[e.name]||[]).forEach(t=>rows.push({entity:e,transition:t})));
   if(!rows.length||!rbac.roles.length){root.innerHTML='<div class="perm-empty">Nenhuma ação de processo disponível ou nenhum papel configurado.</div>';return;}
   let h='<div class="matrix-wrap"><table class="table table-sm matrix-table"><thead><tr><th>Informação / Ação do processo</th>'+rbac.roles.map(r=>`<th class="text-center">${esc(r.label)}</th>`).join('')+'</tr></thead><tbody>';
-  rows.forEach(row=>{h+=`<tr><td><strong>${esc(row.entity.label)}</strong><div class="small text-secondary">${esc(row.transition.label)}</div></td>`;rbac.roles.forEach(r=>{const checked=((rbac.entities[row.entity.name]?.transitions||{})[row.transition.id]||[]).includes(r.id);h+=`<td class="text-center"><input class="form-check-input" type="checkbox" ${checked?'checked':''} onchange="toggleTransition('${esc(row.entity.name)}','${esc(row.transition.id)}','${esc(r.id)}',this.checked)"></td>`;});h+='</tr>';});
-  h+='</tbody></table></div>';root.innerHTML=h;
+  rows.forEach(row=>{h+=`<tr><td><strong>${esc(row.entity.label)}</strong><div class="small text-secondary">${esc(row.transition.label)}</div></td>`;rbac.roles.forEach(r=>{const checked=((rbac.entities[row.entity.name]?.transitions||{})[row.transition.id]||[]).includes(r.id);h+=`<td class="text-center"><input class="form-check-input" type="checkbox" ${checked?'checked':''} onchange="toggleTransition('${jsq(row.entity.name)}','${jsq(row.transition.id)}','${jsq(r.id)}',this.checked)"></td>`;});h+='</tr>';});h+='</tbody></table></div>';root.innerHTML=h;
 }
 
-function renderMatrices(){renderCrud();renderWorkflow();}
-function renderAll(){document.getElementById('rbacEnabled').checked=!!rbac.enabled;renderRoles();renderMatrices();}
+function renderAll(){document.getElementById('rbacEnabled').checked=!!rbac.enabled;renderRoles();renderAccess();renderWorkflow();}
 document.getElementById('rbacEnabled').onchange=e=>rbac.enabled=e.target.checked;
 document.getElementById('addRole').onclick=addRole;
-document.getElementById('saveBtn').onclick=async()=>{
-  normalizeOrders();
-  try{
-    const res=await fetch("{% url 'sistema:salvar_rbac' sistema.pk %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({rbac})});
-    const data=await res.json();
-    if(!res.ok)throw new Error(data.mensagem||'Falha ao salvar permissões.');
-    Object.keys(rbac).forEach(k=>delete rbac[k]);Object.assign(rbac,data.rbac);
-    showMessage('Permissões salvas com sucesso.');renderAll();
-  }catch(e){showMessage(e.message,'danger');}
-};
+document.getElementById('saveBtn').onclick=async()=>{normalizeOrders();try{const res=await fetch("{% url 'sistema:salvar_rbac' sistema.pk %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({rbac})});const data=await res.json();if(!res.ok)throw new Error(data.mensagem||'Falha ao salvar permissões.');Object.keys(rbac).forEach(k=>delete rbac[k]);Object.assign(rbac,data.rbac);showMessage('Permissões salvas com sucesso.');renderAll();}catch(e){showMessage(e.message,'danger');}};
 renderAll();
 </script>
 {% endblock %}

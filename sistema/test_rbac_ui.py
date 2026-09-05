@@ -13,7 +13,7 @@ class PermissionDesignerUITests(TestCase):
     def payload(self):return {"rbac":{"enabled":True,"roles":[{"id":"operador","label":"Operador","description":"Registra e consulta pedidos.","group":"Operadores","order":0},{"id":"gestor","label":"Gestor","description":"Aprova e acompanha pedidos.","group":"Gestores","order":1}],"entities":{"Pedido":{"roles":{"operador":["list","view","create"],"gestor":["list","view","create","update","delete"]},"transitions":{"aprovar":["gestor"]}}}}}
     def test_designer_uses_business_language_for_roles_capabilities_and_process_actions(self):
         response=self.client.get(self.url);self.assertEqual(response.status_code,200)
-        for text in ["Design · GEN-067","Permission Designer","Controlar acesso por papéis","Papéis do sistema","Nome do papel","O que este papel representa?","Visão por papel","Visão por funcionalidade","Escolha uma informação para descobrir quem pode executar cada capacidade e ação do processo.","O que cada papel pode fazer?","Capacidades sobre as informações","Consultar registros","Ver detalhes","Cadastrar novo","Alterar registros","Excluir registros","O que este papel pode fazer no processo?","Ações dos processos","Ações disponíveis neste processo","Pedido","Aprovar"]:self.assertContains(response,text)
+        for text in ["Design · GEN-067","Permission Designer","Controlar acesso por papéis","Papéis do sistema","Nome do papel","O que este papel representa?","Visão por papel","Visão por funcionalidade","Escolha uma informação para descobrir quem pode executar cada capacidade e ação do processo.","Entenda uma autorização","Escolha um papel, uma informação e uma capacidade ou ação para ver por que o acesso é permitido ou não.","Capacidade ou ação","O que cada papel pode fazer?","Capacidades sobre as informações","Consultar registros","Ver detalhes","Cadastrar novo","Alterar registros","Excluir registros","O que este papel pode fazer no processo?","Ações dos processos","Ações disponíveis neste processo","Pedido","Aprovar"]:self.assertContains(response,text)
         for technical_text in ["RBAC ativo","Django Group","Matriz de permissões CRUD","Permissões de Workflow","Informação / Ação do processo"]:self.assertNotContains(response,technical_text)
         self.assertNotContains(response,"alert(")
     def test_role_view_is_derived_from_same_rbac_contract(self):
@@ -24,6 +24,10 @@ class PermissionDesignerUITests(TestCase):
         content=self.client.get(self.url).content.decode()
         for text in ["let selectedFeatureName=null","function renderFeatureOverview()","function renderFeatureSummary()","function rolesForCapability(entityName,action)","function rolesForTransition(entityName,transitionId)","Quem pode ${esc((c?.label||a).toLowerCase())}?","Quem pode ${esc(t.label.toLowerCase())}?"]:self.assertIn(text,content)
         self.assertNotIn("featurePermissionState",content)
+    def test_access_explanation_is_derived_from_same_rbac_contract(self):
+        content=self.client.get(self.url).content.decode()
+        for text in ["function explainAccess(roleId,entityName,selection)","function renderAccessExplanation()","rbac.entities[entityName]?.roles","rbac.entities[entityName]?.transitions","kindLabel:'capacidade'","kindLabel:'ação do processo'","Por que este acesso está ${result.allowed?'permitido':'bloqueado'}?"]:self.assertIn(text,content)
+        for forbidden in ["accessExplanationState","explanationPermissions","explanationPolicy"]:self.assertNotIn(forbidden,content)
     def test_capabilities_keep_stable_crud_contract(self):
         content=self.client.get(self.url).content.decode()
         for text in ["list:{label:'Consultar registros'","view:{label:'Ver detalhes'","create:{label:'Cadastrar novo'","update:{label:'Alterar registros'","delete:{label:'Excluir registros'","toggleCrud"]:self.assertIn(text,content)

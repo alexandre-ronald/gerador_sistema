@@ -261,7 +261,7 @@ class ApplicationPreviewShellTests(TestCase):
         self.assertContains(response, "registros demonstrativos")
         self.assertContains(response, "Número 01")
         self.assertContains(response, "Objeto 01")
-        self.assertContains(response, f"?entidade={self.contrato.pk}&amp;pagina=form")
+        self.assertContains(response, f"?entidade={self.contrato.pk}&pagina=form")
         self.assertNotContains(response, "<th>Valor")
         self.assertNotContains(response, 'title="Excluir"')
 

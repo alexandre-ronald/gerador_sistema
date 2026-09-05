@@ -26,10 +26,12 @@
 
   const lateral=document.querySelector('.preview-sidebar .preview-nav');
   if(lateral){
+    const dashboard=lateral.querySelector('a[href^="?pagina=dashboard"]');
+    const fragment=document.createDocumentFragment();
     const section=document.createElement('div');
     section.className='preview-nav-label';
     section.textContent='Fluxos';
-    lateral.appendChild(section);
+    fragment.appendChild(section);
     items.forEach(item=>{
       const link=document.createElement('a');
       link.href=hrefFor(item);
@@ -37,12 +39,21 @@
       link.dataset.previewWorkflowLink=item.entityId;
       link.innerHTML=`<i class="bi ${item.icon}"></i><span></span>`;
       link.querySelector('span').textContent=item.label;
-      lateral.appendChild(link);
+      fragment.appendChild(link);
     });
+    if(dashboard)dashboard.insertAdjacentElement('afterend',section);
+    if(section.parentNode){
+      let cursor=section;
+      [...fragment.childNodes].forEach(node=>{cursor.insertAdjacentElement('afterend',node);cursor=node;});
+    }else{
+      lateral.prepend(fragment);
+    }
   }
 
   const top=document.querySelector('.preview-navbar-links');
   if(top){
+    const dashboard=top.querySelector('a[href^="?pagina=dashboard"]');
+    let cursor=dashboard;
     items.forEach(item=>{
       const link=document.createElement('a');
       link.href=hrefFor(item);
@@ -51,7 +62,7 @@
       link.innerHTML=`<i class="bi ${item.icon} me-1"></i><span></span>`;
       link.querySelector('span').textContent=item.label;
       link.title=`Fluxo · ${item.label}`;
-      top.appendChild(link);
+      if(cursor){cursor.insertAdjacentElement('afterend',link);cursor=link}else{top.prepend(link)}
     });
   }
 })();

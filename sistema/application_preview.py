@@ -6,7 +6,10 @@ from .builder_contracts import normalize_dashboard_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
 from .models import Entidade, Modulo
-from .report_designer_views import _normalize_report_collection
+from .report_designer_views import (
+    _entity_metadata as _report_entity_metadata,
+    _normalize_report_collection,
+)
 
 
 FIELD_KIND_LABELS = {
@@ -226,7 +229,7 @@ def _dashboard_projection(config):
 
 
 def _reports_projection(entity, stored_reports):
-    metadata = _entity_metadata(entity)
+    metadata = _report_entity_metadata(entity)
     field_map = {field["name"]: field for field in metadata["fields"]}
     normalized = _normalize_report_collection(
         entity.nome,
@@ -318,7 +321,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
     valid_page_kinds = {"list", "form", "dashboard", "report"}
     page_kind = page_kind if page_kind in valid_page_kinds else "list"
 
-    if selected_entity is not None and page_kind not in {"dashboard"}:
+    if selected_entity is not None and page_kind != "dashboard":
         for module in navigation:
             for item in module["items"]:
                 item["active"] = item["id"] == selected_entity.pk

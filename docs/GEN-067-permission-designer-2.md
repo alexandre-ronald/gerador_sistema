@@ -19,13 +19,13 @@ O contrato técnico continua explícito, determinístico, validado e fail-closed
 
 ## Roadmap
 
-- GEN-067.1 — Papéis orientados ao negócio
-- GEN-067.2 — Capacidades em vez de CRUD técnico
-- GEN-067.3 — Ações de Workflow
-- GEN-067.4 — Visão por papel
-- GEN-067.5 — Visão por funcionalidade
-- GEN-067.6 — Explicação de acesso
-- GEN-067.7 — Testes, regressão e freeze
+- GEN-067.1 — Papéis orientados ao negócio ✅
+- GEN-067.2 — Capacidades em vez de CRUD técnico ✅
+- GEN-067.3 — Ações de Workflow ✅
+- GEN-067.4 — Visão por papel ✅
+- GEN-067.5 — Visão por funcionalidade ✅
+- GEN-067.6 — Explicação de acesso ✅
+- GEN-067.7 — Testes, regressão e freeze ✅
 
 ## GEN-067.1 — Papéis orientados ao negócio
 
@@ -68,11 +68,7 @@ A visão usa exatamente o mesmo contrato RBAC. `selectedFeatureName` é transit�
 
 ## GEN-067.6 — Explicação de acesso
 
-### Objetivo
-
-Permitir que o usuário responda, em linguagem de negócio, **por que uma autorização está permitida ou bloqueada**.
-
-A interface oferece três escolhas:
+Permite responder, em linguagem de negócio, **por que uma autorização está permitida ou bloqueada**.
 
 ```text
 Papel + Informação + Capacidade/Ação
@@ -80,68 +76,71 @@ Papel + Informação + Capacidade/Ação
          Explicação de acesso
 ```
 
-Exemplo de capacidade:
+`explainAccess()` consulta diretamente `rbac.roles`, `rbac.entities[entidade].roles[papel]`, `rbac.entities[entidade].transitions[ação]` e `workflows[entidade]`. Não existe política paralela, cache de autorização ou nova persistência.
+
+A GEN-067.6 explica o contrato por papel. Ela não inventa vínculo entre usuários reais e papéis porque esse vínculo não pertence ao contrato atual do Designer.
+
+## GEN-067.7 — Regressão e freeze
+
+### Gate executado
+
+A conclusão do ciclo foi condicionada ao gate completo:
 
 ```text
-Operador
-  ↓
-Cadastrar novo
-  ↓
-Pedido
-
-Permitido: Operador possui a capacidade “Cadastrar novo” sobre Pedido.
+python manage.py check
+python manage.py test sistema.test_rbac_ui
+python manage.py test sistema.test_rbac
+python manage.py test
 ```
 
-Exemplo de ação do processo:
+O gate foi validado pelo usuário em 2026-09-05 com todos os testes verdes.
 
-```text
-Gestor
-  ↓
-Aprovar
-  ↓
-Pedido
+### Contrato congelado
 
-Permitido: Gestor possui a ação do processo “Aprovar” sobre Pedido.
-```
-
-A mesma explicação também representa explicitamente a ausência da autorização, exibindo **Não permitido** quando o papel não consta na política correspondente.
-
-### Regra arquitetural
-
-A explicação nunca é uma nova fonte de autorização. `explainAccess()` consulta diretamente:
+O Permission Designer 2.0 encerra o ciclo mantendo uma única fonte declarativa de autorização:
 
 ```text
 rbac.roles
-rbac.entities[entidade].roles[papel]
-rbac.entities[entidade].transitions[ação]
-workflows[entidade]
-        ↓
-explicação em linguagem de negócio
+rbac.entities[*].roles
+rbac.entities[*].transitions
+        │
+        ├── configuração por capacidades
+        ├── configuração de ações de processo
+        ├── visão por papel
+        ├── visão por funcionalidade
+        └── explicação de acesso
 ```
 
-Não existe `accessExplanationState`, política paralela, cache de autorização ou nova persistência.
+As visões e explicações são projeções. Nenhuma delas possui política persistida própria.
 
-A explicação é atualizada imediatamente quando uma capacidade ou ação do processo é marcada/desmarcada no Designer.
+### Garantias da baseline
 
-### Limite desta etapa
+- papéis usam linguagem do negócio e IDs internos estáveis;
+- capacidades visíveis são traduzidas para o CRUD técnico estável;
+- ações de processo continuam referenciando as transições definidas no Workflow Designer;
+- configurações antigas permanecem compatíveis;
+- autorização continua determinística e fail-closed;
+- nenhuma segunda fonte de verdade foi introduzida;
+- alterações de configuração refletem imediatamente nas projeções do Designer;
+- o runtime RBAC existente continua sendo o responsável por materializar a autorização Django.
 
-A GEN-067.6 explica o contrato por **papel**. Ela não inventa vínculo entre usuários reais e papéis porque esse vínculo não pertence ao contrato atual do Designer. A futura explicação por pessoa poderá compor:
+### Fora do escopo congelado
 
-```text
-Pessoa -> Papel -> Capacidade/Ação -> Informação
-```
+Não fazem parte da GEN-067 e não devem ser introduzidos retroativamente nesta baseline:
 
-quando a identidade/membresia fizer parte de um contrato disponível para essa experiência.
+- vínculo pessoa/usuário -> papel no Designer;
+- permissões inventadas para relatórios ou dashboards sem contrato correspondente;
+- regras condicionais por registro/objeto;
+- nova infraestrutura de autenticação;
+- política de autorização paralela ao RBAC declarativo.
 
-### Preparação arquitetural
+Essas capacidades exigem contratos próprios em ciclos futuros.
 
-Essa projeção prepara uma base reutilizável para:
+### Estado
 
-- diagnóstico de autorização;
-- auditoria;
-- análise de impacto;
-- suporte operacional;
-- explicações futuras da camada AI-Native.
+**GEN-067 — Permission Designer 2.0: FROZEN / SAFE BASELINE.**
+
+A evolução posterior deve partir desta baseline sem reabrir as decisões consolidadas do ciclo, salvo correção explícita de regressão.
 
 ## Separação de responsabilidades
 

@@ -55,12 +55,43 @@ def _draft_reports(sistema):
     return {}
 
 
+def _default_navigation(entity_name, title):
+    return {"path": [entity_name], "label": title}
+
+
+def _normalize_navigation(entity_name, title, raw_navigation, strict=False):
+    raw_navigation = raw_navigation if isinstance(raw_navigation, dict) else {}
+    raw_path = raw_navigation.get("path")
+    if raw_path is None:
+        path = [entity_name]
+    elif not isinstance(raw_path, list):
+        if strict:
+            raise ValueError("A organização do relatório no menu é inválida.")
+        path = [entity_name]
+    else:
+        path = []
+        for item in raw_path:
+            label = str(item or "").strip()
+            if not label:
+                if strict:
+                    raise ValueError("Os níveis de organização do relatório não podem ser vazios.")
+                continue
+            if label not in path:
+                path.append(label)
+        if not path:
+            path = [entity_name]
+    label = str(raw_navigation.get("label") or title).strip() or title
+    return {"path": path, "label": label}
+
+
 def _default_report(entity_name, metadata, report_id="relatorio_1"):
+    title = f"Relatório de {entity_name}"
     return {
         "id": report_id,
         "enabled": False,
-        "title": f"Relatório de {entity_name}",
+        "title": title,
         "description": "",
+        "navigation": _default_navigation(entity_name, title),
         "fields": [field["name"] for field in metadata["fields"][:5]],
         "filters": [],
         "order_by": "",
@@ -76,6 +107,9 @@ def _normalize_report(entity_name, metadata, raw, strict=False, fallback_id="rel
         raise ValueError(f"Identificador de relatório inválido: {report_id}")
     if not report_id or not REPORT_ID_RE.match(report_id):
         report_id = fallback_id
+
+    title = str(raw.get("title") or f"Relatório de {entity_name}")
+    navigation = _normalize_navigation(entity_name, title, raw.get("navigation"), strict=strict)
 
     fields = raw.get("fields") if isinstance(raw.get("fields"), list) else []
     fields = [name for name in fields if name in available_fields]
@@ -118,8 +152,9 @@ def _normalize_report(entity_name, metadata, raw, strict=False, fallback_id="rel
     return {
         "id": report_id,
         "enabled": bool(raw.get("enabled", False)),
-        "title": str(raw.get("title") or f"Relatório de {entity_name}"),
+        "title": title,
         "description": str(raw.get("description") or ""),
+        "navigation": navigation,
         "fields": fields,
         "filters": filters,
         "order_by": order_by,

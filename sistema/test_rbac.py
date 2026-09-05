@@ -28,7 +28,7 @@ class RBACContractTests(SimpleTestCase):
         return {
             "enabled": True,
             "roles": [
-                {"id": "gestor", "label": "Gestor", "group": "Gestores", "order": 1},
+                {"id": "gestor", "label": "Gestor", "description": "Responsável pelas aprovações.", "group": "Gestores", "order": 1},
                 {"id": "operador", "label": "Operador", "group": "Operadores", "order": 0},
             ],
             "entities": {
@@ -58,9 +58,22 @@ class RBACContractTests(SimpleTestCase):
         config = normalize_rbac_config(self.entities, self.workflows, self.valid_config())
         self.assertTrue(config["enabled"])
         self.assertEqual([item["id"] for item in config["roles"]], ["operador", "gestor"])
+        self.assertEqual(config["roles"][1]["description"], "Responsável pelas aprovações.")
         self.assertEqual(config["entities"]["Pedido"]["roles"]["gestor"], list(CRUD_ACTIONS))
         self.assertEqual(config["entities"]["Pedido"]["roles"]["operador"], ["list", "view", "create"])
         self.assertEqual(config["entities"]["Pedido"]["transitions"]["aprovar"], ["gestor"])
+
+    def test_role_group_is_derived_from_business_name_when_omitted(self):
+        config = self.valid_config()
+        config["roles"][0].pop("group")
+        normalized = normalize_rbac_config(self.entities, self.workflows, config)
+        gestor = next(item for item in normalized["roles"] if item["id"] == "gestor")
+        self.assertEqual(gestor["group"], "Gestor")
+
+    def test_legacy_group_is_preserved_when_present(self):
+        config = normalize_rbac_config(self.entities, self.workflows, self.valid_config())
+        gestor = next(item for item in config["roles"] if item["id"] == "gestor")
+        self.assertEqual(gestor["group"], "Gestores")
 
     def test_rejects_non_boolean_enabled(self):
         config = self.valid_config()
@@ -72,13 +85,13 @@ class RBACContractTests(SimpleTestCase):
         config["roles"].append({"id": "gestor", "label": "Outro", "group": "Outro", "order": 2})
         self.assert_error("duplicate_role_id", config)
 
-    def test_rejects_unsafe_role_id_and_empty_group(self):
+    def test_rejects_unsafe_role_id_and_empty_label(self):
         config = self.valid_config()
         config["roles"][0]["id"] = "gestor__root"
         self.assert_error("invalid_role_id", config)
         config = self.valid_config()
-        config["roles"][0]["group"] = ""
-        self.assert_error("empty_role_group", config)
+        config["roles"][0]["label"] = ""
+        self.assert_error("empty_role_label", config)
 
     def test_rejects_invalid_role_order(self):
         config = self.valid_config()
@@ -127,6 +140,7 @@ class RBACContractTests(SimpleTestCase):
         config = normalize_rbac_config(self.entities, self.workflows, self.valid_config())
         roles = role_map(config)
         self.assertEqual(roles["gestor"]["group"], "Gestores")
+        self.assertEqual(roles["gestor"]["description"], "Responsável pelas aprovações.")
         policy = entity_policy(config, "Pedido")
         self.assertIn("gestor", policy["roles"])
         self.assertIsNone(entity_policy(config, "Cliente"))

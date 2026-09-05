@@ -48,12 +48,14 @@ class ApplicationPreviewShellTests(TestCase):
             nome="numero",
             tipo="CharField",
             verbose_name="Número",
+            help_text="Informe o número oficial do contrato.",
         )
         Campo.objects.create(
             entidade=self.contrato,
             nome="objeto",
             tipo="CharField",
             verbose_name="Objeto",
+            blank=True,
         )
         Campo.objects.create(
             entidade=self.contrato,
@@ -71,7 +73,57 @@ class ApplicationPreviewShellTests(TestCase):
             sistema=self.sistema,
             numero=0,
             estrutura_json={
-                "forms": {},
+                "forms": {
+                    "Contrato": {
+                        "title": "Cadastro de contrato",
+                        "sections": [
+                            {
+                                "id": "dados_principais",
+                                "title": "Dados principais",
+                                "description": "Identificação do instrumento contratual.",
+                                "order": 0,
+                            }
+                        ],
+                        "fields": [
+                            {
+                                "name": "numero",
+                                "order": 0,
+                                "section": "dados_principais",
+                                "visible": True,
+                                "readonly": False,
+                                "width": 4,
+                                "label": "Número do contrato",
+                                "placeholder": "000/2026",
+                                "help_text": "Informe o número oficial do contrato.",
+                                "widget": "text",
+                            },
+                            {
+                                "name": "objeto",
+                                "order": 1,
+                                "section": "dados_principais",
+                                "visible": True,
+                                "readonly": False,
+                                "width": 8,
+                                "label": "Objeto contratual",
+                                "placeholder": "Descreva o objeto",
+                                "help_text": "",
+                                "widget": "textarea",
+                            },
+                            {
+                                "name": "valor",
+                                "order": 2,
+                                "section": "",
+                                "visible": False,
+                                "readonly": False,
+                                "width": 4,
+                                "label": "Valor",
+                                "placeholder": "",
+                                "help_text": "",
+                                "widget": "number",
+                            },
+                        ],
+                    }
+                },
                 "cruds": {
                     "Contrato": {
                         "title": "Gestão de contratos",
@@ -138,17 +190,50 @@ class ApplicationPreviewShellTests(TestCase):
         self.assertEqual(page["demo_count"], 4)
         self.assertEqual(page["rows"][0]["values"][0]["value"], "Número 01")
 
-    def test_list_preview_is_deterministic_for_same_contract(self):
-        first = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
-        second = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
+    def test_projects_form_designer_into_form_preview(self):
+        preview = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.contrato.pk,
+            page_kind="form",
+        )
+        page = preview["form_page"]
+        self.assertEqual(preview["page_kind"], "form")
+        self.assertEqual(page["entity"], "Contrato")
+        self.assertEqual(page["area"], "Contratos")
+        self.assertEqual(page["title"], "Cadastro de contrato")
+        self.assertEqual(page["visible_count"], 2)
+        self.assertEqual([section["title"] for section in page["sections"]], ["Dados principais"])
+        fields = page["sections"][0]["fields"]
+        self.assertEqual([field["label"] for field in fields], ["Número do contrato", "Objeto contratual"])
+        self.assertEqual(fields[0]["width"], 4)
+        self.assertEqual(fields[1]["width"], 8)
+        self.assertEqual(fields[0]["widget"], "text")
+        self.assertEqual(fields[1]["widget"], "textarea")
+        self.assertTrue(fields[0]["required"])
+        self.assertFalse(fields[1]["required"])
+        self.assertNotIn("Valor", [field["label"] for field in page["visible_fields"]])
+
+    def test_list_and_form_previews_are_deterministic_for_same_contract(self):
+        first = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk, page_kind="form")
+        second = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk, page_kind="form")
         self.assertEqual(first["list_page"], second["list_page"])
+        self.assertEqual(first["form_page"], second["form_page"])
 
     def test_unknown_selected_entity_falls_back_to_available_crud(self):
         preview = build_preview_shell(self.sistema, selected_entity_id=999999)
         self.assertEqual(preview["list_page"]["entity"], "Fornecedor")
 
+    def test_unknown_page_kind_falls_back_to_list(self):
+        preview = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.contrato.pk,
+            page_kind="anything",
+        )
+        self.assertEqual(preview["page_kind"], "list")
+        self.assertIsNone(preview["form_page"])
+
     def test_preview_does_not_persist_parallel_contract(self):
-        build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
+        build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk, page_kind="form")
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
         self.assertNotIn("preview", draft.estrutura_json)
         self.assertNotIn("preview_studio", draft.estrutura_json)
@@ -176,8 +261,29 @@ class ApplicationPreviewShellTests(TestCase):
         self.assertContains(response, "registros demonstrativos")
         self.assertContains(response, "Número 01")
         self.assertContains(response, "Objeto 01")
+        self.assertContains(response, f"?entidade={self.contrato.pk}&amp;pagina=form")
         self.assertNotContains(response, "<th>Valor")
         self.assertNotContains(response, 'title="Excluir"')
+
+    def test_preview_view_selects_and_renders_form(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("sistema:application_preview", args=[self.sistema.pk]),
+            {"entidade": self.contrato.pk, "pagina": "form"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-preview-page="form"')
+        self.assertContains(response, "Cadastro de contrato")
+        self.assertContains(response, "Dados principais")
+        self.assertContains(response, "Identificação do instrumento contratual.")
+        self.assertContains(response, "Número do contrato")
+        self.assertContains(response, "000/2026")
+        self.assertContains(response, "Informe o número oficial do contrato.")
+        self.assertContains(response, "Objeto contratual")
+        self.assertContains(response, "Descreva o objeto")
+        self.assertContains(response, "col-md-4 preview-form-field")
+        self.assertContains(response, "col-md-8 preview-form-field")
+        self.assertNotContains(response, 'data-field="valor"')
 
     def test_preview_view_is_scoped_to_owner(self):
         self.client.force_login(self.other)

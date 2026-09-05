@@ -18,6 +18,7 @@ class InterfaceDesignerForm(forms.ModelForm):
             "interface_cor_destaque",
             "interface_breadcrumb",
             "interface_busca",
+            "interface_notificacoes",
             "interface_menu_usuario",
         ]
         widgets = {
@@ -29,6 +30,7 @@ class InterfaceDesignerForm(forms.ModelForm):
             "interface_cor_destaque": forms.TextInput(attrs={"class": "form-control form-control-color", "type": "color"}),
             "interface_breadcrumb": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "interface_busca": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "interface_notificacoes": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "interface_menu_usuario": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 

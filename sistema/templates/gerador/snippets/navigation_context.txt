@@ -7,17 +7,7 @@ NAVIGATION_MODULES = [
 {% if notifications.enabled %}    {
         "app_name": "notifications",
         "label": "Comunicação",
-        "items": [
-            {
-                "label": "Notificações",
-                "model_name": "",
-                "url_name": "notifications:list",
-                "active_url_names": ["list", "mark_read", "mark_all_read"],
-                "permission": "",
-                "app_name": "notifications",
-                "is_notifications": True,
-            },
-        ],
+        "items": [{"label": "Notificações","model_name": "","url_name": "notifications:list","active_url_names": ["list", "mark_read", "mark_all_read"],"permission": "","app_name": "notifications","is_notifications": True}],
     },
 {% endif %}{% for modulo in modulos %}
     {
@@ -25,41 +15,26 @@ NAVIGATION_MODULES = [
         "label": "{{ modulo.nome|escapejs }}",
         "items": [
 {% for entidade in modulo.entidades_geracao %}{% if entidade.gerar_crud_views %}
-            {
-                "label": "{{ entidade.nome|escapejs }}",
-                "model_name": "{{ entidade.classe_nome }}",
-                "url_name": "{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list",
-                "active_url_names": [
-                    "{{ entidade.codigo_nome }}_list",
-                    "{{ entidade.codigo_nome }}_create",
-                    "{{ entidade.codigo_nome }}_update",
-                    "{{ entidade.codigo_nome }}_detail",
-                    "{{ entidade.codigo_nome }}_delete",
-                ],
-                "permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}",
-                "app_name": "{{ modulo.app_name }}",
-            },
-{% endif %}{% report_generation_configs entidade as reports %}{% for report in reports %}
-            {
-                "label": "{{ report.title|escapejs }}",
-                "model_name": "{{ entidade.classe_nome }}",
-                "url_name": "{{ modulo.app_name }}:{{ report.view_name }}",
-                "active_url_names": ["{{ report.view_name }}"],
-                "permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}",
-                "app_name": "{{ modulo.app_name }}",
-                "is_report": True,
-            },
-{% endfor %}{% endfor %}
+            {"label": "{{ entidade.nome|escapejs }}","model_name": "{{ entidade.classe_nome }}","url_name": "{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list","active_url_names": ["{{ entidade.codigo_nome }}_list","{{ entidade.codigo_nome }}_create","{{ entidade.codigo_nome }}_update","{{ entidade.codigo_nome }}_detail","{{ entidade.codigo_nome }}_delete"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}"},
+{% endif %}{% endfor %}
         ],
     },
 {% endfor %}
+    {
+        "app_name": "reports",
+        "label": "Relatórios",
+        "items": [
+{% for modulo in modulos %}{% for entidade in modulo.entidades_geracao %}{% report_generation_configs entidade as reports %}{% for report in reports %}
+            {"label": "{{ report.navigation.label|escapejs }}","group_label": "{% for part in report.navigation.path %}{% if not forloop.first %} > {% endif %}{{ part|escapejs }}{% endfor %}","model_name": "{{ entidade.classe_nome }}","url_name": "{{ modulo.app_name }}:{{ report.view_name }}","active_url_names": ["{{ report.view_name }}"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}","is_report": True},
+{% endfor %}{% endfor %}{% endfor %}
+        ],
+    },
 ]
 
 
 def _allowed_items(request, items):
     user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated:
-        return []
+    if user is None or not user.is_authenticated: return []
     return [item for item in items if not item["permission"] or user.has_perm(item["permission"])]
 
 
@@ -78,22 +53,15 @@ def _current_navigation_context(request, modules):
     resolver_match = getattr(request, "resolver_match", None)
     current_url_name = getattr(resolver_match, "url_name", None)
     current_app_name = getattr(resolver_match, "app_name", None)
-    if current_app_name == "notifications":
-        return {"module_label": "Comunicação", "item_label": "Notificações"}
-    if current_url_name == "index":
-        return {"module_label": "Início", "item_label": "Área de trabalho"}
-    if current_url_name in {"dashboard", "dashboard_data"}:
-        return {"module_label": "Análise", "item_label": "Dashboard"}
-    if current_url_name in {"profile", "password_change"}:
-        return {"module_label": "Conta", "item_label": "Meu perfil" if current_url_name == "profile" else "Alterar senha"}
-    if current_url_name in {"user_list", "user_create", "user_update"}:
-        return {"module_label": "Administração", "item_label": "Usuários"}
-    if current_url_name == "role_list":
-        return {"module_label": "Administração", "item_label": "Perfis de acesso"}
+    if current_app_name == "notifications": return {"module_label": "Comunicação", "item_label": "Notificações"}
+    if current_url_name == "index": return {"module_label": "Início", "item_label": "Área de trabalho"}
+    if current_url_name in {"dashboard", "dashboard_data"}: return {"module_label": "Análise", "item_label": "Dashboard"}
+    if current_url_name in {"profile", "password_change"}: return {"module_label": "Conta", "item_label": "Meu perfil" if current_url_name == "profile" else "Alterar senha"}
+    if current_url_name in {"user_list", "user_create", "user_update"}: return {"module_label": "Administração", "item_label": "Usuários"}
+    if current_url_name == "role_list": return {"module_label": "Administração", "item_label": "Perfis de acesso"}
     for module in modules:
         for item in module["items"]:
-            if item.get("is_active"):
-                return {"module_label": "Relatórios" if item.get("is_report") else module["label"], "item_label": item["label"]}
+            if item.get("is_active"): return {"module_label": module["label"], "item_label": item["label"]}
     return {"module_label": "Área de trabalho", "item_label": "Visão geral"}
 
 
@@ -101,38 +69,28 @@ def _current_navigation_item(request):
     resolver_match = getattr(request, "resolver_match", None)
     current_url_name = getattr(resolver_match, "url_name", None)
     current_app_name = getattr(resolver_match, "app_name", None)
-    if not current_url_name or not current_app_name:
-        return None
+    if not current_url_name or not current_app_name: return None
     for module in NAVIGATION_MODULES:
         for item in module["items"]:
-            if item.get("app_name") == current_app_name and current_url_name in (item.get("active_url_names") or []):
-                return item
+            if item.get("app_name") == current_app_name and current_url_name in (item.get("active_url_names") or []): return item
     return None
 
 
 def _relation_filter_choices(request):
     resolver_match = getattr(request, "resolver_match", None)
-    if not str(getattr(resolver_match, "url_name", "") or "").endswith("_list"):
-        return []
+    if not str(getattr(resolver_match, "url_name", "") or "").endswith("_list"): return []
     user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated:
-        return []
+    if user is None or not user.is_authenticated: return []
     item = _current_navigation_item(request)
-    if not item or item.get("is_notifications"):
-        return []
-    try:
-        model = apps.get_model(item["app_name"], item["model_name"])
-    except LookupError:
-        return []
-    if model is None:
-        return []
+    if not item or item.get("is_notifications") or item.get("is_report"): return []
+    try: model = apps.get_model(item["app_name"], item["model_name"])
+    except LookupError: return []
+    if model is None: return []
     result = []
     for field in model._meta.fields:
-        if not getattr(field, "is_relation", False) or (not getattr(field, "many_to_one", False) and not getattr(field, "one_to_one", False)):
-            continue
+        if not getattr(field, "is_relation", False) or (not getattr(field, "many_to_one", False) and not getattr(field, "one_to_one", False)): continue
         related_model = getattr(field.remote_field, "model", None)
-        if related_model is None:
-            continue
+        if related_model is None: continue
         options = [{"value": str(obj.pk), "label": str(obj)} for obj in related_model._default_manager.all()[:500]]
         options.sort(key=lambda option: option["label"].casefold())
         result.append({"field": field.name, "options": options})
@@ -141,12 +99,9 @@ def _relation_filter_choices(request):
 
 {% if notifications.enabled %}def _notification_unread_count(request):
     user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated:
-        return 0
-    try:
-        return Notification.objects.filter(recipient=user, read_at__isnull=True).count()
-    except Exception:
-        return 0
+    if user is None or not user.is_authenticated: return 0
+    try: return Notification.objects.filter(recipient=user, read_at__isnull=True).count()
+    except Exception: return 0
 
 
 {% endif %}def navigation(request):
@@ -158,7 +113,8 @@ def _relation_filter_choices(request):
         if items:
             marked = _mark_active_items(request, items)
             for item in marked:
-                if item.get("is_notifications") and unread_count:
-                    item["label"] = f"Notificações ({unread_count})"
+                if item.get("is_notifications") and unread_count: item["label"] = f"Notificações ({unread_count})"
+            if module.get("app_name") == "reports":
+                marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item["label"].casefold()))
             modules.append({**module, "items": marked})
-    return {"navigation_modules": modules, "navigation_current": _current_navigation_context(request, modules), "relation_filter_choices": _relation_filter_choices(request), "notification_unread_count": unread_count}
+    return {"navigation_modules": modules,"navigation_current": _current_navigation_context(request, modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

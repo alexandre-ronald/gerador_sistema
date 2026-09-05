@@ -3,7 +3,7 @@
 {% block content %}
 {{ block.super }}
 {% if preview.navigation.workflows %}
-<div id="preview-workflow-navigation-data" class="d-none" aria-hidden="true">
+<div id="preview-workflow-navigation-data" class="d-none" aria-hidden="true" data-preview-workflow-count="{{ preview.navigation.workflows|length }}">
   {% for item in preview.navigation.workflows %}
   <span data-preview-workflow-nav
         data-workflow-entity-id="{{ item.entity_id }}"
@@ -13,58 +13,66 @@
 </div>
 <script>
 (function(){
-  const dataRoot=document.getElementById('preview-workflow-navigation-data');
-  if(!dataRoot)return;
-  const roleId='{{ preview.role_simulation.selected_role_id|default:""|escapejs }}';
-  const items=[...dataRoot.querySelectorAll('[data-preview-workflow-nav]')].map(el=>({
-    entityId:el.dataset.workflowEntityId,
-    label:el.dataset.workflowLabel,
-    icon:el.dataset.workflowIcon||'bi-diagram-3'
-  }));
-  if(!items.length)return;
-  const hrefFor=item=>`?entidade=${encodeURIComponent(item.entityId)}&pagina=workflow${roleId?`&papel=${encodeURIComponent(roleId)}`:''}`;
+  function mountWorkflowNavigation(){
+    const dataRoot=document.getElementById('preview-workflow-navigation-data');
+    if(!dataRoot)return;
+    const roleId='{{ preview.role_simulation.selected_role_id|default:""|escapejs }}';
+    const items=[...dataRoot.querySelectorAll('[data-preview-workflow-nav]')].map(el=>({
+      entityId:el.dataset.workflowEntityId,
+      label:el.dataset.workflowLabel,
+      icon:el.dataset.workflowIcon||'bi-diagram-3'
+    }));
+    if(!items.length)return;
+    const hrefFor=item=>`?entidade=${encodeURIComponent(item.entityId)}&pagina=workflow${roleId?'&papel='+encodeURIComponent(roleId):''}`;
 
-  const lateral=document.querySelector('.preview-sidebar .preview-nav');
-  if(lateral){
-    const dashboard=lateral.querySelector('a[href^="?pagina=dashboard"]');
-    const fragment=document.createDocumentFragment();
-    const section=document.createElement('div');
-    section.className='preview-nav-label';
-    section.textContent='Fluxos';
-    fragment.appendChild(section);
-    items.forEach(item=>{
-      const link=document.createElement('a');
-      link.href=hrefFor(item);
-      link.className='preview-nav-item';
-      link.dataset.previewWorkflowLink=item.entityId;
-      link.innerHTML=`<i class="bi ${item.icon}"></i><span></span>`;
-      link.querySelector('span').textContent=item.label;
-      fragment.appendChild(link);
-    });
-    if(dashboard)dashboard.insertAdjacentElement('afterend',section);
-    if(section.parentNode){
-      let cursor=section;
-      [...fragment.childNodes].forEach(node=>{cursor.insertAdjacentElement('afterend',node);cursor=node;});
-    }else{
-      lateral.prepend(fragment);
+    const lateral=document.querySelector('.preview-sidebar .preview-nav');
+    if(lateral&&!lateral.querySelector('[data-preview-workflows-section]')){
+      const section=document.createElement('div');
+      section.dataset.previewWorkflowsSection='1';
+      const title=document.createElement('div');
+      title.className='preview-nav-label';
+      title.textContent='Fluxos';
+      section.appendChild(title);
+      items.forEach(item=>{
+        const link=document.createElement('a');
+        link.href=hrefFor(item);
+        link.className='preview-nav-item';
+        link.dataset.previewWorkflowLink=item.entityId;
+        const icon=document.createElement('i');
+        icon.className=`bi ${item.icon}`;
+        const label=document.createElement('span');
+        label.textContent=item.label;
+        link.append(icon,label);
+        section.appendChild(link);
+      });
+      const dashboard=lateral.querySelector('a[href^="?pagina=dashboard"]');
+      if(dashboard)dashboard.insertAdjacentElement('afterend',section);
+      else lateral.prepend(section);
+    }
+
+    const top=document.querySelector('.preview-navbar-links');
+    if(top&&!top.querySelector('[data-preview-workflow-link]')){
+      const dashboard=top.querySelector('a[href^="?pagina=dashboard"]');
+      let cursor=dashboard;
+      items.forEach(item=>{
+        const link=document.createElement('a');
+        link.href=hrefFor(item);
+        link.className='preview-navbar-link';
+        link.dataset.previewWorkflowLink=item.entityId;
+        link.title=`Fluxo · ${item.label}`;
+        const icon=document.createElement('i');
+        icon.className=`bi ${item.icon} me-1`;
+        const label=document.createElement('span');
+        label.textContent=item.label;
+        link.append(icon,label);
+        if(cursor){cursor.insertAdjacentElement('afterend',link);cursor=link}
+        else top.prepend(link);
+      });
     }
   }
 
-  const top=document.querySelector('.preview-navbar-links');
-  if(top){
-    const dashboard=top.querySelector('a[href^="?pagina=dashboard"]');
-    let cursor=dashboard;
-    items.forEach(item=>{
-      const link=document.createElement('a');
-      link.href=hrefFor(item);
-      link.className='preview-navbar-link';
-      link.dataset.previewWorkflowLink=item.entityId;
-      link.innerHTML=`<i class="bi ${item.icon} me-1"></i><span></span>`;
-      link.querySelector('span').textContent=item.label;
-      link.title=`Fluxo · ${item.label}`;
-      if(cursor){cursor.insertAdjacentElement('afterend',link);cursor=link}else{top.prepend(link)}
-    });
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountWorkflowNavigation,{once:true});
+  else mountWorkflowNavigation();
 })();
 </script>
 {% endif %}

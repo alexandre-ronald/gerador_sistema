@@ -8,7 +8,10 @@ from .models import Sistema
 @login_required
 def application_preview(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    preview = build_preview_shell(sistema)
+    preview = build_preview_shell(
+        sistema,
+        selected_entity_id=request.GET.get("entidade"),
+    )
     return render(
         request,
         "sistema/application_preview.html",

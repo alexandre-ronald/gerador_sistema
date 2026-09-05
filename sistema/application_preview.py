@@ -191,9 +191,15 @@ def _list_projection(entity, stored_cruds, role_permissions=None):
     filters = [{**item, "kind_label": FIELD_KIND_LABELS.get(item["type"], "Filtro")} for item in config["filters"]]
     permissions = role_permissions or {action: True for action in CRUD_ACTIONS}
     actions = dict(config["actions"])
-    for action in ("view", "create", "update", "delete"):
+    permission_map = {
+        "create": "create",
+        "view": "view",
+        "edit": "update",
+        "delete": "delete",
+    }
+    for action, permission in permission_map.items():
         if action in actions:
-            actions[action] = bool(actions[action] and permissions.get(action, True))
+            actions[action] = bool(actions[action] and permissions.get(permission, True))
     return {
         "entity_id": entity.pk,"entity": entity.nome,"area": entity.modulo.nome,"title": config["title"],"page_size": config["page_size"],"default_order": config["default_order"],"columns": columns,"search": config["search"],"filters": filters,"actions": actions,"rows": rows,"demo_count": len(rows),
         "role_permissions": permissions,

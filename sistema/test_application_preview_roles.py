@@ -21,8 +21,15 @@ class ApplicationPreviewRoleTests(TestCase):
             nome_plural="Pedidos",
             gerar_crud_views=True,
         )
+        self.fornecedor = Entidade.objects.create(
+            modulo=modulo,
+            nome="Fornecedor",
+            nome_plural="Fornecedores",
+            gerar_crud_views=True,
+        )
         Campo.objects.create(entidade=self.entidade, nome="numero", tipo="CharField", max_length=30)
         Campo.objects.create(entidade=self.entidade, nome="status", tipo="CharField", max_length=30)
+        Campo.objects.create(entidade=self.fornecedor, nome="nome", tipo="CharField", max_length=100)
         VersaoGeracao.objects.create(
             sistema=self.sistema,
             numero=0,
@@ -48,18 +55,28 @@ class ApplicationPreviewRoleTests(TestCase):
                     "roles": [
                         {"id": "solicitante", "label": "Solicitante", "description": "Abre e acompanha pedidos", "group": "Solicitantes", "order": 0},
                         {"id": "gestor", "label": "Gestor", "description": "Analisa e aprova pedidos", "group": "Gestores", "order": 1},
+                        {"id": "operador", "label": "Operador", "description": "Opera pedidos sem acesso a fornecedores", "group": "Operadores", "order": 2},
                     ],
                     "entities": {
                         "Pedido": {
                             "roles": {
                                 "solicitante": ["list", "view", "create"],
                                 "gestor": ["list", "view", "update"],
+                                "operador": ["list", "view", "update"],
                             },
                             "transitions": {
                                 "enviar": ["solicitante"],
                                 "aprovar": ["gestor"],
                             },
-                        }
+                        },
+                        "Fornecedor": {
+                            "roles": {
+                                "solicitante": ["list", "view"],
+                                "gestor": ["list", "view", "create", "update", "delete"],
+                                "operador": [],
+                            },
+                            "transitions": {},
+                        },
                     },
                 },
             },
@@ -98,6 +115,22 @@ class ApplicationPreviewRoleTests(TestCase):
         self.assertTrue(manager["selected_role_permissions"]["update"])
         self.assertTrue(manager["list_page"]["actions"]["edit"])
         self.assertFalse(manager["list_page"]["actions"]["create"])
+
+    def test_selected_role_filters_sidebar_entities_without_list_access(self):
+        preview = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.fornecedor.pk,
+            selected_role_id="operador",
+        )
+        visible_names = [
+            item["name"]
+            for module in preview["navigation"]["modules"]
+            for item in module["items"]
+        ]
+        self.assertIn("Pedido", visible_names)
+        self.assertNotIn("Fornecedor", visible_names)
+        self.assertEqual(preview["list_page"]["entity"], "Pedido")
+        self.assertEqual(preview["role_simulation"]["selected_role_id"], "operador")
 
     def test_selected_role_filters_workflow_by_stable_transition_id(self):
         requester = build_preview_shell(

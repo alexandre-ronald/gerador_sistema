@@ -126,6 +126,7 @@ def _role_simulation(entities, workflows, raw_rbac, selected_role_id=None):
     requested_id = str(selected_role_id or "").strip()
     roles = [deepcopy(role) for role in config.get("roles", [])]
     selected_role = next((role for role in roles if role["id"] == requested_id), None) if requested_id else None
+    invalid_role = bool(requested_id and selected_role is None)
     return {
         "enabled": bool(config.get("enabled")),
         "roles": roles,
@@ -133,14 +134,20 @@ def _role_simulation(entities, workflows, raw_rbac, selected_role_id=None):
         "selected_role_id": selected_role["id"] if selected_role else "",
         "requested_role_id": requested_id,
         "active": bool(config.get("enabled") and selected_role),
-        "invalid_role": bool(requested_id and selected_role is None),
+        "invalid_role": invalid_role,
         "entities": deepcopy(config.get("entities") or {}),
-        "mode_label": selected_role["label"] if selected_role else "Visão completa de design",
+        "mode_label": selected_role["label"] if selected_role else ("Papel inválido" if invalid_role else "Visão completa de design"),
     }
 
 
 def _entity_role_permissions(role_simulation, entity_name):
-    """Retorna capacidades do papel selecionado; sem simulação mantém visão completa."""
+    """Retorna capacidades do papel selecionado; papel solicitado inválido falha fechado."""
+    if role_simulation.get("invalid_role"):
+        return {
+            "filtered": True,
+            **{action: False for action in CRUD_ACTIONS},
+            "transitions": {},
+        }
     if not role_simulation.get("active"):
         return {
             "filtered": False,

@@ -13,9 +13,15 @@ def application_preview(request, sistema_id):
         selected_entity_id=request.GET.get("entidade"),
         page_kind=request.GET.get("pagina", "list"),
         selected_report_id=request.GET.get("relatorio"),
+        selected_workflow_state=request.GET.get("estado"),
+    )
+    template_name = (
+        "sistema/application_preview_workflow.html"
+        if preview.get("page_kind") == "workflow"
+        else "sistema/application_preview.html"
     )
     return render(
         request,
-        "sistema/application_preview.html",
+        template_name,
         {"sistema": sistema, "preview": preview},
     )

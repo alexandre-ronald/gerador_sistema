@@ -144,7 +144,7 @@ class ApplicationPreviewWorkflowTests(TestCase):
         self.assertContains(response, 'data-preview-workflows-section')
         self.assertContains(response, '>Fluxos<')
         self.assertContains(response, f'data-preview-workflow-link="{self.pedido.pk}"')
-        self.assertContains(response, f'entidade={self.pedido.pk}&amp;pagina=workflow')
+        self.assertContains(response, f'entidade={self.pedido.pk}&pagina=workflow')
         self.assertNotContains(response, 'data-preview-workflow-nav')
 
     def test_main_preview_keeps_persisted_enabled_workflow_discoverable(self):

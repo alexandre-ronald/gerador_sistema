@@ -3,6 +3,7 @@
 from django.db.models import Prefetch
 
 from .crud_designer import normalize_crud_config
+from .form_designer import normalize_form_config
 from .models import Entidade, Modulo
 
 
@@ -14,12 +15,25 @@ FIELD_KIND_LABELS = {
     "relation": "Relacionamento",
 }
 
+FORM_WIDGET_LABELS = {
+    "text": "Texto",
+    "textarea": "Texto longo",
+    "number": "Número",
+    "date": "Data",
+    "datetime": "Data e hora",
+    "checkbox": "Sim/Não",
+    "select": "Seleção",
+}
+
 
 def _field_metadata(field):
     return {
         "name": field.nome,
         "label": field.verbose_name or field.nome.replace("_", " ").title(),
         "type": field.tipo,
+        "help_text": field.help_text or "",
+        "editable": True,
+        "required": not bool(field.blank),
     }
 
 
@@ -31,12 +45,16 @@ def _entity_metadata(entity):
     }
 
 
-def _draft_cruds(sistema):
+def _draft_contracts(sistema):
     versao = sistema.versoes.filter(numero=0).first()
-    if versao and isinstance(versao.estrutura_json, dict):
-        cruds = versao.estrutura_json.get("cruds")
-        return cruds if isinstance(cruds, dict) else {}
-    return {}
+    if not versao or not isinstance(versao.estrutura_json, dict):
+        return {}, {}
+    cruds = versao.estrutura_json.get("cruds")
+    forms = versao.estrutura_json.get("forms")
+    return (
+        cruds if isinstance(cruds, dict) else {},
+        forms if isinstance(forms, dict) else {},
+    )
 
 
 def _demo_value(metadata, row_number):
@@ -113,7 +131,65 @@ def _list_projection(entity, stored_cruds):
     }
 
 
-def build_preview_shell(sistema, selected_entity_id=None):
+def _form_projection(entity, stored_forms):
+    metadata = _entity_metadata(entity)
+    config = normalize_form_config(
+        entity.nome,
+        metadata,
+        stored_forms.get(entity.nome),
+    )
+    metadata_by_name = {item["name"]: item for item in metadata["fields"]}
+    visible_fields = []
+    for field in config["fields"]:
+        if not field["visible"]:
+            continue
+        field_metadata = metadata_by_name.get(field["name"], {})
+        visible_fields.append(
+            {
+                **field,
+                "required": bool(field_metadata.get("required")),
+                "widget_label": FORM_WIDGET_LABELS.get(field["widget"], "Campo"),
+            }
+        )
+
+    sections = []
+    section_map = {}
+    for section in config["sections"]:
+        projected = {**section, "fields": []}
+        sections.append(projected)
+        section_map[section["id"]] = projected
+
+    general_fields = []
+    for field in visible_fields:
+        if field["section"] and field["section"] in section_map:
+            section_map[field["section"]]["fields"].append(field)
+        else:
+            general_fields.append(field)
+
+    blocks = []
+    if general_fields:
+        blocks.append(
+            {
+                "id": "__general__",
+                "title": "Informações gerais",
+                "description": "",
+                "fields": general_fields,
+            }
+        )
+    blocks.extend(section for section in sections if section["fields"])
+
+    return {
+        "entity_id": entity.pk,
+        "entity": entity.nome,
+        "area": entity.modulo.nome,
+        "title": config["title"],
+        "sections": blocks,
+        "visible_fields": visible_fields,
+        "visible_count": len(visible_fields),
+    }
+
+
+def build_preview_shell(sistema, selected_entity_id=None, page_kind="list"):
     """Projeta shell e página selecionada sem persistir configuração própria."""
     entity_queryset = Entidade.objects.prefetch_related("campos").order_by("nome", "id")
     modules = list(
@@ -167,8 +243,24 @@ def build_preview_shell(sistema, selected_entity_id=None):
             for item in module["items"]:
                 item["active"] = item["id"] == selected_entity.pk
 
-    stored_cruds = _draft_cruds(sistema)
+    page_kind = "form" if page_kind == "form" else "list"
+    stored_cruds, stored_forms = _draft_contracts(sistema)
     list_page = _list_projection(selected_entity, stored_cruds) if selected_entity else None
+    form_page = (
+        _form_projection(selected_entity, stored_forms)
+        if selected_entity and page_kind == "form"
+        else None
+    )
+
+    if form_page:
+        content_title = form_page["title"]
+        content_subtitle = f"Formulário de {form_page['entity']} projetado pelo Form Designer."
+    elif list_page:
+        content_title = list_page["title"]
+        content_subtitle = f"Consulta de {list_page['entity']} projetada pelo CRUD Designer."
+    else:
+        content_title = "Visão geral"
+        content_subtitle = "Prévia do shell da aplicação gerada."
 
     return {
         "application": {
@@ -192,12 +284,10 @@ def build_preview_shell(sistema, selected_entity_id=None):
             "modules": navigation,
         },
         "content": {
-            "title": list_page["title"] if list_page else "Visão geral",
-            "subtitle": (
-                f"Consulta de {list_page['entity']} projetada pelo CRUD Designer."
-                if list_page
-                else "Prévia do shell da aplicação gerada."
-            ),
+            "title": content_title,
+            "subtitle": content_subtitle,
         },
+        "page_kind": page_kind,
         "list_page": list_page,
+        "form_page": form_page,
     }

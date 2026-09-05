@@ -33,7 +33,9 @@ class GeneratedTemplateContractTests(SimpleTestCase):
 
     def test_transaction_navigation_uses_meaningful_icon_when_collapsed(self):
         base = self._source("gerador/snippets/base_html.txt")
-        self.assertIn('<i class="bi bi-table"></i><span>{% templatetag openvariable %} item.label', base)
+        self.assertIn("bi-table", base)
+        self.assertIn("bi-file-earmark-bar-graph", base)
+        self.assertIn("item.is_report", base)
         self.assertNotIn('bi bi-circle-fill', base)
 
     def test_generated_runtime_includes_profile_and_staff_user_management(self):

@@ -16,9 +16,32 @@ class ApplicationBlueprintInventoryTests(TestCase):
         Campo.objects.create(entidade=self.cliente, nome="nome", tipo="CharField", verbose_name="Nome do cliente")
         Campo.objects.create(entidade=self.pedido, nome="cliente", tipo="ForeignKey", entidade_relacionada=self.cliente)
         Campo.objects.create(entidade=self.pedido, nome="valor", tipo="DecimalField", blank=False, null=False)
+        Campo.objects.create(entidade=self.pedido, nome="status", tipo="CharField", verbose_name="Situação")
         VersaoGeracao.objects.create(sistema=self.sistema, numero=0, estrutura_json={
-            "workflows": {"Pedido": {"states": ["novo", "aprovado"]}},
-            "rbac": {"roles": [{"id": "gestor", "label": "Gestor"}]},
+            "workflows": {
+                "Pedido": {
+                    "enabled": True,
+                    "state_field": "status",
+                    "initial_state": "novo",
+                    "states": [
+                        {"id": "novo", "label": "Novo", "final": False, "order": 0},
+                        {"id": "aprovado", "label": "Aprovado", "final": True, "order": 1},
+                    ],
+                    "transitions": [
+                        {"id": "aprovar", "label": "Aprovar pedido", "from": ["novo"], "to": "aprovado", "enabled": True, "confirm": True, "confirm_message": "Confirmar aprovação?", "order": 0},
+                    ],
+                }
+            },
+            "rbac": {
+                "enabled": True,
+                "roles": [{"id": "gestor", "label": "Gestor", "description": "Responsável pela operação comercial", "group": "Gestores", "order": 0}],
+                "entities": {
+                    "Pedido": {
+                        "roles": {"gestor": ["list", "view", "create", "update"]},
+                        "transitions": {"aprovar": ["gestor"]},
+                    }
+                },
+            },
             "forms": {"Pedido": {"title": "Registrar pedido", "fields": [{"name": "valor", "visible": True, "width": 12}]}},
             "cruds": {"Pedido": {"title": "Pedidos em andamento", "columns": [{"field": "valor", "visible": True, "sortable": True}], "search": {"enabled": False, "fields": []}, "filters": [], "actions": {"create": True, "view": True, "edit": False, "delete": False}}},
             "reports": {"Pedido": [{"id": "pedidos", "title": "Pedidos por período", "enabled": True}]},
@@ -29,7 +52,7 @@ class ApplicationBlueprintInventoryTests(TestCase):
     def test_builds_consolidated_inventory_from_existing_contracts(self):
         blueprint = build_application_inventory(self.sistema)
         self.assertEqual(blueprint["application"]["name"], "Gestão de Pedidos")
-        self.assertEqual(blueprint["inventory"], {"modules": 2, "entities": 2, "fields": 3, "relationships": 1, "workflows": 1, "roles": 1, "reports": 1, "notifications": 1, "integrations": 1})
+        self.assertEqual(blueprint["inventory"], {"modules": 2, "entities": 2, "fields": 4, "relationships": 1, "workflows": 1, "roles": 1, "reports": 1, "notifications": 1, "integrations": 1})
 
     def test_inventory_is_deterministic_and_does_not_persist_blueprint(self):
         first = build_application_inventory(self.sistema); second = build_application_inventory(self.sistema)
@@ -48,7 +71,8 @@ class ApplicationBlueprintInventoryTests(TestCase):
         cliente = next(item for item in blueprint["information"] if item["name"] == "Cliente")
         pedido = next(item for item in blueprint["information"] if item["name"] == "Pedido")
         self.assertEqual(cliente["attributes"][0]["label"], "Nome do cliente"); self.assertEqual(cliente["attributes"][0]["type"], "Texto curto")
-        self.assertEqual(pedido["attributes"][0]["label"], "Valor"); self.assertEqual(pedido["attributes"][0]["type"], "Número decimal"); self.assertTrue(pedido["attributes"][0]["required"])
+        valor = next(item for item in pedido["attributes"] if item["name"] == "valor")
+        self.assertEqual(valor["label"], "Valor"); self.assertEqual(valor["type"], "Número decimal"); self.assertTrue(valor["required"])
 
     def test_projects_relationships_without_django_terms(self):
         relation = build_application_inventory(self.sistema)["relationships"][0]
@@ -68,3 +92,21 @@ class ApplicationBlueprintInventoryTests(TestCase):
         self.assertEqual(dashboard["widgets"][0]["type"], "Indicador")
         self.assertEqual(dashboard["widgets"][0]["information"], "Pedido")
         self.assertNotIn("metric", str(dashboard))
+
+    def test_projects_workflow_as_business_process(self):
+        process = build_application_inventory(self.sistema)["processes"][0]
+        self.assertEqual(process["information"], "Pedido")
+        self.assertEqual(process["initial_state"], "Novo")
+        self.assertEqual([state["label"] for state in process["states"]], ["Novo", "Aprovado"])
+        self.assertEqual(process["transitions"][0]["label"], "Aprovar pedido")
+        self.assertEqual(process["transitions"][0]["from"], ["Novo"])
+        self.assertEqual(process["transitions"][0]["to"], "Aprovado")
+        self.assertTrue(process["transitions"][0]["confirmation"])
+
+    def test_projects_role_responsibilities_in_business_language(self):
+        role = build_application_inventory(self.sistema)["responsibilities"][0]
+        self.assertEqual(role["name"], "Gestor")
+        self.assertEqual(role["description"], "Responsável pela operação comercial")
+        self.assertEqual(role["information"], [{"name": "Pedido", "capabilities": ["Listar", "Consultar", "Cadastrar", "Editar"]}])
+        self.assertEqual(role["process_actions"], [{"information": "Pedido", "action": "Aprovar pedido"}])
+        self.assertNotIn("change_pedido", str(role))

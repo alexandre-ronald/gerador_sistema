@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .application_preview import build_preview_shell
-from .models import Entidade, Modulo, Sistema, VersaoGeracao
+from .models import Campo, Entidade, Modulo, Sistema, VersaoGeracao
 
 
 class ApplicationPreviewShellTests(TestCase):
@@ -25,10 +25,76 @@ class ApplicationPreviewShellTests(TestCase):
         )
         contratos = Modulo.objects.create(sistema=self.sistema, nome="Contratos")
         cadastros = Modulo.objects.create(sistema=self.sistema, nome="Cadastros")
-        Entidade.objects.create(modulo=contratos, nome="Contrato", nome_plural="Contratos", gerar_crud_views=True)
-        Entidade.objects.create(modulo=cadastros, nome="Fornecedor", nome_plural="Fornecedores", gerar_crud_views=True)
-        Entidade.objects.create(modulo=cadastros, nome="Interno", nome_plural="Internos", gerar_crud_views=False)
-        VersaoGeracao.objects.create(sistema=self.sistema, numero=0, estrutura_json={"forms": {}})
+        self.contrato = Entidade.objects.create(
+            modulo=contratos,
+            nome="Contrato",
+            nome_plural="Contratos",
+            gerar_crud_views=True,
+        )
+        self.fornecedor = Entidade.objects.create(
+            modulo=cadastros,
+            nome="Fornecedor",
+            nome_plural="Fornecedores",
+            gerar_crud_views=True,
+        )
+        Entidade.objects.create(
+            modulo=cadastros,
+            nome="Interno",
+            nome_plural="Internos",
+            gerar_crud_views=False,
+        )
+        Campo.objects.create(
+            entidade=self.contrato,
+            nome="numero",
+            tipo="CharField",
+            verbose_name="Número",
+        )
+        Campo.objects.create(
+            entidade=self.contrato,
+            nome="objeto",
+            tipo="CharField",
+            verbose_name="Objeto",
+        )
+        Campo.objects.create(
+            entidade=self.contrato,
+            nome="valor",
+            tipo="DecimalField",
+            verbose_name="Valor",
+        )
+        Campo.objects.create(
+            entidade=self.fornecedor,
+            nome="nome",
+            tipo="CharField",
+            verbose_name="Nome",
+        )
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            estrutura_json={
+                "forms": {},
+                "cruds": {
+                    "Contrato": {
+                        "title": "Gestão de contratos",
+                        "page_size": 50,
+                        "default_order": "numero",
+                        "columns": [
+                            {"field": "numero", "label": "Contrato", "order": 0, "visible": True, "sortable": True},
+                            {"field": "objeto", "label": "Objeto", "order": 1, "visible": True, "sortable": True},
+                            {"field": "valor", "label": "Valor", "order": 2, "visible": False, "sortable": True},
+                        ],
+                        "search": {
+                            "enabled": True,
+                            "fields": ["numero", "objeto"],
+                            "placeholder": "Pesquisar contratos",
+                        },
+                        "filters": [
+                            {"field": "numero", "label": "Número", "type": "text", "order": 0},
+                        ],
+                        "actions": {"create": True, "view": True, "edit": True, "delete": False},
+                    }
+                },
+            },
+        )
 
     def test_projects_interface_designer_into_preview_shell(self):
         preview = build_preview_shell(self.sistema)
@@ -52,8 +118,37 @@ class ApplicationPreviewShellTests(TestCase):
         self.assertEqual([item["label"] for item in modules[1]["items"]], ["Contratos"])
         self.assertNotIn("Internos", str(modules))
 
+    def test_projects_crud_designer_into_list_preview(self):
+        preview = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
+        page = preview["list_page"]
+        self.assertEqual(page["entity"], "Contrato")
+        self.assertEqual(page["area"], "Contratos")
+        self.assertEqual(page["title"], "Gestão de contratos")
+        self.assertEqual(page["page_size"], 50)
+        self.assertEqual(page["default_order"], "numero")
+        self.assertEqual([item["label"] for item in page["columns"]], ["Contrato", "Objeto"])
+        self.assertNotIn("Valor", [item["label"] for item in page["columns"]])
+        self.assertEqual(page["search"]["placeholder"], "Pesquisar contratos")
+        self.assertEqual(page["filters"][0]["label"], "Número")
+        self.assertEqual(page["filters"][0]["kind_label"], "Texto")
+        self.assertTrue(page["actions"]["create"])
+        self.assertTrue(page["actions"]["view"])
+        self.assertTrue(page["actions"]["edit"])
+        self.assertFalse(page["actions"]["delete"])
+        self.assertEqual(page["demo_count"], 4)
+        self.assertEqual(page["rows"][0]["values"][0]["value"], "Número 01")
+
+    def test_list_preview_is_deterministic_for_same_contract(self):
+        first = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
+        second = build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
+        self.assertEqual(first["list_page"], second["list_page"])
+
+    def test_unknown_selected_entity_falls_back_to_available_crud(self):
+        preview = build_preview_shell(self.sistema, selected_entity_id=999999)
+        self.assertEqual(preview["list_page"]["entity"], "Fornecedor")
+
     def test_preview_does_not_persist_parallel_contract(self):
-        build_preview_shell(self.sistema)
+        build_preview_shell(self.sistema, selected_entity_id=self.contrato.pk)
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
         self.assertNotIn("preview", draft.estrutura_json)
         self.assertNotIn("preview_studio", draft.estrutura_json)
@@ -68,6 +163,21 @@ class ApplicationPreviewShellTests(TestCase):
         self.assertContains(response, "Fornecedores")
         self.assertContains(response, "Contratos")
         self.assertNotContains(response, ">Internos<")
+
+    def test_preview_view_selects_and_renders_crud_list(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("sistema:application_preview", args=[self.sistema.pk]),
+            {"entidade": self.contrato.pk},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gestão de contratos")
+        self.assertContains(response, "Pesquisar contratos")
+        self.assertContains(response, "registros demonstrativos")
+        self.assertContains(response, "Número 01")
+        self.assertContains(response, "Objeto 01")
+        self.assertNotContains(response, "<th>Valor")
+        self.assertNotContains(response, 'title="Excluir"')
 
     def test_preview_view_is_scoped_to_owner(self):
         self.client.force_login(self.other)

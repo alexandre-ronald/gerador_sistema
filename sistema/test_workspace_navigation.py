@@ -61,6 +61,8 @@ class WorkspaceNavigationTemplateTests(SimpleTestCase):
         self.assertIn("/reports/", source)
         self.assertIn("Validation Center", source)
         self.assertIn("Deployment Center", source)
+        self.assertIn("Gerar aplicação", source)
+        self.assertIn("Backup Manager e AI Copilot", source)
         self.assertIn("Meus Sistemas", source)
 
     def test_application_blueprint_links_back_to_specialized_designers(self):
@@ -93,3 +95,11 @@ class WorkspaceNavigationTemplateTests(SimpleTestCase):
         self.assertIn("/workflow/", source)
         self.assertIn("/permissions/", source)
         self.assertIn("/validation-center/", source)
+        self.assertIn("bi-diagram-3", source)
+        self.assertIn("bi-ui-checks-grid", source)
+        self.assertIn("bi-table", source)
+        self.assertIn("bi-file-earmark-bar-graph", source)
+        self.assertIn("bi-grid-1x2", source)
+        self.assertIn("bi-bezier2", source)
+        self.assertIn("bi-shield-lock", source)
+        self.assertIn("bi-shield-check", source)

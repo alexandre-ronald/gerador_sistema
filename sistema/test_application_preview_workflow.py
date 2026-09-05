@@ -137,15 +137,15 @@ class ApplicationPreviewWorkflowTests(TestCase):
         self.assertEqual(len(preview["navigation"]["workflows"]), 1)
         self.assertEqual(preview["navigation"]["workflows"][0]["entity"], "Pedido")
 
-    def test_main_preview_exposes_enabled_workflow_navigation(self):
+    def test_main_preview_renders_enabled_workflow_navigation_server_side(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("sistema:application_preview", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Fluxos")
-        self.assertContains(response, 'data-preview-workflow-count="1"')
-        self.assertContains(response, 'data-preview-workflow-nav')
-        self.assertContains(response, f'data-workflow-entity-id="{self.pedido.pk}"')
-        self.assertContains(response, 'pagina=workflow')
+        self.assertContains(response, 'data-preview-workflows-section')
+        self.assertContains(response, '>Fluxos<')
+        self.assertContains(response, f'data-preview-workflow-link="{self.pedido.pk}"')
+        self.assertContains(response, f'entidade={self.pedido.pk}&amp;pagina=workflow')
+        self.assertNotContains(response, 'data-preview-workflow-nav')
 
     def test_main_preview_keeps_persisted_enabled_workflow_discoverable(self):
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
@@ -157,8 +157,8 @@ class ApplicationPreviewWorkflowTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("sistema:application_preview", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'data-preview-workflow-count="1"')
-        self.assertContains(response, f'data-workflow-entity-id="{self.pedido.pk}"')
+        self.assertContains(response, 'data-preview-workflows-section')
+        self.assertContains(response, f'data-preview-workflow-link="{self.pedido.pk}"')
 
     def test_workflow_view_renders_state_actions_and_gen_069_7_notice(self):
         self.client.force_login(self.user)

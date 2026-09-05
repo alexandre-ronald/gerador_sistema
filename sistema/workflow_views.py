@@ -29,6 +29,25 @@ def _entity_metadata(entity):
     return metadata
 
 
+def _infer_state_field(entity_metadata, config):
+    """Preenche automaticamente um campo de etapa quando a intenção é inequívoca."""
+    if not isinstance(config, dict) or not config.get("enabled") or str(config.get("state_field") or "").strip():
+        return config
+
+    compatible = entity_metadata.get("compatible_state_fields") or []
+    names = [str(item.get("name") or "").strip() for item in compatible if str(item.get("name") or "").strip()]
+    preferred = ("status", "situacao", "situação", "estado")
+    selected = next((name for wanted in preferred for name in names if name.casefold() == wanted.casefold()), None)
+    if selected is None and len(names) == 1:
+        selected = names[0]
+    if selected is None:
+        return config
+
+    inferred = dict(config)
+    inferred["state_field"] = selected
+    return inferred
+
+
 def _draft_workflows(sistema):
     versao = sistema.versoes.filter(numero=0).first()
     if versao and isinstance(versao.estrutura_json, dict):
@@ -87,6 +106,7 @@ def salvar_workflows(request, sistema_id):
 
         normalized = {}
         for entity_name, config in raw_workflows.items():
+            config = _infer_state_field(metadata[entity_name], config)
             normalized[entity_name] = normalize_workflow_config(
                 entity_name,
                 metadata[entity_name],

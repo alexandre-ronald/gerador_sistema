@@ -14,6 +14,7 @@ def application_preview(request, sistema_id):
         page_kind=request.GET.get("pagina", "list"),
         selected_report_id=request.GET.get("relatorio"),
         selected_workflow_state=request.GET.get("estado"),
+        selected_role_id=request.GET.get("papel"),
     )
     template_name = (
         "sistema/application_preview_workflow.html"

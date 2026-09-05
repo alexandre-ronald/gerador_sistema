@@ -10,6 +10,7 @@ from .report_designer_views import (
     _entity_metadata as _report_entity_metadata,
     _normalize_report_collection,
 )
+from .workflow import normalize_workflow_config
 
 
 FIELD_KIND_LABELS = {
@@ -67,6 +68,7 @@ def _field_metadata(field):
         "type": field.tipo,
         "help_text": field.help_text or "",
         "editable": True,
+        "auto_created": False,
         "required": not bool(field.blank),
     }
 
@@ -82,16 +84,18 @@ def _entity_metadata(entity):
 def _draft_contracts(sistema):
     versao = sistema.versoes.filter(numero=0).first()
     if not versao or not isinstance(versao.estrutura_json, dict):
-        return {}, {}, normalize_dashboard_config(), {}
+        return {}, {}, normalize_dashboard_config(), {}, {}
     estrutura = versao.estrutura_json
     cruds = estrutura.get("cruds")
     forms = estrutura.get("forms")
     reports = estrutura.get("reports")
+    workflows = estrutura.get("workflows")
     return (
         cruds if isinstance(cruds, dict) else {},
         forms if isinstance(forms, dict) else {},
         normalize_dashboard_config(estrutura.get("dashboard")),
         reports if isinstance(reports, dict) else {},
+        workflows if isinstance(workflows, dict) else {},
     )
 
 
@@ -173,6 +177,59 @@ def _reports_projection(entity, stored_reports):
     return reports
 
 
+def _workflow_projection(entity, stored_workflows, selected_state_id=None):
+    metadata = _entity_metadata(entity)
+    config = normalize_workflow_config(
+        entity.nome,
+        metadata,
+        stored_workflows.get(entity.nome),
+        strict=False,
+    )
+    if not config.get("enabled"):
+        return None
+
+    state_map = {state["id"]: state for state in config["states"]}
+    current_state_id = str(selected_state_id or "").strip()
+    if current_state_id not in state_map:
+        current_state_id = config["initial_state"]
+    current_state = state_map[current_state_id]
+
+    states = [
+        {
+            **state,
+            "active": state["id"] == current_state_id,
+            "initial": state["id"] == config["initial_state"],
+        }
+        for state in config["states"]
+    ]
+    transitions = []
+    for transition in config["transitions"]:
+        if not transition["enabled"] or current_state_id not in transition["from"]:
+            continue
+        destination = state_map[transition["to"]]
+        transitions.append(
+            {
+                **transition,
+                "to_label": destination["label"],
+                "from_labels": [state_map[state_id]["label"] for state_id in transition["from"]],
+            }
+        )
+
+    return {
+        "enabled": True,
+        "entity_id": entity.pk,
+        "entity": entity.nome,
+        "area": entity.modulo.nome,
+        "state_field": config["state_field"],
+        "initial_state": config["initial_state"],
+        "current_state": current_state,
+        "states": states,
+        "transitions": transitions,
+        "all_transitions": config["transitions"],
+        "is_final": bool(current_state["final"]),
+    }
+
+
 def _report_navigation_rows(reports, report_page=None):
     root = {"groups": {}, "reports": []}
     for report in reports:
@@ -200,11 +257,17 @@ def _report_navigation_rows(reports, report_page=None):
     return rows
 
 
-def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", selected_report_id=None):
+def build_preview_shell(
+    sistema,
+    selected_entity_id=None,
+    page_kind="list",
+    selected_report_id=None,
+    selected_workflow_state=None,
+):
     """Projeta shell e página selecionada sem persistir configuração própria."""
     entity_queryset = Entidade.objects.prefetch_related("campos").order_by("nome", "id")
     modules = list(Modulo.objects.filter(sistema=sistema).prefetch_related(Prefetch("entidades", queryset=entity_queryset)).order_by("nome", "id"))
-    stored_cruds, stored_forms, stored_dashboard, stored_reports = _draft_contracts(sistema)
+    stored_cruds, stored_forms, stored_dashboard, stored_reports, stored_workflows = _draft_contracts(sistema)
     all_entities = []; available_entities = []; navigation = []
     for module in modules:
         items = []
@@ -217,7 +280,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
     system_reports = []
     for entity in all_entities: system_reports.extend(_reports_projection(entity, stored_reports))
     system_reports.sort(key=lambda item: (item["title"].lower(), item["entity"].lower(), item["id"]))
-    valid_page_kinds = {"list", "form", "dashboard", "report"}; page_kind = page_kind if page_kind in valid_page_kinds else "list"
+    valid_page_kinds = {"list", "form", "dashboard", "report", "workflow"}; page_kind = page_kind if page_kind in valid_page_kinds else "list"
     try: selected_id = int(selected_entity_id) if selected_entity_id is not None else None
     except (TypeError, ValueError): selected_id = None
     selected_entity = None; report_page = None
@@ -231,21 +294,51 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
             if report_page is None: report_page = next((item for item in system_reports if item["id"] == selected_report_id), None)
         if report_page is None and candidates: report_page = candidates[0]
         if report_page is not None: selected_entity = next((entity for entity in all_entities if entity.pk == report_page["entity_id"]), None)
+    elif page_kind == "workflow":
+        if selected_id is not None:
+            selected_entity = next((entity for entity in all_entities if entity.pk == selected_id), None)
+        if selected_entity is None:
+            selected_entity = next(
+                (
+                    entity for entity in all_entities
+                    if _workflow_projection(entity, stored_workflows) is not None
+                ),
+                None,
+            )
     else:
         if selected_id is not None: selected_entity = next((entity for entity in available_entities if entity.pk == selected_id), None)
         if selected_entity is None and available_entities: selected_entity = available_entities[0]
-    if selected_entity is not None and page_kind not in {"dashboard", "report"}:
+    if selected_entity is not None and page_kind not in {"dashboard", "report", "workflow"}:
         for module in navigation:
             for item in module["items"]: item["active"] = item["id"] == selected_entity.pk
     dashboard_page = _dashboard_projection(stored_dashboard)
     list_page = _list_projection(selected_entity, stored_cruds) if selected_entity and selected_entity.gerar_crud_views else None
     form_page = _form_projection(selected_entity, stored_forms) if selected_entity and selected_entity.gerar_crud_views and page_kind == "form" else None
+    workflow_page = (
+        _workflow_projection(selected_entity, stored_workflows, selected_workflow_state)
+        if selected_entity and page_kind == "workflow"
+        else None
+    )
     entity_reports = [item for item in system_reports if item["entity_id"] == selected_entity.pk] if selected_entity else []
     report_navigation = _report_navigation_rows(system_reports, report_page)
+    workflow_navigation = []
+    for entity in all_entities:
+        workflow = _workflow_projection(entity, stored_workflows)
+        if workflow is not None:
+            workflow_navigation.append({
+                "entity_id": entity.pk,
+                "entity": entity.nome,
+                "label": entity.nome_plural or entity.nome,
+                "icon": "bi-diagram-3",
+                "active": bool(workflow_page and workflow_page["entity_id"] == entity.pk),
+            })
+    workflow_navigation.sort(key=lambda item: (item["label"].casefold(), item["entity_id"]))
     if page_kind == "dashboard":
         content_title = dashboard_page["title"]; content_subtitle = "Painel projetado pelo Dashboard Designer com dados demonstrativos."
     elif report_page:
         content_title = report_page["title"]; content_subtitle = f"Relatório de {report_page['entity']} projetado pelo Report Designer."
+    elif workflow_page:
+        content_title = f"Fluxo de {workflow_page['entity']}"; content_subtitle = "Estado e ações projetados pelo Workflow Designer com simulação efêmera."
     elif form_page:
         content_title = form_page["title"]; content_subtitle = f"Formulário de {form_page['entity']} projetado pelo Form Designer."
     elif list_page:
@@ -255,7 +348,7 @@ def build_preview_shell(sistema, selected_entity_id=None, page_kind="list", sele
     return {
         "application": {"id": sistema.pk,"name": sistema.interface_nome or sistema.nome,"source_name": sistema.nome},
         "interface": {"menu": sistema.tipo_menu,"mode": sistema.interface_modo,"density": sistema.interface_densidade,"primary": sistema.interface_cor_primaria,"accent": sistema.interface_cor_destaque,"breadcrumb": bool(sistema.interface_breadcrumb),"search": bool(sistema.interface_busca),"user_menu": bool(sistema.interface_menu_usuario)},
-        "navigation": {"home": {"label": "Início", "icon": "bi-house-door"},"dashboard": {"label": "Dashboard","icon": "bi-bar-chart-line","active": page_kind == "dashboard"},"reports": report_navigation,"modules": navigation},
+        "navigation": {"home": {"label": "Início", "icon": "bi-house-door"},"dashboard": {"label": "Dashboard","icon": "bi-bar-chart-line","active": page_kind == "dashboard"},"reports": report_navigation,"workflows": workflow_navigation,"modules": navigation},
         "content": {"title": content_title, "subtitle": content_subtitle},
-        "page_kind": page_kind,"list_page": list_page,"form_page": form_page,"dashboard_page": dashboard_page if page_kind == "dashboard" else None,"reports": system_reports,"entity_reports": entity_reports,"report_page": report_page,
+        "page_kind": page_kind,"list_page": list_page,"form_page": form_page,"dashboard_page": dashboard_page if page_kind == "dashboard" else None,"reports": system_reports,"entity_reports": entity_reports,"report_page": report_page,"workflow_page": workflow_page,
     }

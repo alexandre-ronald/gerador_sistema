@@ -65,7 +65,7 @@ def application_preview(request, sistema_id):
     template_name = (
         "sistema/application_preview_workflow.html"
         if preview.get("page_kind") == "workflow"
-        else "sistema/application_preview_integrated.html"
+        else "sistema/application_preview.html"
     )
     return render(
         request,

@@ -4,12 +4,15 @@ from .builder_contracts import normalize_dashboard_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
 from .models import Modulo, VersaoGeracao
+from .rbac import normalize_rbac_config
+from .workflow import normalize_workflow_config
 
 RELATIONAL_FIELD_TYPES = {"ForeignKey", "ManyToManyField", "OneToOneField"}
 RELATION_LABELS = {"ForeignKey": "pertence a", "ManyToManyField": "relaciona-se com vários", "OneToOneField": "possui relação exclusiva com"}
 FIELD_TYPE_LABELS = {"CharField": "Texto curto", "TextField": "Texto longo", "EmailField": "E-mail", "URLField": "Endereço web", "IntegerField": "Número inteiro", "FloatField": "Número", "DecimalField": "Número decimal", "BooleanField": "Sim ou não", "DateField": "Data", "DateTimeField": "Data e hora", "TimeField": "Hora", "FileField": "Arquivo", "ImageField": "Imagem"}
 WIDGET_LABELS = {"metric": "Indicador", "table": "Tabela", "bar": "Gráfico de barras", "line": "Gráfico de linha", "area": "Gráfico de área", "pie": "Gráfico de pizza", "donut": "Gráfico de rosca"}
 ACTION_LABELS = {"create": "Cadastrar", "view": "Consultar", "edit": "Editar", "delete": "Excluir"}
+CAPABILITY_LABELS = {"list": "Listar", "view": "Consultar", "create": "Cadastrar", "update": "Editar", "delete": "Excluir"}
 
 
 def _draft_structure(sistema):
@@ -22,7 +25,7 @@ def _field_label(field):
 
 
 def _entity_metadata(entity):
-    return {"name": entity.nome, "label": entity.nome, "plural_label": entity.nome_plural or entity.nome, "fields": [{"name": field.nome, "label": _field_label(field), "type": field.tipo, "help_text": field.help_text or "", "editable": True} for field in entity.campos.all()]}
+    return {"name": entity.nome, "label": entity.nome, "plural_label": entity.nome_plural or entity.nome, "fields": [{"name": field.nome, "label": _field_label(field), "type": field.tipo, "help_text": field.help_text or "", "editable": True, "auto_created": False} for field in entity.campos.all()]}
 
 
 def _information_projection(modules):
@@ -66,6 +69,45 @@ def _experience_projection(entities, structure):
     return experiences, dashboard_projection
 
 
+def _process_projection(entities, structure):
+    raw_workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
+    metadata = [_entity_metadata(entity) for entity in entities]
+    normalized_workflows = {}
+    processes = []
+    for entity, entity_metadata in zip(entities, metadata):
+        workflow = normalize_workflow_config(entity.nome, entity_metadata, raw_workflows.get(entity.nome), strict=False)
+        normalized_workflows[entity.nome] = workflow
+        if not workflow["enabled"]:
+            continue
+        state_labels = {state["id"]: state["label"] for state in workflow["states"]}
+        processes.append({
+            "information": entity.nome,
+            "area": entity.modulo.nome,
+            "initial_state": state_labels.get(workflow["initial_state"], workflow["initial_state"]),
+            "states": [{"id": state["id"], "label": state["label"], "final": state["final"]} for state in workflow["states"]],
+            "transitions": [{"id": transition["id"], "label": transition["label"], "from": [state_labels.get(item, item) for item in transition["from"]], "to": state_labels.get(transition["to"], transition["to"]), "confirmation": transition["confirm"]} for transition in workflow["transitions"] if transition["enabled"]],
+        })
+
+    rbac = normalize_rbac_config(metadata, normalized_workflows, structure.get("rbac"), strict=False)
+    role_lookup = {role["id"]: role for role in rbac["roles"]}
+    responsibilities = []
+    for role in rbac["roles"]:
+        responsibility = {"id": role["id"], "name": role["label"], "description": role["description"], "information": [], "process_actions": []}
+        for entity_name, policy in rbac["entities"].items():
+            capabilities = policy["roles"].get(role["id"], [])
+            if capabilities:
+                responsibility["information"].append({"name": entity_name, "capabilities": [CAPABILITY_LABELS[action] for action in capabilities]})
+            workflow = normalized_workflows.get(entity_name, {})
+            transition_labels = {item["id"]: item["label"] for item in workflow.get("transitions", [])}
+            for transition_id, role_ids in policy["transitions"].items():
+                if role["id"] in role_ids:
+                    responsibility["process_actions"].append({"information": entity_name, "action": transition_labels.get(transition_id, transition_id)})
+        responsibility["information"].sort(key=lambda item: item["name"])
+        responsibility["process_actions"].sort(key=lambda item: (item["information"], item["action"]))
+        responsibilities.append(responsibility)
+    return processes, responsibilities, rbac
+
+
 def build_application_inventory(sistema):
     """Retorna Blueprint determinístico sem persistir estado próprio."""
     modules = list(Modulo.objects.filter(sistema=sistema).prefetch_related("entidades__campos__entidade_relacionada__modulo").order_by("nome", "id"))
@@ -74,13 +116,13 @@ def build_application_inventory(sistema):
     information, relationships = _information_projection(modules)
     structure = _draft_structure(sistema)
     experiences, dashboard = _experience_projection(entities, structure)
-    workflows = structure.get("workflows") or {}; rbac = structure.get("rbac") or {}; roles = rbac.get("roles") or [] if isinstance(rbac, dict) else []
+    processes, responsibilities, normalized_rbac = _process_projection(entities, structure)
     reports = structure.get("reports") or {}; notifications = structure.get("notifications") or []; integrations = structure.get("integrations") or []
-    workflow_count = sum(1 for entity_name, config in workflows.items() if config and entity_name) if isinstance(workflows, dict) else 0
     return {
         "application": {"id": sistema.pk, "name": sistema.nome, "description": sistema.descricao or "", "type": sistema.get_tipo_sistema_display()},
-        "inventory": {"modules": len(modules), "entities": len(entities), "fields": len(fields), "relationships": len(relationships), "workflows": workflow_count, "roles": len(roles) if isinstance(roles, list) else 0, "reports": _report_count(reports), "notifications": len(notifications) if isinstance(notifications, list) else 0, "integrations": len(integrations) if isinstance(integrations, list) else 0},
+        "inventory": {"modules": len(modules), "entities": len(entities), "fields": len(fields), "relationships": len(relationships), "workflows": len(processes), "roles": len(normalized_rbac["roles"]), "reports": _report_count(reports), "notifications": len(notifications) if isinstance(notifications, list) else 0, "integrations": len(integrations) if isinstance(integrations, list) else 0},
         "modules": [{"id": module.pk, "name": module.nome, "description": module.descricao or "", "entities": len(module.entidades.all()), "fields": sum(len(entity.campos.all()) for entity in module.entidades.all())} for module in modules],
         "information": information, "relationships": relationships, "experiences": experiences, "dashboard": dashboard,
+        "processes": processes, "responsibilities": responsibilities,
         "sources": {"structure": "database", "draft": bool(structure)},
     }

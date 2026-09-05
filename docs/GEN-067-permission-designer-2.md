@@ -10,8 +10,6 @@ Princípio de produto:
 
 ## Filosofia
 
-A GEN-067 inaugura formalmente a experiência orientada à intenção do usuário:
-
 1. intenção antes de implementação;
 2. linguagem de negócio antes de linguagem Django;
 3. Designer antes de infraestrutura;
@@ -31,29 +29,7 @@ O contrato técnico continua explícito, determinístico, validado e fail-closed
 
 ## GEN-067.1 — Papéis orientados ao negócio
 
-### Experiência
-
-O Designer deixa de pedir ao usuário:
-
-- ID técnico do papel;
-- Django Group;
-- conhecimento do termo RBAC.
-
-O usuário informa:
-
-- nome do papel;
-- descrição da responsabilidade.
-
-Exemplo:
-
-```text
-Gestor de Contratos
-Responsável por acompanhar e aprovar contratos.
-```
-
-### Contrato persistido
-
-O runtime preserva IDs estáveis e Django Groups internamente:
+O usuário informa nome e descrição da responsabilidade. IDs técnicos e Django Groups permanecem internos.
 
 ```json
 {
@@ -65,46 +41,11 @@ O runtime preserva IDs estáveis e Django Groups internamente:
 }
 ```
 
-`description` é metadata de negócio e não altera a resolução de autorização.
-
-### Retrocompatibilidade
-
-Configurações antigas que já possuem `group` continuam preservando seu valor.
-
-Quando um novo contrato não fornece `group`, o normalizador deriva o grupo interno a partir de `label`. Assim a interface não precisa expor detalhes Django, mas o runtime existente continua recebendo o contrato esperado.
-
-IDs continuam estáveis. Alterar o nome visual de um papel não deve reescrever referências existentes em políticas de entidade ou permissões de Workflow.
+Configurações antigas com `group` explícito preservam esse valor. Em novos papéis, o grupo interno pode ser derivado de `label`. IDs permanecem estáveis.
 
 ## GEN-067.2 — Capacidades em vez de CRUD técnico
 
-### Experiência
-
-O usuário não configura mais uma matriz baseada na nomenclatura técnica `list`, `view`, `create`, `update` e `delete`.
-
-Cada entidade passa a ser apresentada como uma área de capacidades. Para cada papel, o usuário escolhe ações reconhecíveis no dia a dia:
-
-- **Consultar registros** — encontrar e acompanhar os registros disponíveis;
-- **Ver detalhes** — abrir um registro e visualizar suas informações;
-- **Cadastrar novo** — criar um novo registro;
-- **Alterar registros** — modificar informações existentes;
-- **Excluir registros** — remover registros existentes.
-
-Exemplo:
-
-```text
-Pedido
-
-Operador
-[x] Consultar registros
-[x] Ver detalhes
-[x] Cadastrar novo
-[ ] Alterar registros
-[ ] Excluir registros
-```
-
-### Contrato técnico preservado
-
-A GEN-067.2 não cria um segundo modelo de autorização. As capacidades visíveis são apenas a representação orientada ao usuário do contrato estável já existente:
+A interface traduz o contrato CRUD estável para capacidades orientadas ao negócio:
 
 ```text
 Consultar registros -> list
@@ -114,21 +55,9 @@ Alterar registros   -> update
 Excluir registros   -> delete
 ```
 
-Persistência e runtime continuam usando:
+Persistência continua usando os mesmos IDs técnicos, garantindo retrocompatibilidade.
 
-```json
-{
-  "roles": {
-    "operador": ["list", "view", "create"]
-  }
-}
-```
-
-Isso garante compatibilidade com o gerador, runtime RBAC, permissões Django e sistemas já configurados.
-
-### Organização visual
-
-A configuração deixa de ser uma matriz técnica global e passa a ser organizada por:
+Organização visual:
 
 ```text
 Informação
@@ -136,21 +65,92 @@ Informação
       -> Capacidades
 ```
 
-A intenção é que o usuário pense primeiro em uma informação do negócio e nas responsabilidades de cada papel sobre ela.
+## GEN-067.3 — Ações de Workflow
 
-Ações de Workflow permanecem separadas nesta etapa e serão aprofundadas na GEN-067.3.
+O Workflow Designer continua sendo a fonte das ações possíveis do processo. O Permission Designer apenas responde **quem pode executá-las**.
 
-### Critério da GEN-067.2
+Experiência:
+
+```text
+Pedido
+Ações disponíveis neste processo
+
+Gestor
+[x] Aprovar
+[ ] Cancelar
+```
+
+O contrato permanece:
+
+```json
+{
+  "transitions": {
+    "aprovar": ["gestor"]
+  }
+}
+```
+
+Nenhuma transição é duplicada ou redefinida no Permission Designer.
+
+## GEN-067.4 — Visão por papel
+
+### Objetivo
+
+Permitir que o usuário escolha um papel e compreenda rapidamente **tudo o que esse papel pode fazer na aplicação**.
+
+Exemplo:
+
+```text
+Gestor de Contratos
+Responsável por acompanhar e aprovar contratos.
+
+Contrato
+  ✓ Consultar registros
+  ✓ Ver detalhes
+  ✓ Alterar registros
+
+Ações do processo
+  ✓ Aprovar
+  ✓ Devolver para correção
+```
+
+### Regra arquitetural
+
+A visão por papel é **derivada do mesmo contrato RBAC**. Ela não possui persistência própria e não cria uma segunda fonte de verdade.
+
+```text
+rbac.roles
+rbac.entities[*].roles
+rbac.entities[*].transitions
+        ↓
+Visão por papel
+```
+
+Alterações nas capacidades ou ações de processo atualizam imediatamente o resumo do papel selecionado.
+
+`selectedRoleId` é apenas estado transitório de interface; não faz parte do contrato persistido.
+
+### Contadores
+
+A visão exibe, para o papel selecionado:
+
+- quantidade de capacidades sobre informações;
+- quantidade de ações de processo;
+- total de permissões resultantes.
+
+Esses valores são calculados a partir do contrato atual e não são armazenados.
+
+### Critério da GEN-067.4
 
 A etapa pode ser fechada quando:
 
-- a interface apresentar capacidades em linguagem de negócio;
-- os IDs CRUD não forem expostos ao usuário;
-- cada entidade agrupar seus papéis e capacidades;
-- carregar uma configuração antiga marcar corretamente as capacidades equivalentes;
-- salvar as capacidades persistir exatamente os mesmos IDs CRUD do contrato anterior;
-- Workflow permanecer funcional e sem alteração semântica;
-- não houver `alert(` na interface;
+- todos os papéis puderem ser selecionados na visão consolidada;
+- nome e descrição do papel forem apresentados;
+- capacidades autorizadas forem agrupadas por informação;
+- ações de Workflow autorizadas forem agrupadas por processo;
+- mudanças realizadas nas seções de configuração refletirem imediatamente no resumo;
+- nenhum novo contrato ou estado persistente for criado para a visão;
+- configurações antigas continuarem compatíveis;
 - regressão global permanecer verde.
 
 ## Separação de responsabilidades
@@ -158,7 +158,9 @@ A etapa pode ser fechada quando:
 - Permission Designer expressa **quem pode fazer o quê**.
 - contrato RBAC mantém IDs e políticas determinísticas.
 - runtime gerado converte os papéis em Groups/permissões Django.
-- Workflow continua definindo se uma transição é estruturalmente possível; Permission Designer apenas define quem pode executá-la.
+- Workflow define **o que pode acontecer**.
+- Permission Designer define **quem pode fazer acontecer**.
+- Visões `.4` e `.5` são projeções do mesmo contrato, nunca fontes independentes de autorização.
 
 ## Gate de validação
 

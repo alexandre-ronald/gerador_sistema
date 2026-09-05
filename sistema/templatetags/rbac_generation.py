@@ -101,14 +101,34 @@ def _runtime_system_config(sistema):
 
 
 def _config(entities):
+    """Retorna a política RBAC do módulo sem validar o contrato global contra um subconjunto.
+
+    A configuração persistida é sistêmica. Durante a geração, porém, este helper recebe
+    apenas as entidades do módulo atual. Validar o contrato global diretamente contra esse
+    subconjunto faz entidades válidas de outros módulos parecerem inexistentes. Primeiro
+    normalizamos contra todas as entidades do sistema e só então projetamos as políticas
+    pertencentes ao módulo solicitado.
+    """
     entities = list(entities or [])
     sistema = _system_from_entities(entities)
-    structure = _stored_structure(sistema)
-    raw = structure.get("rbac")
-    if not isinstance(raw, dict):
+    if sistema is None:
         return _empty_config()
-    workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
-    return normalize_rbac_config(_metadata(entities), workflows, raw, strict=True)
+
+    config = _system_config(sistema)
+    requested_names = {
+        getattr(entidade, "nome", "")
+        for entidade in entities
+        if getattr(entidade, "nome", "")
+    }
+    return {
+        "enabled": bool(config.get("enabled")),
+        "roles": deepcopy(config.get("roles") or []),
+        "entities": {
+            name: deepcopy(policy)
+            for name, policy in (config.get("entities") or {}).items()
+            if name in requested_names
+        },
+    }
 
 
 def _entity_policy(entities, entity_name):

@@ -168,6 +168,22 @@ def _entity_role_permissions(role_simulation, entity_name):
     }
 
 
+def _filter_navigation_by_role(navigation, role_simulation):
+    """Oculta do menu entidades cuja listagem não é acessível ao papel simulado."""
+    if not role_simulation.get("active") and not role_simulation.get("invalid_role"):
+        return navigation
+    filtered_navigation = []
+    for module in navigation:
+        visible_items = [
+            item
+            for item in module["items"]
+            if _entity_role_permissions(role_simulation, item["name"]).get("list", False)
+        ]
+        if visible_items:
+            filtered_navigation.append({**module, "items": visible_items})
+    return filtered_navigation
+
+
 def _demo_value(metadata, row_number):
     """Gera conteúdo demonstrativo determinístico; nunca consulta dados da aplicação final."""
     field_type = str(metadata.get("type") or "CharField")
@@ -332,6 +348,15 @@ def build_preview_shell(
         if items: navigation.append({"id": module.pk,"name": module.nome,"label": module.nome,"items": items})
 
     role_simulation = _role_simulation(all_entities, stored_workflows, stored_rbac, selected_role_id)
+    navigation = _filter_navigation_by_role(navigation, role_simulation)
+    if role_simulation.get("active"):
+        visible_entity_ids = {
+            item["id"]
+            for module in navigation
+            for item in module["items"]
+        }
+        available_entities = [entity for entity in available_entities if entity.pk in visible_entity_ids]
+
     system_reports = []
     for entity in all_entities: system_reports.extend(_reports_projection(entity, stored_reports))
     system_reports.sort(key=lambda item: (item["title"].lower(), item["entity"].lower(), item["id"]))

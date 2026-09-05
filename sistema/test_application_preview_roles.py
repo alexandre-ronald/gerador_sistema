@@ -70,7 +70,7 @@ class ApplicationPreviewRoleTests(TestCase):
         self.assertFalse(preview["role_simulation"]["active"])
         self.assertEqual(preview["role_simulation"]["mode_label"], "Visão completa de design")
         self.assertTrue(preview["list_page"]["actions"]["create"])
-        self.assertTrue(preview["list_page"]["actions"]["update"])
+        self.assertTrue(preview["list_page"]["actions"]["edit"])
 
     def test_selected_role_filters_crud_capabilities(self):
         preview = build_preview_shell(
@@ -87,8 +87,17 @@ class ApplicationPreviewRoleTests(TestCase):
         self.assertFalse(permissions["update"])
         self.assertFalse(permissions["delete"])
         self.assertTrue(preview["list_page"]["actions"]["create"])
-        self.assertFalse(preview["list_page"]["actions"]["update"])
+        self.assertFalse(preview["list_page"]["actions"]["edit"])
         self.assertFalse(preview["list_page"]["actions"]["delete"])
+
+        manager = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.entidade.pk,
+            selected_role_id="gestor",
+        )
+        self.assertTrue(manager["selected_role_permissions"]["update"])
+        self.assertTrue(manager["list_page"]["actions"]["edit"])
+        self.assertFalse(manager["list_page"]["actions"]["create"])
 
     def test_selected_role_filters_workflow_by_stable_transition_id(self):
         requester = build_preview_shell(

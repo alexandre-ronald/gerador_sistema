@@ -108,6 +108,10 @@ def save_system_structure(*, user, payload, sistema_id=None):
             data.get("interface_busca"),
             sistema.interface_busca,
         )
+        sistema.interface_notificacoes = _bool(
+            data.get("interface_notificacoes"),
+            sistema.interface_notificacoes,
+        )
         sistema.interface_menu_usuario = _bool(
             data.get("interface_menu_usuario"),
             sistema.interface_menu_usuario,
@@ -231,6 +235,7 @@ def serialize_system_structure(sistema):
             "interface_cor_destaque": sistema.interface_cor_destaque,
             "interface_breadcrumb": sistema.interface_breadcrumb,
             "interface_busca": sistema.interface_busca,
+            "interface_notificacoes": sistema.interface_notificacoes,
             "interface_menu_usuario": sistema.interface_menu_usuario,
             "banco_dados": sistema.banco_dados,
             "usar_custom_user": sistema.usar_custom_user,

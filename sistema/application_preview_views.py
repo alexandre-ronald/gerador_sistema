@@ -11,6 +11,7 @@ def application_preview(request, sistema_id):
     preview = build_preview_shell(
         sistema,
         selected_entity_id=request.GET.get("entidade"),
+        page_kind=request.GET.get("pagina", "list"),
     )
     return render(
         request,

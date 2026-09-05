@@ -24,9 +24,14 @@ class PermissionDesignerUITests(TestCase):
 
     def test_designer_uses_business_language_for_roles_capabilities_and_process_actions(self):
         response=self.client.get(self.url);self.assertEqual(response.status_code,200)
-        for text in ["Design · GEN-067","Permission Designer","Controlar acesso por papéis","Papéis do sistema","Nome do papel","O que este papel representa?","O que cada papel pode fazer?","Capacidades sobre as informações","Consultar registros","Ver detalhes","Cadastrar novo","Alterar registros","Excluir registros","O que este papel pode fazer no processo?","Ações dos processos","Ações disponíveis neste processo","Pedido","Aprovar"]:self.assertContains(response,text)
+        for text in ["Design · GEN-067","Permission Designer","Controlar acesso por papéis","Papéis do sistema","Nome do papel","O que este papel representa?","Visão por papel","Escolha um papel para entender rapidamente tudo o que ele pode fazer no sistema.","O que cada papel pode fazer?","Capacidades sobre as informações","Consultar registros","Ver detalhes","Cadastrar novo","Alterar registros","Excluir registros","O que este papel pode fazer no processo?","Ações dos processos","Ações disponíveis neste processo","Pedido","Aprovar"]:self.assertContains(response,text)
         for technical_text in ["RBAC ativo","Django Group","Matriz de permissões CRUD","Permissões de Workflow","Informação / Ação do processo"]:self.assertNotContains(response,technical_text)
         self.assertNotContains(response,"alert(")
+
+    def test_role_view_is_derived_from_same_rbac_contract(self):
+        content=self.client.get(self.url).content.decode()
+        for text in ["let selectedRoleId=null","function renderRoleOverview()","function renderRoleSummary()","rbac.entities[e.name]?.roles","rbac.entities[e.name]?.transitions","totalCaps","totalProcess"]:self.assertIn(text,content)
+        self.assertNotIn("roleSummaryState",content)
 
     def test_capabilities_keep_stable_crud_contract(self):
         content=self.client.get(self.url).content.decode()

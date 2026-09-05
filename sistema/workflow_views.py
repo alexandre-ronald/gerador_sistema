@@ -38,6 +38,8 @@ def _infer_state_field(entity_metadata, config):
     names = [str(item.get("name") or "").strip() for item in compatible if str(item.get("name") or "").strip()]
     preferred = ("status", "situacao", "situação", "estado")
     selected = next((name for wanted in preferred for name in names if name.casefold() == wanted.casefold()), None)
+    if selected is None:
+        selected = next((name for wanted in preferred for name in names if wanted.casefold() in name.casefold()), None)
     if selected is None and len(names) == 1:
         selected = names[0]
     if selected is None:

@@ -1,0 +1,60 @@
+{% extends 'sistema/application_preview.html' %}
+
+{% block content %}
+{{ block.super }}
+{% if preview.navigation.workflows %}
+<div id="preview-workflow-navigation-data" class="d-none" aria-hidden="true">
+  {% for item in preview.navigation.workflows %}
+  <span data-preview-workflow-nav
+        data-workflow-entity-id="{{ item.entity_id }}"
+        data-workflow-label="{{ item.label }}"
+        data-workflow-icon="{{ item.icon }}"></span>
+  {% endfor %}
+</div>
+<script>
+(function(){
+  const dataRoot=document.getElementById('preview-workflow-navigation-data');
+  if(!dataRoot)return;
+  const roleId='{{ preview.role_simulation.selected_role_id|default:""|escapejs }}';
+  const items=[...dataRoot.querySelectorAll('[data-preview-workflow-nav]')].map(el=>({
+    entityId:el.dataset.workflowEntityId,
+    label:el.dataset.workflowLabel,
+    icon:el.dataset.workflowIcon||'bi-diagram-3'
+  }));
+  if(!items.length)return;
+  const hrefFor=item=>`?entidade=${encodeURIComponent(item.entityId)}&pagina=workflow${roleId?`&papel=${encodeURIComponent(roleId)}`:''}`;
+
+  const lateral=document.querySelector('.preview-sidebar .preview-nav');
+  if(lateral){
+    const section=document.createElement('div');
+    section.className='preview-nav-label';
+    section.textContent='Fluxos';
+    lateral.appendChild(section);
+    items.forEach(item=>{
+      const link=document.createElement('a');
+      link.href=hrefFor(item);
+      link.className='preview-nav-item';
+      link.dataset.previewWorkflowLink=item.entityId;
+      link.innerHTML=`<i class="bi ${item.icon}"></i><span></span>`;
+      link.querySelector('span').textContent=item.label;
+      lateral.appendChild(link);
+    });
+  }
+
+  const top=document.querySelector('.preview-navbar-links');
+  if(top){
+    items.forEach(item=>{
+      const link=document.createElement('a');
+      link.href=hrefFor(item);
+      link.className='preview-navbar-link';
+      link.dataset.previewWorkflowLink=item.entityId;
+      link.innerHTML=`<i class="bi ${item.icon} me-1"></i><span></span>`;
+      link.querySelector('span').textContent=item.label;
+      link.title=`Fluxo · ${item.label}`;
+      top.appendChild(link);
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

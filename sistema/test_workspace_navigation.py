@@ -62,3 +62,34 @@ class WorkspaceNavigationTemplateTests(SimpleTestCase):
         self.assertIn("Validation Center", source)
         self.assertIn("Deployment Center", source)
         self.assertIn("Meus Sistemas", source)
+
+    def test_application_blueprint_links_back_to_specialized_designers(self):
+        sistema = SimpleNamespace(id=1, pk=1, nome="Sistema de Teste")
+        source = render_to_string(
+            "sistema/application_blueprint.html",
+            {
+                "sistema": sistema,
+                "inventory": {},
+                "blueprint": {
+                    "application": {"name": "Sistema de Teste"},
+                    "modules": [],
+                    "information": [],
+                    "relationships": [],
+                    "experiences": [],
+                    "dashboard": {"enabled": False, "widgets": []},
+                    "processes": [],
+                    "responsibilities": [],
+                    "readiness": {"coverage": [], "issues": []},
+                },
+            },
+        )
+
+        self.assertIn("Continuar no Designer", source)
+        self.assertIn("/editar/", source)
+        self.assertIn("/form-designer/", source)
+        self.assertIn("/crud-designer/", source)
+        self.assertIn("/reports/", source)
+        self.assertIn("/dashboard-builder/", source)
+        self.assertIn("/workflow/", source)
+        self.assertIn("/permissions/", source)
+        self.assertIn("/validation-center/", source)

@@ -35,6 +35,11 @@ class WorkflowDesignerUITests(TestCase):
         r=self.client.post(self.save_url,data=json.dumps(self.payload()),content_type='application/json');self.assertEqual(r.status_code,200);self.assertEqual(r.json()['status'],'sucesso');d=VersaoGeracao.objects.get(sistema=self.sistema,numero=0)
         for k in ['forms','cruds','business_rules']:self.assertIn(k,d.estrutura_json)
         w=d.estrutura_json['workflows']['Pedido'];self.assertEqual(w['state_field'],'status');self.assertEqual(w['transitions'][0]['id'],'aprovar')
+    def test_save_ignores_empty_disabled_workflow_from_other_entity(self):
+        outra=Entidade.objects.create(modulo=self.modulo,nome='Cliente');Campo.objects.create(entidade=outra,nome='nome',tipo='CharField',max_length=100)
+        p=self.payload();p['workflows']['Cliente']={'enabled':False,'state_field':'','initial_state':'','states':[],'transitions':[]}
+        r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json');self.assertEqual(r.status_code,200)
+        d=VersaoGeracao.objects.get(sistema=self.sistema,numero=0);self.assertTrue(d.estrutura_json['workflows']['Pedido']['enabled']);self.assertFalse(d.estrutura_json['workflows']['Cliente']['enabled'])
     def test_saved_workflow_is_loaded_back_into_designer(self):
         self.client.post(self.save_url,data=json.dumps(self.payload()),content_type='application/json');r=self.client.get(self.url)
         for text in ['rascunho','aprovar','Confirmar aprovação?']:self.assertContains(r,text)

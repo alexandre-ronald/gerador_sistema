@@ -89,13 +89,19 @@ def _normalize_role(item):
     role_id = _safe_id(item.get("id"), code="invalid_role_id")
     label = str(item.get("label") or "").strip()
     if not label:
-        raise RBACError("empty_role_label", "Papel exige um rótulo.", role_id=role_id)
-    group = str(item.get("group") or "").strip()
+        raise RBACError("empty_role_label", "Papel exige um nome.", role_id=role_id)
+    description = str(item.get("description") or "").strip()
+
+    # GEN-067.1: o usuário descreve um papel de negócio; Django Group é detalhe interno.
+    # Configurações antigas que já possuem group continuam preservadas integralmente.
+    group = str(item.get("group") or label).strip()
     if not group:
-        raise RBACError("empty_role_group", "Papel exige um Django Group.", role_id=role_id)
+        raise RBACError("empty_role_group", "Não foi possível definir o grupo interno do papel.", role_id=role_id)
+
     return {
         "id": role_id,
         "label": label,
+        "description": description,
         "group": group,
         "order": _order(item.get("order", 0), code="invalid_role_order", role_id=role_id),
     }

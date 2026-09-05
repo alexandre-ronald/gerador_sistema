@@ -83,8 +83,12 @@ class PermissionDesignerUITests(TestCase):
             "Aprovar",
         ]:
             self.assertContains(response, text)
-        for technical_text in ["RBAC ativo", "Django Group", "Matriz de permissões CRUD", "Permissões de Workflow", "Informação / Ação"]:
+        # GEN-067.2 elimina a matriz CRUD técnica. A seção de Workflow ainda
+        # conserva sua própria tabela até a GEN-067.3, portanto não devemos
+        # rejeitar genericamente a substring "Informação / Ação".
+        for technical_text in ["RBAC ativo", "Django Group", "Matriz de permissões CRUD", "Permissões de Workflow"]:
             self.assertNotContains(response, technical_text)
+        self.assertNotContains(response, "<th>Informação / Ação</th>", html=True)
         self.assertNotContains(response, "alert(")
 
     def test_capabilities_keep_stable_crud_contract(self):

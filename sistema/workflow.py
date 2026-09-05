@@ -157,7 +157,17 @@ def normalize_workflow_config(entity_name, entity_metadata, raw_config, *, stric
     if not isinstance(enabled, bool):
         raise WorkflowError("invalid_workflow_enabled", "Campo enabled deve ser booleano.")
 
-    if not raw_config and not enabled:
+    # O Designer projeta todas as entidades, inclusive as que ainda não possuem fluxo.
+    # Essas entidades chegam ao salvamento como um contrato vazio e desabilitado e
+    # não devem bloquear a validação de outro workflow que esteja efetivamente ativo.
+    empty_disabled = (
+        not enabled
+        and not str(raw_config.get("state_field") or "").strip()
+        and not str(raw_config.get("initial_state") or "").strip()
+        and not (raw_config.get("states") or [])
+        and not (raw_config.get("transitions") or [])
+    )
+    if not raw_config or empty_disabled:
         return {
             "enabled": False,
             "state_field": "",

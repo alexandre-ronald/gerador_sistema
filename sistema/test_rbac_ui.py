@@ -46,20 +46,8 @@ class PermissionDesignerUITests(TestCase):
             "rbac": {
                 "enabled": True,
                 "roles": [
-                    {
-                        "id": "operador",
-                        "label": "Operador",
-                        "description": "Registra e consulta pedidos.",
-                        "group": "Operadores",
-                        "order": 0,
-                    },
-                    {
-                        "id": "gestor",
-                        "label": "Gestor",
-                        "description": "Aprova e acompanha pedidos.",
-                        "group": "Gestores",
-                        "order": 1,
-                    },
+                    {"id": "operador", "label": "Operador", "description": "Registra e consulta pedidos.", "group": "Operadores", "order": 0},
+                    {"id": "gestor", "label": "Gestor", "description": "Aprova e acompanha pedidos.", "group": "Gestores", "order": 1},
                 ],
                 "entities": {
                     "Pedido": {
@@ -73,7 +61,7 @@ class PermissionDesignerUITests(TestCase):
             }
         }
 
-    def test_designer_uses_business_language_for_roles_and_access(self):
+    def test_designer_uses_business_language_for_roles_and_capabilities(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         for text in [
@@ -83,21 +71,31 @@ class PermissionDesignerUITests(TestCase):
             "Papéis do sistema",
             "Nome do papel",
             "O que este papel representa?",
-            "Quem pode fazer o quê?",
-            "Acesso às informações",
-            "Consultar",
-            "Cadastrar",
-            "Alterar",
+            "O que cada papel pode fazer?",
+            "Capacidades sobre as informações",
+            "Consultar registros",
+            "Ver detalhes",
+            "Cadastrar novo",
+            "Alterar registros",
+            "Excluir registros",
             "Ações do processo",
             "Pedido",
             "Aprovar",
         ]:
             self.assertContains(response, text)
-        self.assertNotContains(response, "RBAC ativo")
-        self.assertNotContains(response, "Django Group")
-        self.assertNotContains(response, "Matriz de permissões CRUD")
-        self.assertNotContains(response, "Permissões de Workflow")
+        for technical_text in ["RBAC ativo", "Django Group", "Matriz de permissões CRUD", "Permissões de Workflow", "Informação / Ação"]:
+            self.assertNotContains(response, technical_text)
         self.assertNotContains(response, "alert(")
+
+    def test_capabilities_keep_stable_crud_contract(self):
+        response = self.client.get(self.url)
+        content = response.content.decode()
+        self.assertIn("list:{label:'Consultar registros'", content)
+        self.assertIn("view:{label:'Ver detalhes'", content)
+        self.assertIn("create:{label:'Cadastrar novo'", content)
+        self.assertIn("update:{label:'Alterar registros'", content)
+        self.assertIn("delete:{label:'Excluir registros'", content)
+        self.assertIn("toggleCrud", content)
 
     def test_save_persists_role_description_and_preserves_other_draft_keys(self):
         response = self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json")
@@ -109,6 +107,7 @@ class PermissionDesignerUITests(TestCase):
         roles = {item["id"]: item for item in draft.estrutura_json["rbac"]["roles"]}
         self.assertEqual(roles["gestor"]["description"], "Aprova e acompanha pedidos.")
         self.assertEqual(roles["gestor"]["group"], "Gestores")
+        self.assertEqual(draft.estrutura_json["rbac"]["entities"]["Pedido"]["roles"]["operador"], ["list", "view", "create"])
         self.assertEqual(draft.estrutura_json["rbac"]["entities"]["Pedido"]["transitions"]["aprovar"], ["gestor"])
 
     def test_save_derives_internal_group_when_designer_does_not_send_it(self):

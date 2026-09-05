@@ -46,8 +46,20 @@ class PermissionDesignerUITests(TestCase):
             "rbac": {
                 "enabled": True,
                 "roles": [
-                    {"id": "operador", "label": "Operador", "group": "Operadores", "order": 0},
-                    {"id": "gestor", "label": "Gestor", "group": "Gestores", "order": 1},
+                    {
+                        "id": "operador",
+                        "label": "Operador",
+                        "description": "Registra e consulta pedidos.",
+                        "group": "Operadores",
+                        "order": 0,
+                    },
+                    {
+                        "id": "gestor",
+                        "label": "Gestor",
+                        "description": "Aprova e acompanha pedidos.",
+                        "group": "Gestores",
+                        "order": 1,
+                    },
                 ],
                 "entities": {
                     "Pedido": {
@@ -61,31 +73,61 @@ class PermissionDesignerUITests(TestCase):
             }
         }
 
-    def test_designer_renders_roles_crud_and_workflow_matrix(self):
+    def test_designer_uses_business_language_for_roles_and_access(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Permission Designer")
-        self.assertContains(response, "Matriz de permissões CRUD")
-        self.assertContains(response, "Permissões de Workflow")
-        self.assertContains(response, "Pedido")
-        self.assertContains(response, "aprovar")
+        for text in [
+            "Design · GEN-067",
+            "Permission Designer",
+            "Controlar acesso por papéis",
+            "Papéis do sistema",
+            "Nome do papel",
+            "O que este papel representa?",
+            "Quem pode fazer o quê?",
+            "Acesso às informações",
+            "Consultar",
+            "Cadastrar",
+            "Alterar",
+            "Ações do processo",
+            "Pedido",
+            "Aprovar",
+        ]:
+            self.assertContains(response, text)
+        self.assertNotContains(response, "RBAC ativo")
+        self.assertNotContains(response, "Django Group")
+        self.assertNotContains(response, "Matriz de permissões CRUD")
+        self.assertNotContains(response, "Permissões de Workflow")
         self.assertNotContains(response, "alert(")
 
-    def test_save_persists_rbac_and_preserves_other_draft_keys(self):
+    def test_save_persists_role_description_and_preserves_other_draft_keys(self):
         response = self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json")
         self.assertEqual(response.status_code, 200)
         draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
         self.assertIn("forms", draft.estrutura_json)
         self.assertIn("workflows", draft.estrutura_json)
         self.assertTrue(draft.estrutura_json["rbac"]["enabled"])
+        roles = {item["id"]: item for item in draft.estrutura_json["rbac"]["roles"]}
+        self.assertEqual(roles["gestor"]["description"], "Aprova e acompanha pedidos.")
+        self.assertEqual(roles["gestor"]["group"], "Gestores")
         self.assertEqual(draft.estrutura_json["rbac"]["entities"]["Pedido"]["transitions"]["aprovar"], ["gestor"])
+
+    def test_save_derives_internal_group_when_designer_does_not_send_it(self):
+        payload = self.payload()
+        payload["rbac"]["roles"][0].pop("group")
+        response = self.client.post(self.save_url, data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()["rbac"]
+        operador = next(item for item in saved["roles"] if item["id"] == "operador")
+        self.assertEqual(operador["group"], "Operador")
+        self.assertEqual(operador["description"], "Registra e consulta pedidos.")
 
     def test_saved_configuration_is_loaded_back(self):
         self.client.post(self.save_url, data=json.dumps(self.payload()), content_type="application/json")
         response = self.client.get(self.url)
-        self.assertContains(response, "Operadores")
-        self.assertContains(response, "Gestores")
-        self.assertContains(response, "operador")
+        self.assertContains(response, "Aprova e acompanha pedidos.")
+        self.assertContains(response, "Registra e consulta pedidos.")
+        self.assertContains(response, "Gestor")
+        self.assertContains(response, "Operador")
 
     def test_rejects_unknown_entity(self):
         payload = self.payload()

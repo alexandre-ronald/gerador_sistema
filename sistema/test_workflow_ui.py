@@ -42,6 +42,12 @@ class WorkflowDesignerUITests(TestCase):
         p=self.payload();p['workflows']['Fantasma']=p['workflows'].pop('Pedido');r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json');self.assertEqual(r.status_code,400);self.assertEqual(r.json()['erro']['code'],'unknown_workflow_entity')
     def test_save_rejects_incompatible_state_field(self):
         p=self.payload();p['workflows']['Pedido']['state_field']='valor';r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json');self.assertEqual(r.status_code,400);self.assertEqual(r.json()['erro']['code'],'incompatible_state_field')
+    def test_save_explains_missing_state_field_in_business_language(self):
+        p=self.payload();p['workflows']['Pedido']['state_field']='';r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json')
+        self.assertEqual(r.status_code,400);self.assertEqual(r.json()['erro']['code'],'missing_state_field');self.assertEqual(r.json()['erro']['field'],'state_field');self.assertIn('Escolha onde guardar a etapa atual',r.json()['mensagem'])
+    def test_save_explains_missing_initial_state_in_business_language(self):
+        p=self.payload();p['workflows']['Pedido']['initial_state']='';r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json')
+        self.assertEqual(r.status_code,400);self.assertEqual(r.json()['erro']['code'],'missing_initial_state');self.assertIn('Defina a etapa inicial',r.json()['mensagem'])
     def test_save_rejects_transition_from_final_state(self):
         p=self.payload();p['workflows']['Pedido']['transitions'][0]['from']=['aprovado'];p['workflows']['Pedido']['transitions'][0]['to']='rascunho';r=self.client.post(self.save_url,data=json.dumps(p),content_type='application/json');self.assertEqual(r.status_code,400);self.assertEqual(r.json()['erro']['code'],'final_state_has_outgoing_transition')
     def test_save_requires_workflows_object(self):

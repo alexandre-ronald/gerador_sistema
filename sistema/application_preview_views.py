@@ -12,6 +12,7 @@ def application_preview(request, sistema_id):
         sistema,
         selected_entity_id=request.GET.get("entidade"),
         page_kind=request.GET.get("pagina", "list"),
+        selected_report_id=request.GET.get("relatorio"),
     )
     return render(
         request,

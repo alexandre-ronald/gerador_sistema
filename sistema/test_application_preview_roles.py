@@ -136,11 +136,40 @@ class ApplicationPreviewRoleTests(TestCase):
         self.assertNotIn("preview", draft.estrutura_json)
         self.assertNotIn("preview_studio", draft.estrutura_json)
 
-    def test_unknown_role_is_not_invented(self):
-        preview = build_preview_shell(self.sistema, selected_role_id="super_admin_inventado")
-        self.assertTrue(preview["role_simulation"]["invalid_role"])
-        self.assertIsNone(preview["role_simulation"]["selected_role"])
-        self.assertEqual(preview["role_simulation"]["selected_role_id"], "")
+    def test_unknown_role_is_fail_closed_and_not_invented(self):
+        preview = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.entidade.pk,
+            selected_role_id="super_admin_inventado",
+        )
+        simulation = preview["role_simulation"]
+        permissions = preview["selected_role_permissions"]
+        self.assertTrue(simulation["invalid_role"])
+        self.assertFalse(simulation["active"])
+        self.assertIsNone(simulation["selected_role"])
+        self.assertEqual(simulation["selected_role_id"], "")
+        self.assertEqual(simulation["requested_role_id"], "super_admin_inventado")
+        self.assertEqual(simulation["mode_label"], "Papel inválido")
+        self.assertTrue(permissions["filtered"])
+        self.assertFalse(permissions["list"])
+        self.assertFalse(permissions["view"])
+        self.assertFalse(permissions["create"])
+        self.assertFalse(permissions["update"])
+        self.assertFalse(permissions["delete"])
+        self.assertEqual(permissions["transitions"], {})
+        self.assertFalse(preview["list_page"]["role_access"])
+        self.assertFalse(preview["list_page"]["actions"]["create"])
+        self.assertFalse(preview["list_page"]["actions"]["view"])
+        self.assertFalse(preview["list_page"]["actions"]["edit"])
+        self.assertFalse(preview["list_page"]["actions"]["delete"])
+
+        workflow = build_preview_shell(
+            self.sistema,
+            selected_entity_id=self.entidade.pk,
+            page_kind="workflow",
+            selected_role_id="super_admin_inventado",
+        )
+        self.assertEqual(workflow["workflow_page"]["transitions"], [])
 
     def test_workflow_page_renders_business_role_selector(self):
         self.client.force_login(self.user)

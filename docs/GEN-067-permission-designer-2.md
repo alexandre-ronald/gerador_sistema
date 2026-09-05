@@ -29,19 +29,7 @@ O contrato técnico continua explícito, determinístico, validado e fail-closed
 
 ## GEN-067.1 — Papéis orientados ao negócio
 
-O usuário informa nome e descrição da responsabilidade. IDs técnicos e Django Groups permanecem internos.
-
-```json
-{
-  "id": "gestor_contratos",
-  "label": "Gestor de Contratos",
-  "description": "Responsável por acompanhar e aprovar contratos.",
-  "group": "Gestor de Contratos",
-  "order": 0
-}
-```
-
-Configurações antigas com `group` explícito preservam esse valor. Em novos papéis, o grupo interno pode ser derivado de `label`. IDs permanecem estáveis.
+O usuário informa nome e descrição da responsabilidade. IDs técnicos e Django Groups permanecem internos. Configurações antigas com `group` explícito preservam esse valor; novos papéis podem derivar o grupo interno de `label`. IDs permanecem estáveis.
 
 ## GEN-067.2 — Capacidades em vez de CRUD técnico
 
@@ -55,112 +43,114 @@ Alterar registros   -> update
 Excluir registros   -> delete
 ```
 
-Persistência continua usando os mesmos IDs técnicos, garantindo retrocompatibilidade.
-
-Organização visual:
-
-```text
-Informação
-  -> Papel
-      -> Capacidades
-```
+A persistência continua usando os mesmos IDs técnicos.
 
 ## GEN-067.3 — Ações de Workflow
 
-O Workflow Designer continua sendo a fonte das ações possíveis do processo. O Permission Designer apenas responde **quem pode executá-las**.
-
-Experiência:
-
-```text
-Pedido
-Ações disponíveis neste processo
-
-Gestor
-[x] Aprovar
-[ ] Cancelar
-```
-
-O contrato permanece:
-
-```json
-{
-  "transitions": {
-    "aprovar": ["gestor"]
-  }
-}
-```
-
-Nenhuma transição é duplicada ou redefinida no Permission Designer.
+O Workflow Designer continua sendo a fonte das ações possíveis do processo. O Permission Designer apenas responde **quem pode executá-las**. Nenhuma transição é duplicada ou redefinida.
 
 ## GEN-067.4 — Visão por papel
 
-### Objetivo
+Permite escolher um papel e compreender rapidamente tudo o que ele pode fazer. A visão é derivada de `rbac.roles`, `rbac.entities[*].roles` e `rbac.entities[*].transitions`, sem persistência própria. `selectedRoleId` é apenas estado transitório de interface.
 
-Permitir que o usuário escolha um papel e compreenda rapidamente **tudo o que esse papel pode fazer na aplicação**.
+## GEN-067.5 — Visão por funcionalidade
 
-Exemplo:
+Inverte a perspectiva da `.4`: para uma informação, mostra quais papéis podem executar cada capacidade e cada ação do processo.
 
 ```text
-Gestor de Contratos
-Responsável por acompanhar e aprovar contratos.
-
-Contrato
-  ✓ Consultar registros
-  ✓ Ver detalhes
-  ✓ Alterar registros
-
-Ações do processo
-  ✓ Aprovar
-  ✓ Devolver para correção
+Pedido
+  Consultar registros -> Operador, Gestor
+  Alterar registros   -> Gestor
+  Aprovar              -> Gestor
 ```
+
+A visão usa exatamente o mesmo contrato RBAC. `selectedFeatureName` é transitório e não é persistido.
+
+## GEN-067.6 — Explicação de acesso
+
+### Objetivo
+
+Permitir que o usuário responda, em linguagem de negócio, **por que uma autorização está permitida ou bloqueada**.
+
+A interface oferece três escolhas:
+
+```text
+Papel + Informação + Capacidade/Ação
+                ↓
+         Explicação de acesso
+```
+
+Exemplo de capacidade:
+
+```text
+Operador
+  ↓
+Cadastrar novo
+  ↓
+Pedido
+
+Permitido: Operador possui a capacidade “Cadastrar novo” sobre Pedido.
+```
+
+Exemplo de ação do processo:
+
+```text
+Gestor
+  ↓
+Aprovar
+  ↓
+Pedido
+
+Permitido: Gestor possui a ação do processo “Aprovar” sobre Pedido.
+```
+
+A mesma explicação também representa explicitamente a ausência da autorização, exibindo **Não permitido** quando o papel não consta na política correspondente.
 
 ### Regra arquitetural
 
-A visão por papel é **derivada do mesmo contrato RBAC**. Ela não possui persistência própria e não cria uma segunda fonte de verdade.
+A explicação nunca é uma nova fonte de autorização. `explainAccess()` consulta diretamente:
 
 ```text
 rbac.roles
-rbac.entities[*].roles
-rbac.entities[*].transitions
+rbac.entities[entidade].roles[papel]
+rbac.entities[entidade].transitions[ação]
+workflows[entidade]
         ↓
-Visão por papel
+explicação em linguagem de negócio
 ```
 
-Alterações nas capacidades ou ações de processo atualizam imediatamente o resumo do papel selecionado.
+Não existe `accessExplanationState`, política paralela, cache de autorização ou nova persistência.
 
-`selectedRoleId` é apenas estado transitório de interface; não faz parte do contrato persistido.
+A explicação é atualizada imediatamente quando uma capacidade ou ação do processo é marcada/desmarcada no Designer.
 
-### Contadores
+### Limite desta etapa
 
-A visão exibe, para o papel selecionado:
+A GEN-067.6 explica o contrato por **papel**. Ela não inventa vínculo entre usuários reais e papéis porque esse vínculo não pertence ao contrato atual do Designer. A futura explicação por pessoa poderá compor:
 
-- quantidade de capacidades sobre informações;
-- quantidade de ações de processo;
-- total de permissões resultantes.
+```text
+Pessoa -> Papel -> Capacidade/Ação -> Informação
+```
 
-Esses valores são calculados a partir do contrato atual e não são armazenados.
+quando a identidade/membresia fizer parte de um contrato disponível para essa experiência.
 
-### Critério da GEN-067.4
+### Preparação arquitetural
 
-A etapa pode ser fechada quando:
+Essa projeção prepara uma base reutilizável para:
 
-- todos os papéis puderem ser selecionados na visão consolidada;
-- nome e descrição do papel forem apresentados;
-- capacidades autorizadas forem agrupadas por informação;
-- ações de Workflow autorizadas forem agrupadas por processo;
-- mudanças realizadas nas seções de configuração refletirem imediatamente no resumo;
-- nenhum novo contrato ou estado persistente for criado para a visão;
-- configurações antigas continuarem compatíveis;
-- regressão global permanecer verde.
+- diagnóstico de autorização;
+- auditoria;
+- análise de impacto;
+- suporte operacional;
+- explicações futuras da camada AI-Native.
 
 ## Separação de responsabilidades
 
 - Permission Designer expressa **quem pode fazer o quê**.
 - contrato RBAC mantém IDs e políticas determinísticas.
-- runtime gerado converte os papéis em Groups/permissões Django.
+- runtime gerado converte papéis em Groups/permissões Django.
 - Workflow define **o que pode acontecer**.
 - Permission Designer define **quem pode fazer acontecer**.
-- Visões `.4` e `.5` são projeções do mesmo contrato, nunca fontes independentes de autorização.
+- Visões `.4`, `.5` e explicação `.6` são projeções do mesmo contrato, nunca fontes independentes de autorização.
 
 ## Gate de validação
 

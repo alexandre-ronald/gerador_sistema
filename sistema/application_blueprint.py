@@ -1,9 +1,11 @@
 """Application Blueprint — projeções somente-leitura dos contratos do DjangoForge."""
 
+from django.db.models import Prefetch
+
 from .builder_contracts import normalize_dashboard_config
 from .crud_designer import normalize_crud_config
 from .form_designer import normalize_form_config
-from .models import Modulo, VersaoGeracao
+from .models import Campo, Entidade, Modulo, VersaoGeracao
 from .rbac import normalize_rbac_config
 from .workflow import normalize_workflow_config
 
@@ -181,7 +183,13 @@ def _readiness_projection(modules, entities, structure, normalized_rbac):
 
 def build_application_inventory(sistema):
     """Retorna Blueprint determinístico sem persistir estado próprio."""
-    modules = list(Modulo.objects.filter(sistema=sistema).prefetch_related("entidades__campos__entidade_relacionada__modulo").order_by("nome", "id"))
+    field_qs = Campo.objects.select_related("entidade_relacionada__modulo").order_by("nome", "id")
+    entity_qs = Entidade.objects.select_related("modulo").prefetch_related(Prefetch("campos", queryset=field_qs)).order_by("nome", "id")
+    modules = list(
+        Modulo.objects.filter(sistema=sistema)
+        .prefetch_related(Prefetch("entidades", queryset=entity_qs))
+        .order_by("nome", "id")
+    )
     entities = [entity for module in modules for entity in module.entidades.all()]
     fields = [field for entity in entities for field in entity.campos.all()]
     information, relationships = _information_projection(modules)

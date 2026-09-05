@@ -18,6 +18,7 @@ from . import health_monitoring_views
 from . import deployment_center_views
 from . import observability_views
 from . import interface_designer_views
+from . import application_blueprint_views
 
 app_name = 'sistema'
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path('novo/', views.criar_sistema, name='criar'),
     path('excluir/<int:sistema_id>/', views.excluir_sistema, name='excluir_sistema'),
     path('sistemas/<int:sistema_id>/workspace/', views.sistema_workspace, name='workspace'),
+    path('sistemas/<int:sistema_id>/blueprint/', application_blueprint_views.application_blueprint, name='application_blueprint'),
     path('sistemas/<int:sistema_id>/editar/', views.editar_sistema, name='editar_sistema'),
     path('sistemas/<int:sistema_id>/interface/', interface_designer_views.interface_designer, name='interface_designer'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),

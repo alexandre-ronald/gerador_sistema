@@ -75,16 +75,92 @@ Quando um novo contrato não fornece `group`, o normalizador deriva o grupo inte
 
 IDs continuam estáveis. Alterar o nome visual de um papel não deve reescrever referências existentes em políticas de entidade ou permissões de Workflow.
 
-### Separação de responsabilidades
+## GEN-067.2 — Capacidades em vez de CRUD técnico
+
+### Experiência
+
+O usuário não configura mais uma matriz baseada na nomenclatura técnica `list`, `view`, `create`, `update` e `delete`.
+
+Cada entidade passa a ser apresentada como uma área de capacidades. Para cada papel, o usuário escolhe ações reconhecíveis no dia a dia:
+
+- **Consultar registros** — encontrar e acompanhar os registros disponíveis;
+- **Ver detalhes** — abrir um registro e visualizar suas informações;
+- **Cadastrar novo** — criar um novo registro;
+- **Alterar registros** — modificar informações existentes;
+- **Excluir registros** — remover registros existentes.
+
+Exemplo:
+
+```text
+Pedido
+
+Operador
+[x] Consultar registros
+[x] Ver detalhes
+[x] Cadastrar novo
+[ ] Alterar registros
+[ ] Excluir registros
+```
+
+### Contrato técnico preservado
+
+A GEN-067.2 não cria um segundo modelo de autorização. As capacidades visíveis são apenas a representação orientada ao usuário do contrato estável já existente:
+
+```text
+Consultar registros -> list
+Ver detalhes        -> view
+Cadastrar novo      -> create
+Alterar registros   -> update
+Excluir registros   -> delete
+```
+
+Persistência e runtime continuam usando:
+
+```json
+{
+  "roles": {
+    "operador": ["list", "view", "create"]
+  }
+}
+```
+
+Isso garante compatibilidade com o gerador, runtime RBAC, permissões Django e sistemas já configurados.
+
+### Organização visual
+
+A configuração deixa de ser uma matriz técnica global e passa a ser organizada por:
+
+```text
+Informação
+  -> Papel
+      -> Capacidades
+```
+
+A intenção é que o usuário pense primeiro em uma informação do negócio e nas responsabilidades de cada papel sobre ela.
+
+Ações de Workflow permanecem separadas nesta etapa e serão aprofundadas na GEN-067.3.
+
+### Critério da GEN-067.2
+
+A etapa pode ser fechada quando:
+
+- a interface apresentar capacidades em linguagem de negócio;
+- os IDs CRUD não forem expostos ao usuário;
+- cada entidade agrupar seus papéis e capacidades;
+- carregar uma configuração antiga marcar corretamente as capacidades equivalentes;
+- salvar as capacidades persistir exatamente os mesmos IDs CRUD do contrato anterior;
+- Workflow permanecer funcional e sem alteração semântica;
+- não houver `alert(` na interface;
+- regressão global permanecer verde.
+
+## Separação de responsabilidades
 
 - Permission Designer expressa **quem pode fazer o quê**.
 - contrato RBAC mantém IDs e políticas determinísticas.
 - runtime gerado converte os papéis em Groups/permissões Django.
 - Workflow continua definindo se uma transição é estruturalmente possível; Permission Designer apenas define quem pode executá-la.
 
-## Critério da GEN-067.1
-
-A etapa pode ser fechada quando passarem:
+## Gate de validação
 
 ```text
 python manage.py check
@@ -92,13 +168,3 @@ python manage.py test sistema.test_rbac
 python manage.py test sistema.test_rbac_ui
 python manage.py test
 ```
-
-E quando estiver confirmado que:
-
-- contratos RBAC antigos continuam válidos;
-- grupos antigos continuam preservados;
-- novos papéis podem ser salvos sem `group` explícito;
-- descrição do papel é persistida;
-- interface não expõe `RBAC ativo`, `Django Group`, `Matriz de permissões CRUD` ou `Permissões de Workflow`;
-- IDs técnicos permanecem internos e estáveis;
-- regressão global permanece verde.

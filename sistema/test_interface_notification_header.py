@@ -69,5 +69,6 @@ class InterfaceNotificationHeaderTests(TestCase):
         self.sistema.save(update_fields=["interface_notificacoes"])
         ctx = GeradorService(self.sistema.pk)._prepare_context()
         base = render_to_string("gerador/snippets/base_html.txt", ctx)
-        self.assertNotIn("app-notification-button", base)
-        self.assertNotIn("app-notification-badge", base)
+        self.assertNotIn("notifications:list", base)
+        self.assertNotIn("notification_unread_count }}", base)
+        self.assertNotIn('aria-label="Notificações"', base)

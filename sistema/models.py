@@ -136,7 +136,7 @@ class Ambiente(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.sistema.nome} · {self.nome}"
+        return f"{self.sistema.nome} · {self.get_tipo_display()}"
 
 
 class PromocaoAmbiente(models.Model):

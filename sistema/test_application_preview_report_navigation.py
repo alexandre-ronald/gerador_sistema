@@ -62,9 +62,17 @@ class ApplicationPreviewReportNavigationTests(TestCase):
             },
         )
 
+    @staticmethod
+    def _report_rows(preview):
+        return [
+            row
+            for row in preview["navigation"]["reports"]
+            if row.get("kind") == "report"
+        ]
+
     def test_enabled_reports_are_global_navigation_even_without_crud(self):
         preview = build_preview_shell(self.sistema)
-        reports = preview["navigation"]["reports"]
+        reports = self._report_rows(preview)
         self.assertEqual(len(reports), 1)
         self.assertEqual(reports[0]["label"], "Eventos de auditoria")
         self.assertEqual(reports[0]["entity_id"], self.auditoria.pk)
@@ -78,7 +86,9 @@ class ApplicationPreviewReportNavigationTests(TestCase):
         )
         self.assertEqual(preview["report_page"]["id"], "auditoria_eventos")
         self.assertEqual(preview["report_page"]["entity"], "Auditoria")
-        self.assertTrue(preview["navigation"]["reports"][0]["active"])
+        reports = self._report_rows(preview)
+        self.assertEqual(len(reports), 1)
+        self.assertTrue(reports[0]["active"])
 
     def test_preview_renders_report_in_main_navigation(self):
         self.client.force_login(self.user)

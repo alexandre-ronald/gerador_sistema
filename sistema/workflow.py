@@ -46,6 +46,27 @@ def _order(value, *, code, transition_id=None, state_id=None):
     return value
 
 
+def _entity_field_id(value):
+    value = str(value or "").strip()
+    if not value:
+        raise WorkflowError(
+            "missing_state_field",
+            "Escolha onde guardar a etapa atual antes de salvar o fluxo.",
+            field="state_field",
+        )
+    return _safe_id(value, code="invalid_state_field")
+
+
+def _initial_state_id(value):
+    value = str(value or "").strip()
+    if not value:
+        raise WorkflowError(
+            "missing_initial_state",
+            "Defina a etapa inicial antes de salvar o fluxo.",
+        )
+    return _safe_id(value, code="invalid_initial_state")
+
+
 def _metadata_map(entity_metadata):
     fields = {}
     for item in entity_metadata.get("fields") or []:
@@ -145,7 +166,7 @@ def normalize_workflow_config(entity_name, entity_metadata, raw_config, *, stric
             "transitions": [],
         }
 
-    state_field = _safe_id(raw_config.get("state_field"), code="invalid_state_field")
+    state_field = _entity_field_id(raw_config.get("state_field"))
     if state_field not in fields:
         if strict:
             raise WorkflowError("unknown_state_field", "Campo de estado não existe na entidade.", field=state_field)
@@ -164,7 +185,7 @@ def normalize_workflow_config(entity_name, entity_metadata, raw_config, *, stric
 
     raw_states = raw_config.get("states")
     if not isinstance(raw_states, list) or not raw_states:
-        raise WorkflowError("workflow_without_states", "Workflow exige ao menos um estado.")
+        raise WorkflowError("workflow_without_states", "Adicione pelo menos uma etapa antes de salvar o fluxo.")
 
     states = {}
     for item in raw_states:
@@ -175,7 +196,7 @@ def normalize_workflow_config(entity_name, entity_metadata, raw_config, *, stric
             raise WorkflowError("duplicate_state_id", "ID de estado duplicado.", state_id=normalized["id"])
         states[normalized["id"]] = normalized
 
-    initial_state = _safe_id(raw_config.get("initial_state"), code="invalid_initial_state")
+    initial_state = _initial_state_id(raw_config.get("initial_state"))
     if initial_state not in states:
         raise WorkflowError("unknown_initial_state", "Estado inicial não existe.", state_id=initial_state)
 

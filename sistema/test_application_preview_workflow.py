@@ -137,6 +137,14 @@ class ApplicationPreviewWorkflowTests(TestCase):
         self.assertEqual(len(preview["navigation"]["workflows"]), 1)
         self.assertEqual(preview["navigation"]["workflows"][0]["entity"], "Pedido")
 
+    def test_main_preview_exposes_enabled_workflow_navigation(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("sistema:application_preview", args=[self.sistema.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fluxos")
+        self.assertContains(response, "Pedidos")
+        self.assertContains(response, f"?entidade={self.pedido.pk}&amp;pagina=workflow")
+
     def test_workflow_view_renders_state_actions_and_gen_069_7_notice(self):
         self.client.force_login(self.user)
         response = self.client.get(

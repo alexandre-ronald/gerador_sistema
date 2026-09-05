@@ -110,3 +110,36 @@ class ApplicationBlueprintInventoryTests(TestCase):
         self.assertEqual(role["information"], [{"name": "Pedido", "capabilities": ["Listar", "Consultar", "Cadastrar", "Editar"]}])
         self.assertEqual(role["process_actions"], [{"information": "Pedido", "action": "Aprovar pedido"}])
         self.assertNotIn("change_pedido", str(role))
+
+    def test_projects_coverage_and_points_out_unreviewed_design(self):
+        readiness = build_application_inventory(self.sistema)["readiness"]
+        coverage = {item["key"]: item for item in readiness["coverage"]}
+        self.assertEqual(coverage["information"]["configured"], 2)
+        self.assertEqual(coverage["forms"]["configured"], 1)
+        self.assertEqual(coverage["listings"]["configured"], 1)
+        self.assertEqual(coverage["access"]["configured"], 1)
+        self.assertEqual(readiness["status"], "attention")
+        self.assertEqual(readiness["blocking"], 0)
+        self.assertEqual(readiness["attention"], 3)
+        messages = [item["message"] for item in readiness["issues"]]
+        self.assertIn("O cadastro ainda não foi revisado no Form Designer.", messages)
+        self.assertIn("A consulta ainda não foi revisada no CRUD Designer.", messages)
+        self.assertIn("O controle de acesso está ativo, mas esta informação ainda não possui responsabilidades definidas.", messages)
+
+    def test_readiness_becomes_ready_when_core_design_is_covered(self):
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        structure = draft.estrutura_json
+        structure["forms"]["Cliente"] = {"title": "Cadastrar cliente"}
+        structure["cruds"]["Cliente"] = {"title": "Clientes"}
+        structure["rbac"]["entities"]["Cliente"] = {
+            "roles": {"gestor": ["list", "view"]},
+            "transitions": {},
+        }
+        draft.estrutura_json = structure
+        draft.save(update_fields=["estrutura_json"])
+
+        readiness = build_application_inventory(self.sistema)["readiness"]
+        self.assertEqual(readiness["status"], "ready")
+        self.assertEqual(readiness["label"], "Pronta para avançar")
+        self.assertEqual(readiness["coverage_percent"], 100)
+        self.assertEqual(readiness["issues"], [])

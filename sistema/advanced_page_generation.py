@@ -1,7 +1,7 @@
 """GEN-070.7 — projeção do contrato de páginas avançadas para o gerador Django.
 
 Mantém a fonte de verdade em ``advanced_pages`` e acrescenta apenas metadados de
-compilação (nomes Python, referências de modelo, campos e coordenadas CSS).
+compilação (nomes Python, referências de modelo, campos, ações e coordenadas CSS).
 """
 from copy import deepcopy
 import re
@@ -31,9 +31,18 @@ def _field_specs(entity):
     return fields
 
 
+def _entity_metadata(entity):
+    return {
+        "app_name": getattr(getattr(entity, "modulo", None), "app_name", "") if entity else "",
+        "model_name": getattr(entity, "classe_nome", "") if entity else "",
+        "entity_code": getattr(entity, "codigo_nome", "") if entity else "",
+    }
+
+
 def prepare_advanced_pages_generation(raw_config, *, entities):
     config = normalize_advanced_pages_config(raw_config, strict=True)
     entity_map = {entity.nome: entity for entity in entities}
+    source_page_map = {page["id"]: page for page in config["pages"] if page.get("enabled") is True}
     pages = []
 
     for source in config["pages"]:
@@ -43,11 +52,49 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
         page["url_name"] = f"advanced_page_{page['id']}"
         context = page["context"]
         entity = entity_map.get(context.get("entity"))
-        page["context_app_name"] = getattr(getattr(entity, "modulo", None), "app_name", "") if entity else ""
-        page["context_model_name"] = getattr(entity, "classe_nome", "") if entity else ""
-        page["context_entity_code"] = getattr(entity, "codigo_nome", "") if entity else ""
+        metadata = _entity_metadata(entity)
+        page["context_app_name"] = metadata["app_name"]
+        page["context_model_name"] = metadata["model_name"]
+        page["context_entity_code"] = metadata["entity_code"]
         page["context_fields"] = _field_specs(entity)
         page["requires_pk"] = context.get("kind") == "record"
+
+        action_map = {}
+        for action in page["actions"]:
+            target = action["target"]
+            runtime = {
+                "id": action["id"],
+                "kind": action["kind"],
+                "label": action["label"],
+                "target": deepcopy(target),
+                "app_name": "",
+                "entity_code": "",
+                "url_name": "",
+                "requires_pk": False,
+            }
+            if action["kind"] == "navigate":
+                target_page = source_page_map.get(target.get("page"))
+                if target_page:
+                    runtime["url_name"] = f"advanced_page_{target_page['id']}"
+                    runtime["requires_pk"] = target_page["context"].get("kind") == "record"
+            else:
+                target_entity = entity_map.get(target.get("entity"))
+                target_meta = _entity_metadata(target_entity)
+                runtime["app_name"] = target_meta["app_name"]
+                runtime["entity_code"] = target_meta["entity_code"]
+                if action["kind"] == "crud" and target_entity:
+                    operation = target.get("operation")
+                    suffix = {"list": "list", "view": "detail", "create": "create", "update": "update", "delete": "delete"}.get(operation, "")
+                    if suffix:
+                        runtime["url_name"] = f"{target_meta['app_name']}:{target_meta['entity_code']}_{suffix}"
+                        runtime["requires_pk"] = operation in {"view", "update", "delete"}
+                elif action["kind"] == "workflow" and target_entity:
+                    runtime["url_name"] = f"{target_meta['app_name']}:{target_meta['entity_code']}_transition"
+                    runtime["requires_pk"] = True
+                elif action["kind"] == "report" and target_entity:
+                    runtime["url_name"] = f"{target_meta['app_name']}:{target_meta['entity_code']}_report_{target.get('report')}"
+            action.update(runtime)
+            action_map[action["id"]] = action
 
         for component in page["components"]:
             layout = component["layout"]
@@ -58,11 +105,13 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
             binding_entity = entity_map.get(binding.get("ref"))
             if binding.get("kind") == "page_context":
                 binding_entity = entity
-            component["binding_app_name"] = getattr(getattr(binding_entity, "modulo", None), "app_name", "") if binding_entity else ""
-            component["binding_model_name"] = getattr(binding_entity, "classe_nome", "") if binding_entity else ""
-            component["binding_entity_code"] = getattr(binding_entity, "codigo_nome", "") if binding_entity else ""
+            binding_meta = _entity_metadata(binding_entity)
+            component["binding_app_name"] = binding_meta["app_name"]
+            component["binding_model_name"] = binding_meta["model_name"]
+            component["binding_entity_code"] = binding_meta["entity_code"]
             component["binding_fields"] = _field_specs(binding_entity)
             component["binding_field"] = next((field for field in component["binding_fields"] if field["name"] == binding.get("field")), None)
+            component["runtime_action"] = deepcopy(action_map.get(component.get("action"))) if component.get("action") else None
 
         pages.append(page)
 

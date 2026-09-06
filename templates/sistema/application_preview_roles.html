@@ -31,11 +31,16 @@
       </div>
       {% if preview.role_simulation.invalid_role %}
       <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small" data-preview-invalid-role>
-        <i class="bi bi-shield-exclamation me-1"></i>O papel solicitado não existe no Permission Designer. A prévia está em modo fail-closed: nenhuma capacidade CRUD ou transição é concedida.
+        <i class="bi bi-shield-exclamation me-1"></i>O papel solicitado não existe no Permission Designer. A prévia está em modo fail-closed: nenhuma capacidade CRUD, transição ou relatório é concedido.
       </div>
       {% elif preview.role_simulation.active %}
       <div class="alert alert-primary py-2 px-3 mt-3 mb-0 small" data-preview-active-role="{{ preview.role_simulation.selected_role_id }}">
-        <i class="bi bi-person-badge me-1"></i>Simulando <strong>{{ preview.role_simulation.selected_role.label }}</strong>. Listagens, formulários e fluxos respeitam as permissões declaradas para esse papel.
+        <i class="bi bi-person-badge me-1"></i>Simulando <strong>{{ preview.role_simulation.selected_role.label }}</strong>. Listagens, formulários, fluxos e relatórios respeitam as permissões declaradas para esse papel.
+      </div>
+      {% endif %}
+      {% if preview.report_access_denied %}
+      <div class="alert alert-danger py-2 px-3 mt-3 mb-0 small" data-preview-report-access-denied="{{ preview.report_access_denied.id }}">
+        <i class="bi bi-shield-lock me-1"></i>O papel simulado não possui acesso ao relatório <strong>{{ preview.report_access_denied.title }}</strong>. O acesso direto também foi bloqueado.
       </div>
       {% endif %}
     </div>

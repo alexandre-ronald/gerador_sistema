@@ -15,6 +15,11 @@ RBAC_ENTITIES = {
 {% endfor %}        },
     },
 {% endfor %}}
+RBAC_REPORTS = {
+{% for entity_name, reports in rbac.reports.items %}    "{{ entity_name|escapejs }}": {
+{% for report_id, role_ids in reports.items %}        "{{ report_id|escapejs }}": [{% for role_id in role_ids %}"{{ role_id|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+{% endfor %}    },
+{% endfor %}}
 
 
 class RBACRuntimeError(PermissionError):
@@ -74,3 +79,23 @@ def require_transition(user, entity_name, transition_id):
 
 def filter_transitions(user, entity_name, transitions):
     return [item for item in transitions if can_transition(user, entity_name, item.get("id"))]
+
+
+def can_report(user, entity_name, report_id):
+    if not RBAC_ENABLED:
+        return True
+    if user is not None and getattr(user, "is_superuser", False):
+        return True
+    entity_reports = RBAC_REPORTS.get(entity_name)
+    if not isinstance(entity_reports, dict):
+        return False
+    allowed_roles = entity_reports.get(report_id)
+    if not isinstance(allowed_roles, list):
+        return False
+    return bool(_role_ids_for_user(user) & set(allowed_roles))
+
+
+def require_report(user, entity_name, report_id):
+    if not can_report(user, entity_name, report_id):
+        raise RBACRuntimeError(f"Relatório não autorizado para {entity_name}:{report_id}.")
+    return True

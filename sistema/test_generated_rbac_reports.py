@@ -30,7 +30,18 @@ class GeneratedRBACReportTests(TestCase):
             numero=0,
             descricao="Rascunho",
             estrutura_json={
-                "reports": {"Contrato": [{"id": "geral", "name": "Relatório Geral"}]},
+                "reports": {
+                    "Contrato": [
+                        {
+                            "id": "geral",
+                            "enabled": True,
+                            "title": "Relatório Geral",
+                            "fields": [],
+                            "filters": [],
+                            "navigation": {"path": ["Contratos"], "label": "Relatório Geral"},
+                        }
+                    ]
+                },
                 "rbac": {
                     "enabled": True,
                     "roles": [

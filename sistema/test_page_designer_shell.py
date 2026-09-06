@@ -64,10 +64,11 @@ class PageDesignerShellTests(TestCase):
             },
         )
         response = self.client.get(reverse("sistema:page_designer", args=[self.sistema.pk]))
-        self.assertContains(response, "Relatório Geral")
-        self.assertContains(response, "aprovar")
-        self.assertContains(response, "Cadastro de Contrato")
-        self.assertContains(response, 'dashboard\\u0022: true')
+        catalog = json.loads(response.context["designer_catalog_json"])
+        self.assertEqual(catalog["forms"], ["Contrato"])
+        self.assertEqual(catalog["reports"]["Contrato"][0]["id"], "geral")
+        self.assertEqual(catalog["workflows"]["Contrato"][0]["id"], "aprovar")
+        self.assertTrue(catalog["dashboard"])
 
     def test_save_persists_advanced_pages_in_draft(self):
         response = self.client.post(

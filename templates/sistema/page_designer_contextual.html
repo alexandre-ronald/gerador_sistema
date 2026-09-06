@@ -12,6 +12,42 @@
     return active ? active.dataset.id : '';
   }
 
+  function selectedPage(){
+    const pageId = selectedPageId();
+    if(!pageId || typeof state === 'undefined') return null;
+    return (state.config.pages || []).find(page => page.id === pageId) || null;
+  }
+
+  function ensureRecordNavigationHint(){
+    const toggle = document.getElementById('navVisible');
+    if(!toggle) return null;
+    let hint = document.getElementById('recordNavigationHint');
+    if(!hint){
+      hint = document.createElement('div');
+      hint.id = 'recordNavigationHint';
+      hint.className = 'page-meta mt-1 d-none';
+      hint.textContent = 'Páginas de registro são acessadas a partir de uma listagem, ação ou outra página e não aparecem diretamente no menu.';
+      const host = toggle.closest('.col-md-4') || toggle.parentElement;
+      if(host) host.appendChild(hint);
+    }
+    return hint;
+  }
+
+  function syncRecordNavigationRule(){
+    const toggle = document.getElementById('navVisible');
+    const hint = ensureRecordNavigationHint();
+    if(!toggle) return;
+    const page = selectedPage();
+    const isRecord = !!(page && page.context && page.context.kind === 'record');
+    toggle.disabled = isRecord;
+    if(hint) hint.classList.toggle('d-none', !isRecord);
+    if(isRecord && page.navigation && page.navigation.visible){
+      page.navigation.visible = false;
+      toggle.checked = false;
+      if(typeof dirty === 'function') dirty();
+    }
+  }
+
   function syncSelection(pageId){
     if(!pageId) return;
     const designerUrl = new URL(window.location.href);
@@ -26,6 +62,7 @@
       previewUrl.searchParams.set('pagina_avancada', pageId);
       previewLink.href = previewUrl.pathname + previewUrl.search;
     }
+    requestAnimationFrame(syncRecordNavigationRule);
   }
 
   document.addEventListener('click', function(event){
@@ -42,9 +79,18 @@
     }
   });
 
+  document.addEventListener('change', function(event){
+    if(event.target && event.target.id === 'contextKind'){
+      const page = selectedPage();
+      if(page && page.context) page.context.kind = event.target.value;
+      requestAnimationFrame(syncRecordNavigationRule);
+    }
+  });
+
   requestAnimationFrame(function(){
     const pageId = selectedPageId() || document.querySelector('.page-item')?.dataset.id || '';
     if(pageId) syncSelection(pageId);
+    syncRecordNavigationRule();
   });
 })();
 </script>

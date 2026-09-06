@@ -191,7 +191,7 @@ Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.4 — Ações com transporte de contexto
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Permitir que ações levem o contexto atual para CRUDs ou outras páginas.
 
@@ -224,6 +224,8 @@ Representação canônica:
 ```
 
 A validação é fail-closed: nesta fase o transporte exige `crud/create`, página `record`, campo relacional conhecido e relação apontando para a entidade do contexto. O Designer expõe a opção **Levar contexto atual para o novo registro** e permite escolher o vínculo compatível.
+
+Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.5 — Preview da experiência composta
 
@@ -296,3 +298,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** a composição só se torna operacional quando uma ação iniciada no contexto atual consegue criar dados relacionados sem exigir que o usuário repita manualmente o vínculo.
 
 **Impacto:** ações `crud/create` podem declarar de forma segura que a chave do registro atual preencherá um campo relacional do novo registro; o Page Designer passa a configurar esse transporte sem código.
+
+### 2026-09-06 — validação da GEN-071.4 e correção do feedback de salvamento
+
+**Decisão:** considerar a GEN-071.4 validada após gate e teste visual verdes e tornar o feedback de salvamento inequívoco.
+
+**Motivo:** a mensagem de sucesso permanecia na tela entre salvamentos, tornando impossível distinguir uma confirmação antiga de um novo salvamento.
+
+**Impacto:** ao salvar, a confirmação anterior é removida imediatamente, o botão entra em estado `Salvando...`, a confirmação inclui horário do salvamento e a mensagem de sucesso some automaticamente após alguns segundos.

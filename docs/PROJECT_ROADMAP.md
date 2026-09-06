@@ -121,9 +121,41 @@ gen-069-regression-safe-baseline-final
 574fa04baf9fdce67a145a79e647b81900f4b9dd
 ```
 
+### GEN-071 — Business Experience Composition
+
+Status: **PLANEJADA / EM IMPLEMENTAÇÃO**
+
+Objetivo:
+
+> Transformar o Advanced Page Designer em uma ferramenta capaz de compor experiências operacionais reais de negócio, combinando um registro principal com dados relacionados, indicadores, listas, relatórios e ações, sem exigir programação Django pelo usuário.
+
+Responsabilidade principal: composição relacional de páginas orientadas ao trabalho, com bindings entre contexto e entidades relacionadas, coleções relacionadas, métricas declarativas, transporte de contexto, Preview fiel e runtime equivalente.
+
+Caso de prova oficial: **Central do Fornecedor**, composta a partir de Fornecedor + Contratos relacionados + métricas + relatórios + ações.
+
+A GEN-071 deve ser genérica; Fornecedor/Contrato é apenas o cenário de validação end-to-end.
+
+Arquivo detalhado:
+
+```text
+docs/GEN-071-business-experience-composition.md
+```
+
+Branch de implementação:
+
+```text
+gen-071-business-experience-composition
+```
+
+Base de partida:
+
+```text
+gen-070-preview-entry-hotfix
+```
+
 ## Próximo marco
 
-Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fronteiras sejam registrados neste arquivo antes da implementação estrutural.
+GEN-071 em execução. Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fronteiras sejam registrados neste arquivo antes da implementação estrutural.
 
 ## Changelog de planejamento
 
@@ -150,3 +182,11 @@ Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fron
 **Motivo:** os contratos, Designer, Preview, geração, runtime e enforcement foram validados em conjunto e a suíte completa permaneceu verde.
 
 **Impacto:** a GEN-070 passa a ser baseline histórica congelada. Novas capacidades devem ser planejadas em um novo marco, sem ampliar silenciosamente o escopo desta GEN.
+
+### 2026-09-06 — criação da GEN-071
+
+**Decisão:** iniciar a GEN-071 como **Business Experience Composition**.
+
+**Motivo:** a infraestrutura da GEN-070 permite páginas avançadas, mas o valor para o usuário precisa ser provado com experiências operacionais que combinem um registro principal e capacidades relacionadas em uma única tela de trabalho.
+
+**Impacto:** o próximo ciclo prioriza bindings relacionais seguros, coleções relacionadas, métricas e transporte de contexto, culminando numa Central do Fornecedor end-to-end sem código manual específico no gerador.

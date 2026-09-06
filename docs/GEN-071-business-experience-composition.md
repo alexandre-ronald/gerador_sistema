@@ -100,7 +100,7 @@ Preview e runtime são projeções do mesmo contrato.
 
 ### GEN-071.1 — Modelo relacional de bindings
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Definir contrato, normalização, validação e semântica para relacionar o contexto atual a outras entidades.
 
@@ -131,7 +131,11 @@ Representação canônica inicial:
 
 A validação é fail-closed: a página deve ser `record`, o destino deve ser uma entidade conhecida, `target_field` deve existir, ser relacional e apontar para a entidade do contexto. Lookup livre (`__`), SQL e caminhos arbitrários não são aceitos.
 
+Gate reportado verde pelo usuário em 2026-09-06.
+
 ### GEN-071.2 — Related Collection Component
+
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
 
 Permitir uma tabela/lista relacionada ao registro atual.
 
@@ -140,6 +144,8 @@ Exemplo:
 ```text
 Fornecedor atual → Contratos deste fornecedor
 ```
+
+O Page Designer agora oferece **Tabela relacionada** somente de forma compatível com o contrato relacional da GEN-071.1. Em uma página `record`, ele descobre campos relacionais que apontam para a entidade de contexto, cria a tabela com `config.relation` e permite escolher o campo de relação no inspector. O Preview identifica visualmente a coleção relacionada e mostra a regra declarativa aplicada.
 
 ### GEN-071.3 — Métricas relacionais
 
@@ -214,3 +220,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** permitir `Contrato.fornecedor = page_context.pk` sem introduzir SQL, lookup ORM arbitrário ou uma segunda fonte de verdade.
 
 **Impacto:** a validação semântica passa a conhecer metadados de tipo e entidade relacionada dos campos e rejeita relações incompatíveis antes de Preview/geração/runtime.
+
+### 2026-09-06 — validação da GEN-071.1 e implementação da GEN-071.2
+
+**Decisão:** considerar a GEN-071.1 validada após gate reportado verde pelo usuário e expor a primeira experiência visual de coleção relacionada no Advanced Page Designer.
+
+**Motivo:** o valor da composição precisa ser configurável pelo usuário, não apenas representável no contrato.
+
+**Impacto:** páginas `record` passam a poder adicionar uma tabela relacionada a partir das relações conhecidas do domínio, com filtro declarativo pelo contexto atual e representação correspondente no Preview Studio.

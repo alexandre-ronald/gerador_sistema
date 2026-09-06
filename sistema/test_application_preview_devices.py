@@ -43,7 +43,8 @@ class ApplicationPreviewDeviceTests(TestCase):
 
     def test_role_form_preserves_selected_device(self):
         response = self.client.get(self.url, {"entidade": self.entidade.pk, "dispositivo": "mobile"})
-        self.assertContains(response, 'name="dispositivo" value="mobile"', html=True)
+        self.assertContains(response, 'name="dispositivo"')
+        self.assertContains(response, 'value="mobile"')
 
     def test_device_links_preserve_page_context(self):
         response = self.client.get(

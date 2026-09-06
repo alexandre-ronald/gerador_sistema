@@ -131,9 +131,9 @@ class AdvancedPagesContractTests(SimpleTestCase):
 
     def test_navigation_action_must_point_to_known_page(self):
         raw = self.valid_config()
-        raw["pages"][0]["actions"] = [
+        raw["pages"][0]["actions"].append(
             {"id": "abrir_workspace", "kind": "navigate", "label": "Workspace", "target": {"page": "workspace"}}
-        ]
+        )
         with self.assertRaises(AdvancedPageContractError) as error:
             normalize_advanced_pages_config(raw)
         self.assertEqual(error.exception.code, "unknown_navigation_page")

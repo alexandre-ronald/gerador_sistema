@@ -1,4 +1,4 @@
-"""GEN-070.8/070.9 — projeção read-only das páginas avançadas no Preview Studio."""
+"""GEN-070.8/070.9 e GEN-071.5 — projeção read-only das páginas avançadas no Preview Studio."""
 from copy import deepcopy
 
 from .advanced_pages import normalize_advanced_pages_config
@@ -91,7 +91,7 @@ def _page_context_allowed(role_simulation, page):
     return False
 
 
-def _action_projection(action, page_map, entities, structure, role_simulation):
+def _action_projection(action, page, page_map, entities, structure, role_simulation):
     target = action.get("target") or {}
     kind = action.get("kind")
     allowed = True
@@ -116,7 +116,23 @@ def _action_projection(action, page_map, entities, structure, role_simulation):
         if confirm:
             confirm_message = str(transition.get("confirm_message") or "Confirme para continuar.")
         description = f"Transição {target.get('transition')} · {target.get('entity')}"
-    return {**deepcopy(action), "allowed": bool(allowed), "description": description, "confirm": confirm, "confirm_message": confirm_message}
+
+    projection = {**deepcopy(action), "allowed": bool(allowed), "description": description, "confirm": confirm, "confirm_message": confirm_message}
+    transport = action.get("transport") if isinstance(action.get("transport"), dict) else None
+    if kind == "crud" and target.get("operation") == "create" and transport:
+        context_entity = str((page.get("context") or {}).get("entity") or "").strip()
+        target_entity = str(target.get("entity") or "").strip()
+        target_field = str(transport.get("target_field") or "").strip()
+        projection["transport_projection"] = {
+            "active": True,
+            "source_entity": context_entity,
+            "target_entity": target_entity,
+            "target_field": target_field,
+            "summary": f"{target_entity}.{target_field} ← {context_entity} atual",
+        }
+    else:
+        projection["transport_projection"] = None
+    return projection
 
 
 def _component_projection(component, page, entities, structure, role_simulation, actions):
@@ -199,7 +215,7 @@ def build_advanced_page_preview(sistema, preview, selected_page_id=None):
     projection = None
     if selected:
         page_allowed = _page_context_allowed(role_simulation, selected)
-        actions = {action["id"]: _action_projection(action, page_map, entities, structure, role_simulation) for action in selected.get("actions", [])}
+        actions = {action["id"]: _action_projection(action, selected, page_map, entities, structure, role_simulation) for action in selected.get("actions", [])}
         components = [_component_projection(component, selected, entities, structure, role_simulation, actions) for component in selected.get("components", [])]
         projection = {**deepcopy(selected), "allowed": page_allowed, "actions_projection": actions, "components_projection": components}
 

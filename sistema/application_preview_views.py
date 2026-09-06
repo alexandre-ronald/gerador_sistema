@@ -5,9 +5,29 @@ from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
 
 
+PREVIEW_DEVICES = {
+    "desktop": {"id": "desktop", "label": "Desktop", "icon": "bi-display", "width": 1280},
+    "tablet": {"id": "tablet", "label": "Tablet", "icon": "bi-tablet", "width": 820},
+    "mobile": {"id": "mobile", "label": "Mobile", "icon": "bi-phone", "width": 390},
+}
+
+
 def _draft_structure(sistema):
     versao = sistema.versoes.filter(numero=0).first()
     return versao.estrutura_json if versao and isinstance(versao.estrutura_json, dict) else {}
+
+
+def _device_preview(raw_device):
+    """Normaliza o dispositivo do Preview sem persistir estado no contrato."""
+    requested = str(raw_device or "desktop").strip().lower()
+    selected = requested if requested in PREVIEW_DEVICES else "desktop"
+    return {
+        "selected": selected,
+        "requested": requested,
+        "invalid": requested not in PREVIEW_DEVICES,
+        "options": [dict(item) for item in PREVIEW_DEVICES.values()],
+        **PREVIEW_DEVICES[selected],
+    }
 
 
 def _ensure_workflow_navigation(sistema, preview):
@@ -122,6 +142,7 @@ def application_preview(request, sistema_id):
         selected_workflow_state=request.GET.get("estado"),
         selected_role_id=request.GET.get("papel"),
     )
+    preview["device_preview"] = _device_preview(request.GET.get("dispositivo"))
     _apply_report_permissions(sistema, preview)
     _ensure_workflow_navigation(sistema, preview)
     template_name = (

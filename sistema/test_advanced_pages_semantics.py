@@ -43,6 +43,44 @@ class AdvancedPagesSemanticTests(SimpleTestCase):
         config = validate_advanced_pages_semantics(self.config(), **self.catalogs())
         self.assertEqual(config["pages"][0]["context"]["entity"], "Contrato")
 
+    def test_accepts_real_form_designer_contract_by_entity(self):
+        raw = self.config()
+        raw["pages"][0]["components"] = [{
+            "id": "form_contrato",
+            "type": "form",
+            "layout": {"x": 0, "y": 0, "w": 12, "h": 2},
+            "binding": {"kind": "form", "ref": "Contrato"},
+        }]
+        config = validate_advanced_pages_semantics(
+            raw,
+            **self.catalogs(),
+            forms={"Contrato": {"title": "Cadastro de Contrato", "sections": [], "fields": []}},
+        )
+        self.assertEqual(config["pages"][0]["components"][0]["binding"]["ref"], "Contrato")
+
+    def test_rejects_form_without_form_designer_contract(self):
+        raw = self.config()
+        raw["pages"][0]["components"] = [{
+            "id": "form_contrato",
+            "type": "form",
+            "layout": {"x": 0, "y": 0, "w": 12, "h": 2},
+            "binding": {"kind": "form", "ref": "Contrato"},
+        }]
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(raw, **self.catalogs(), forms={})
+        self.assertEqual(error.exception.code, "unknown_form_reference")
+
+    def test_accepts_singular_dashboard_contract(self):
+        raw = self.config()
+        raw["pages"][0]["components"] = [{
+            "id": "dashboard_principal",
+            "type": "dashboard",
+            "layout": {"x": 0, "y": 0, "w": 12, "h": 3},
+            "binding": {"kind": "dashboard", "ref": "main"},
+        }]
+        config = validate_advanced_pages_semantics(raw, **self.catalogs(), dashboards={"widgets": []})
+        self.assertEqual(config["pages"][0]["components"][0]["type"], "dashboard")
+
     def test_rejects_unknown_context_entity(self):
         raw = self.config()
         raw["pages"][0]["context"]["entity"] = "Fantasma"

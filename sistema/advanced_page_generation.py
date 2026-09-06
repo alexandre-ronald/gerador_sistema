@@ -1,4 +1,4 @@
-"""GEN-070.7 — projeção do contrato de páginas avançadas para o gerador Django.
+"""GEN-070.7/070.9 — projeção do contrato de páginas avançadas para o gerador Django.
 
 Mantém a fonte de verdade em ``advanced_pages`` e acrescenta apenas metadados de
 compilação (nomes Python, referências de modelo, campos, ações e coordenadas CSS).
@@ -71,12 +71,21 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
                 "entity_code": "",
                 "url_name": "",
                 "requires_pk": False,
+                "target_context_kind": "",
+                "target_context_entity": "",
+                "target_context_app_name": "",
             }
             if action["kind"] == "navigate":
                 target_page = source_page_map.get(target.get("page"))
                 if target_page:
+                    target_context = target_page.get("context") or {}
+                    target_entity = entity_map.get(target_context.get("entity"))
+                    target_meta = _entity_metadata(target_entity)
                     runtime["url_name"] = f"advanced_page_{target_page['id']}"
-                    runtime["requires_pk"] = target_page["context"].get("kind") == "record"
+                    runtime["requires_pk"] = target_context.get("kind") == "record"
+                    runtime["target_context_kind"] = target_context.get("kind") or ""
+                    runtime["target_context_entity"] = target_context.get("entity") or ""
+                    runtime["target_context_app_name"] = target_meta["app_name"]
             else:
                 target_entity = entity_map.get(target.get("entity"))
                 target_meta = _entity_metadata(target_entity)

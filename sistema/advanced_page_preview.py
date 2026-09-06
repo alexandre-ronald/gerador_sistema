@@ -1,11 +1,10 @@
-"""GEN-070.8 — projeção read-only das páginas avançadas no Preview Studio."""
+"""GEN-070.8/070.9 — projeção read-only das páginas avançadas no Preview Studio."""
 from copy import deepcopy
 
 from .advanced_pages import normalize_advanced_pages_config
 from .builder_contracts import normalize_dashboard_config
 from .form_designer import normalize_form_config
 from .models import Entidade
-from .report_designer_views import _entity_metadata as report_entity_metadata, _normalize_report_collection
 
 
 CRUD_ACTIONS = ("list", "view", "create", "update", "delete")
@@ -70,6 +69,19 @@ def _transition_allowed(role_simulation, entity_name, transition_id):
     return isinstance(roles, list) and role_id in roles
 
 
+def _page_context_allowed(role_simulation, page):
+    context = (page or {}).get("context") or {}
+    kind = context.get("kind")
+    if kind == "none":
+        return True
+    permissions = _entity_permissions(role_simulation, context.get("entity"))
+    if kind == "collection":
+        return bool(permissions.get("list"))
+    if kind == "record":
+        return bool(permissions.get("view"))
+    return False
+
+
 def _action_projection(action, page_map, entities, structure, role_simulation):
     target = action.get("target") or {}
     kind = action.get("kind")
@@ -77,11 +89,11 @@ def _action_projection(action, page_map, entities, structure, role_simulation):
     description = ""
     if kind == "navigate":
         target_page = page_map.get(target.get("page"))
-        allowed = bool(target_page and target_page.get("enabled"))
+        allowed = bool(target_page and target_page.get("enabled") and _page_context_allowed(role_simulation, target_page))
         description = f"Abrir {target_page['name']}" if target_page else "Destino indisponível"
     elif kind == "crud":
         operation = target.get("operation")
-        allowed = _entity_permissions(role_simulation, target.get("entity"))[operation]
+        allowed = _entity_permissions(role_simulation, target.get("entity")).get(operation, False)
         description = f"{operation} · {target.get('entity')}"
     elif kind == "report":
         allowed = _report_allowed(structure, role_simulation, target.get("entity"), target.get("report"))
@@ -165,21 +177,13 @@ def build_advanced_page_preview(sistema, preview, selected_page_id=None):
         nav = page.get("navigation") or {}
         if not nav.get("visible") or (page.get("context") or {}).get("kind") == "record":
             continue
-        context = page.get("context") or {}
-        allowed = True
-        if context.get("kind") == "collection":
-            allowed = _entity_permissions(role_simulation, context.get("entity")).get("list", False)
-        if allowed:
+        if _page_context_allowed(role_simulation, page):
             navigation.append({"id": page["id"], "label": nav.get("label") or page["name"], "icon": nav.get("icon") or "bi-window", "group": nav.get("group") or "Páginas", "order": nav.get("order", 0), "active": bool(selected and page["id"] == selected["id"])})
     navigation.sort(key=lambda item: (item["group"].casefold(), item["order"], item["label"].casefold()))
 
     projection = None
     if selected:
-        context = selected.get("context") or {}
-        context_permissions = _entity_permissions(role_simulation, context.get("entity")) if context.get("entity") else None
-        page_allowed = True
-        if context.get("kind") == "collection": page_allowed = bool(context_permissions and context_permissions.get("list"))
-        elif context.get("kind") == "record": page_allowed = bool(context_permissions and context_permissions.get("view"))
+        page_allowed = _page_context_allowed(role_simulation, selected)
         actions = {action["id"]: _action_projection(action, page_map, entities, structure, role_simulation) for action in selected.get("actions", [])}
         components = [_component_projection(component, selected, entities, structure, role_simulation, actions) for component in selected.get("components", [])]
         projection = {**deepcopy(selected), "allowed": page_allowed, "actions_projection": actions, "components_projection": components}

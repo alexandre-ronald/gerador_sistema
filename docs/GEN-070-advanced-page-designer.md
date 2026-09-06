@@ -472,6 +472,7 @@ python manage.py test
 - **GEN-070.3 — Layout Engine: IMPLEMENTED / VALIDATED**
 - **GEN-070.4 — Componentes e bindings: IMPLEMENTED / VALIDATED**
 - **GEN-070.5 — Ações e experiências de processo: IMPLEMENTED / VALIDATED**
-- **Próxima fase: GEN-070.6 — Runtime Contract Enforcement**
+- **GEN-070.6 — Runtime Contract Enforcement: IMPLEMENTED / VALIDATED**
+- **Próxima fase: GEN-070.7 — Runtime de páginas avançadas**
 
-Validação registrada em 2026-09-06: gates de contrato, semântica, layout e Page Designer verdes. A validação visual da GEN-070.5 foi aprovada pelo usuário após criação de página, componentes e ações declarativas no Advanced Page Designer.
+Validação registrada em 2026-09-06: os gates consolidados da GEN-070.6 ficaram verdes após enforcement de CRUD, workflow e relatórios no runtime gerado, proteção de acesso direto a relatórios, filtragem RBAC da navegação, decisões compartilháveis para páginas/componentes/ações avançadas e hardening semântico fail-closed. O gate final executado pelo usuário reuniu `sistema.test_runtime_contracts`, `sistema.test_advanced_pages_semantics`, `sistema.test_generated_rbac_reports` e `sistema.test_page_designer_shell`, com 34 testes verdes. A validação visual da GEN-070.5 permanece aprovada após criação de página, componentes e ações declarativas no Advanced Page Designer.

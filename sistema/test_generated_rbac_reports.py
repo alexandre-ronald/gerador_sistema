@@ -59,6 +59,42 @@ class GeneratedRBACReportTests(TestCase):
             },
         )
 
+    def advanced_pages(self):
+        return {
+            "pages": [
+                {
+                    "id": "inicio_operacional",
+                    "name": "Início Operacional",
+                    "url_name": "advanced_page_inicio_operacional",
+                    "requires_pk": False,
+                    "context": {"kind": "none", "entity": ""},
+                    "context_app_name": "",
+                    "context_model_name": "",
+                    "navigation": {"visible": True, "label": "Operação", "group": "Operacional", "order": 1},
+                },
+                {
+                    "id": "central_contratos",
+                    "name": "Central de Contratos",
+                    "url_name": "advanced_page_central_contratos",
+                    "requires_pk": False,
+                    "context": {"kind": "collection", "entity": "Contrato"},
+                    "context_app_name": "contratos",
+                    "context_model_name": "Contrato",
+                    "navigation": {"visible": True, "label": "Central", "group": "Contratos", "order": 2},
+                },
+                {
+                    "id": "contrato_detail",
+                    "name": "Detalhe do Contrato",
+                    "url_name": "advanced_page_contrato_detail",
+                    "requires_pk": True,
+                    "context": {"kind": "record", "entity": "Contrato"},
+                    "context_app_name": "contratos",
+                    "context_model_name": "Contrato",
+                    "navigation": {"visible": True, "label": "Detalhe", "group": "Contratos", "order": 3},
+                },
+            ]
+        }
+
     def test_generation_projection_keeps_report_policy(self):
         config = rbac_generation_config([self.entidade])
         self.assertTrue(config["enabled"])
@@ -99,6 +135,7 @@ class GeneratedRBACReportTests(TestCase):
             {
                 "modulos": [self.modulo],
                 "notifications": {"enabled": False},
+                "advanced_pages": self.advanced_pages(),
             },
         )
 
@@ -110,3 +147,27 @@ class GeneratedRBACReportTests(TestCase):
         self.assertIn("rbac.has_entity_action", source)
         self.assertIn("rbac.can_report", source)
         self.assertIn("except Exception:\n        return False", source)
+
+    def test_generated_navigation_includes_safe_advanced_pages(self):
+        self.modulo.app_name = "contratos"
+        self.modulo.entidades_geracao = [self.entidade]
+        self.entidade.codigo_nome = "contrato"
+        self.entidade.classe_nome = "Contrato"
+
+        source = render_to_string(
+            "gerador/snippets/navigation_context.txt",
+            {
+                "modulos": [self.modulo],
+                "notifications": {"enabled": False},
+                "advanced_pages": self.advanced_pages(),
+            },
+        )
+
+        compile(source, "<generated-navigation-advanced>", "exec")
+        self.assertIn('"label": "Operação"', source)
+        self.assertIn('"advanced_page_id": "inicio_operacional"', source)
+        self.assertIn('"advanced_page_id": "central_contratos"', source)
+        self.assertIn('"advanced_context_kind": "collection"', source)
+        self.assertNotIn('"advanced_page_id": "contrato_detail"', source)
+        self.assertIn('item.get("is_advanced_page") and item.get("advanced_context_kind") == "none"', source)
+        self.assertIn("current_url_name in active_names", source)

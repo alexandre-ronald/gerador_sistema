@@ -30,6 +30,9 @@ ADVANCED_PAGES = {
                 "operation": "{{ action.target.operation|default:''|escapejs }}",
                 "transition": "{{ action.target.transition|default:''|escapejs }}",
                 "report": "{{ action.target.report|default:''|escapejs }}",
+                "target_context_kind": "{{ action.target_context_kind|default:''|escapejs }}",
+                "target_context_entity": "{{ action.target_context_entity|default:''|escapejs }}",
+                "target_context_app_name": "{{ action.target_context_app_name|default:''|escapejs }}",
             },
 {% endfor %}        },
         "components": [
@@ -103,7 +106,14 @@ def _action_allowed(request, page, action):
         return False
     kind = action.get("kind")
     if kind == "navigate":
-        return True
+        target_kind = action.get("target_context_kind")
+        target_entity = action.get("target_context_entity")
+        if target_kind == "none":
+            return True
+        if target_kind not in {"collection", "record"} or not target_entity:
+            return False
+        target_action = "list" if target_kind == "collection" else "view"
+        return _has_entity_action(request, action.get("target_context_app_name"), target_entity, target_action)
     entity = action.get("entity")
     app_name = action.get("app_name")
     if kind == "crud":

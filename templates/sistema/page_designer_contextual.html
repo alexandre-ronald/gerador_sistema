@@ -18,6 +18,13 @@
     return (state.config.pages || []).find(page => page.id === pageId) || null;
   }
 
+  function selectedComponent(){
+    if(typeof currentComponent === 'function') return currentComponent();
+    const page = selectedPage();
+    if(!page || !state.selectedBlock) return null;
+    return (page.components || []).find(component => component.id === state.selectedBlock) || null;
+  }
+
   function ensureRecordNavigationHint(){
     const toggle = document.getElementById('navVisible');
     if(!toggle) return null;
@@ -48,6 +55,94 @@
     }
   }
 
+  function relationalFields(targetEntity, contextEntity){
+    const entity = (state.entities || []).find(item => item.name === targetEntity);
+    return (entity?.fields || [])
+      .filter(field => ['ForeignKey','OneToOneField','ManyToManyField'].includes(field.type) && field.related_entity === contextEntity)
+      .map(field => ({value:field.name,label:field.label || field.name}));
+  }
+
+  function ensureRelationInspector(){
+    let area = document.getElementById('relatedCollectionArea');
+    if(area) return area;
+    const bindingArea = document.getElementById('bindingArea');
+    if(!bindingArea) return null;
+    area = document.createElement('div');
+    area.id = 'relatedCollectionArea';
+    area.className = 'row g-3 mt-0 d-none';
+    area.innerHTML = '<div class="col-md-6"><label class="field-label">Relacionar pelo campo</label><select id="relationTargetField" class="form-select"></select></div><div class="col-md-6"><label class="field-label">Filtro automático</label><div class="form-control bg-body-tertiary" id="relationSummary" style="min-height:38px"></div></div><div class="col-12"><div class="page-meta">A lista será filtrada pelo registro atual da página. Nenhum SQL ou lookup manual é necessário.</div></div>';
+    bindingArea.insertAdjacentElement('afterend', area);
+    return area;
+  }
+
+  function syncRelationInspector(){
+    const area = ensureRelationInspector();
+    if(!area) return;
+    const component = selectedComponent();
+    const page = selectedPage();
+    const relation = component?.config?.relation;
+    const isRelatedTable = !!(component && component.type === 'table' && relation);
+    area.classList.toggle('d-none', !isRelatedTable);
+    if(!isRelatedTable || !page) return;
+
+    const fields = relationalFields(component.binding?.ref, page.context?.entity);
+    const select = document.getElementById('relationTargetField');
+    if(typeof fillSelect === 'function') fillSelect(select, fields, relation.target_field || '', 'Campo relacional...');
+    const summary = document.getElementById('relationSummary');
+    if(summary) summary.textContent = relation.target_field ? `${component.binding.ref}.${relation.target_field} = contexto.pk` : 'Selecione o campo relacional';
+  }
+
+  function uniqueRelatedId(page){
+    const used = new Set((page.components || []).map(component => component.id));
+    let id = 'related_collection', index = 2;
+    while(used.has(id)) id = `related_collection_${index++}`;
+    return id;
+  }
+
+  function addRelatedCollection(){
+    const page = selectedPage();
+    if(!page || page.context?.kind !== 'record' || !page.context?.entity){
+      alert('Coleções relacionadas exigem uma página com contexto "Um registro".');
+      return;
+    }
+    const candidates = [];
+    (state.entities || []).forEach(entity => {
+      relationalFields(entity.name, page.context.entity).forEach(field => candidates.push({entity:entity.name, field:field.value}));
+    });
+    if(!candidates.length){
+      alert(`Nenhuma entidade possui campo relacional apontando para ${page.context.entity}.`);
+      return;
+    }
+    const candidate = candidates[0];
+    const id = uniqueRelatedId(page);
+    const layout = typeof firstFree === 'function' ? firstFree(page, 12, 3, 0, 0) : {x:0,y:(page.components || []).length,w:12,h:3};
+    page.components.push({
+      id,
+      type:'table',
+      title:`${candidate.entity} relacionados`,
+      layout,
+      binding:{kind:'entity',ref:candidate.entity,field:''},
+      action:'',
+      config:{relation:{source:'page_context',source_field:'pk',target_field:candidate.field}}
+    });
+    state.selectedBlock = id;
+    if(typeof dirty === 'function') dirty();
+    if(typeof render === 'function') render();
+    requestAnimationFrame(syncRelationInspector);
+  }
+
+  function ensureRelatedCollectionButton(){
+    const palette = document.getElementById('componentPalette');
+    if(!palette || document.getElementById('btnRelatedCollection')) return;
+    const button = document.createElement('button');
+    button.id = 'btnRelatedCollection';
+    button.type = 'button';
+    button.className = 'btn btn-sm btn-outline-primary';
+    button.innerHTML = '<i class="bi bi-diagram-2 me-1"></i>Tabela relacionada';
+    button.addEventListener('click', addRelatedCollection);
+    palette.appendChild(button);
+  }
+
   function syncSelection(pageId){
     if(!pageId) return;
     const designerUrl = new URL(window.location.href);
@@ -62,7 +157,7 @@
       previewUrl.searchParams.set('pagina_avancada', pageId);
       previewLink.href = previewUrl.pathname + previewUrl.search;
     }
-    requestAnimationFrame(syncRecordNavigationRule);
+    requestAnimationFrame(function(){ syncRecordNavigationRule(); syncRelationInspector(); });
   }
 
   document.addEventListener('click', function(event){
@@ -77,20 +172,42 @@
       const pageId = selectedPageId();
       if(pageId) syncSelection(pageId);
     }
+
+    if(event.target.closest('.layout-block')) requestAnimationFrame(syncRelationInspector);
   });
 
   document.addEventListener('change', function(event){
     if(event.target && event.target.id === 'contextKind'){
       const page = selectedPage();
       if(page && page.context) page.context.kind = event.target.value;
-      requestAnimationFrame(syncRecordNavigationRule);
+      requestAnimationFrame(function(){ syncRecordNavigationRule(); syncRelationInspector(); });
+    }
+    if(event.target && event.target.id === 'bindingEntity'){
+      const component = selectedComponent();
+      const page = selectedPage();
+      if(component?.config?.relation && page){
+        const fields = relationalFields(event.target.value, page.context?.entity);
+        component.config.relation.target_field = fields[0]?.value || '';
+        requestAnimationFrame(syncRelationInspector);
+      }
+    }
+    if(event.target && event.target.id === 'relationTargetField'){
+      const component = selectedComponent();
+      if(component?.config?.relation){
+        component.config.relation.target_field = event.target.value;
+        if(typeof dirty === 'function') dirty();
+        syncRelationInspector();
+      }
     }
   });
 
   requestAnimationFrame(function(){
     const pageId = selectedPageId() || document.querySelector('.page-item')?.dataset.id || '';
     if(pageId) syncSelection(pageId);
+    ensureRelatedCollectionButton();
+    ensureRelationInspector();
     syncRecordNavigationRule();
+    syncRelationInspector();
   });
 })();
 </script>

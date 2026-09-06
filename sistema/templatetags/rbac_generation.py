@@ -11,7 +11,7 @@ register = template.Library()
 
 
 def _empty_config():
-    return {"enabled": False, "roles": [], "entities": {}}
+    return {"enabled": False, "roles": [], "entities": {}, "reports": {}}
 
 
 def _python_identifier(value, fallback="item"):
@@ -64,7 +64,14 @@ def _system_config(sistema):
     if not isinstance(raw, dict):
         return _empty_config()
     workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
-    return normalize_rbac_config(_metadata(_system_entities(sistema)), workflows, raw, strict=True)
+    reports = structure.get("reports") if isinstance(structure.get("reports"), dict) else {}
+    return normalize_rbac_config(
+        _metadata(_system_entities(sistema)),
+        workflows,
+        raw,
+        strict=True,
+        reports=reports,
+    )
 
 
 def _runtime_system_config(sistema):
@@ -101,14 +108,7 @@ def _runtime_system_config(sistema):
 
 
 def _config(entities):
-    """Retorna a política RBAC do módulo sem validar o contrato global contra um subconjunto.
-
-    A configuração persistida é sistêmica. Durante a geração, porém, este helper recebe
-    apenas as entidades do módulo atual. Validar o contrato global diretamente contra esse
-    subconjunto faz entidades válidas de outros módulos parecerem inexistentes. Primeiro
-    normalizamos contra todas as entidades do sistema e só então projetamos as políticas
-    pertencentes ao módulo solicitado.
-    """
+    """Projeta a política sistêmica apenas para as entidades do módulo atual."""
     entities = list(entities or [])
     sistema = _system_from_entities(entities)
     if sistema is None:
@@ -128,6 +128,11 @@ def _config(entities):
             for name, policy in (config.get("entities") or {}).items()
             if name in requested_names
         },
+        "reports": {
+            name: deepcopy(policy)
+            for name, policy in (config.get("reports") or {}).items()
+            if name in requested_names
+        },
     }
 
 
@@ -135,6 +140,15 @@ def _entity_policy(entities, entity_name):
     config = _config(entities)
     policy = (config.get("entities") or {}).get(entity_name) or {"roles": {}, "transitions": {}}
     return {"enabled": bool(config.get("enabled")), **deepcopy(policy)}
+
+
+def _report_policy(entities, entity_name, report_id):
+    config = _config(entities)
+    roles = ((config.get("reports") or {}).get(entity_name) or {}).get(report_id)
+    return {
+        "enabled": bool(config.get("enabled")),
+        "roles": deepcopy(roles) if isinstance(roles, list) else None,
+    }
 
 
 @register.simple_tag
@@ -155,6 +169,11 @@ def rbac_system_runtime_config(sistema):
 @register.simple_tag
 def rbac_entity_policy(entities, entity_name):
     return _entity_policy(entities, entity_name)
+
+
+@register.simple_tag
+def rbac_report_policy(entities, entity_name, report_id):
+    return _report_policy(entities, entity_name, report_id)
 
 
 @register.simple_tag

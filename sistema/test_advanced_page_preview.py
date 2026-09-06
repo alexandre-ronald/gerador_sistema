@@ -78,11 +78,21 @@ class AdvancedPagePreviewTests(TestCase):
         structure["workflows"] = {
             "Contrato": {
                 "enabled": True,
+                "state_field": "status",
+                "initial_state": "rascunho",
+                "states": [
+                    {"id": "rascunho", "label": "Rascunho", "final": False, "order": 0},
+                    {"id": "aprovado", "label": "Aprovado", "final": True, "order": 1},
+                ],
                 "transitions": [{
                     "id": "aprovar",
                     "label": "Aprovar",
+                    "from": ["rascunho"],
+                    "to": "aprovado",
+                    "enabled": True,
                     "confirm": True,
                     "confirm_message": "Confirmar aprovação do contrato?",
+                    "order": 0,
                 }],
             }
         }

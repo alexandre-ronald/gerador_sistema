@@ -94,6 +94,19 @@ class AdvancedPagesContractTests(SimpleTestCase):
             normalize_advanced_pages_config(raw)
         self.assertEqual(error.exception.code, "duplicate_page_slug")
 
+    def test_rejects_route_unsafe_slug(self):
+        raw = self.valid_config()
+        raw["pages"][0]["slug"] = "contratos/<int:pk>'/injetado"
+        with self.assertRaises(AdvancedPageContractError) as error:
+            normalize_advanced_pages_config(raw)
+        self.assertEqual(error.exception.code, "invalid_page_slug")
+
+    def test_accepts_segmented_route_safe_slug(self):
+        raw = self.valid_config()
+        raw["pages"][0]["slug"] = "contratos-ativos/visao_geral"
+        config = normalize_advanced_pages_config(raw)
+        self.assertEqual(config["pages"][0]["slug"], "contratos-ativos/visao_geral")
+
     def test_record_context_requires_entity(self):
         raw = self.valid_config()
         raw["pages"][0]["context"] = {"kind": "record", "entity": ""}

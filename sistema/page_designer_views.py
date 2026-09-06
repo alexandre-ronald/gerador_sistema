@@ -70,7 +70,7 @@ def page_designer(request, sistema_id):
     raw_config = estrutura.get("advanced_pages") if isinstance(estrutura.get("advanced_pages"), dict) else None
     config = normalize_advanced_pages_config(raw_config, strict=False)
     config = _prioritize_selected_page(config, request.GET.get("pagina"))
-    return render(request, "sistema/page_designer.html", {"sistema": sistema, "advanced_pages_json": json.dumps(config, ensure_ascii=False), "entities_json": json.dumps(metadata, ensure_ascii=False), "designer_catalog_json": json.dumps(_designer_catalog(estrutura), ensure_ascii=False)})
+    return render(request, "sistema/page_designer_contextual.html", {"sistema": sistema, "advanced_pages_json": json.dumps(config, ensure_ascii=False), "entities_json": json.dumps(metadata, ensure_ascii=False), "designer_catalog_json": json.dumps(_designer_catalog(estrutura), ensure_ascii=False)})
 
 
 @login_required

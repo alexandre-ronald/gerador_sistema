@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
 from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
@@ -28,6 +29,39 @@ def _device_preview(raw_device):
         "options": [dict(item) for item in PREVIEW_DEVICES.values()],
         **PREVIEW_DEVICES[selected],
     }
+
+
+def _designer_links(sistema, preview):
+    """Expõe somente rotas para os Designers; não cria nem persiste configuração."""
+    sistema_id = sistema.pk
+    entity_id = None
+    for projection in ("form_page", "list_page", "workflow_page", "report_page"):
+        page = preview.get(projection)
+        if isinstance(page, dict) and page.get("entity_id"):
+            entity_id = page.get("entity_id")
+            break
+
+    def link(key, label, route, icon, *, entity_context=False):
+        url = reverse(f"sistema:{route}", args=[sistema_id])
+        if entity_context and entity_id:
+            url = f"{url}?entidade={entity_id}"
+        return {"id": key, "label": label, "url": url, "icon": icon}
+
+    page_kind = preview.get("page_kind") or "list"
+    contextual = []
+    if page_kind == "form":
+        contextual.append(link("form", "Editar formulário", "form_designer", "bi-ui-checks-grid", entity_context=True))
+    elif page_kind == "dashboard":
+        contextual.append(link("dashboard", "Editar dashboard", "dashboard_builder", "bi-grid-1x2", entity_context=True))
+    elif page_kind == "workflow":
+        contextual.append(link("workflow", "Editar fluxo", "workflow_designer", "bi-diagram-3", entity_context=True))
+    elif page_kind == "report":
+        contextual.append(link("report", "Editar relatório", "report_designer", "bi-file-earmark-bar-graph", entity_context=True))
+    else:
+        contextual.append(link("crud", "Editar listagem", "crud_designer", "bi-table", entity_context=True))
+
+    contextual.append(link("permissions", "Permissões", "permission_designer", "bi-shield-lock"))
+    return contextual
 
 
 def _ensure_workflow_navigation(sistema, preview):
@@ -86,8 +120,6 @@ def _apply_report_permissions(sistema, preview):
     raw_rbac = estrutura.get("rbac") if isinstance(estrutura.get("rbac"), dict) else {}
     report_policies = raw_rbac.get("reports")
 
-    # Compatibilidade: contratos RBAC antigos, anteriores às permissões de relatório,
-    # mantêm a visão legada até serem salvos novamente no Permission Designer.
     if not invalid_role and not isinstance(report_policies, dict):
         return
 
@@ -105,11 +137,7 @@ def _apply_report_permissions(sistema, preview):
     original_report_page = preview.get("report_page")
     visible_reports = [report for report in (preview.get("reports") or []) if allowed(report)]
     preview["reports"] = visible_reports
-    preview["entity_reports"] = [
-        report
-        for report in (preview.get("entity_reports") or [])
-        if allowed(report)
-    ]
+    preview["entity_reports"] = [report for report in (preview.get("entity_reports") or []) if allowed(report)]
 
     report_page = original_report_page if isinstance(original_report_page, dict) and allowed(original_report_page) else None
     preview["report_page"] = report_page
@@ -145,13 +173,10 @@ def application_preview(request, sistema_id):
     preview["device_preview"] = _device_preview(request.GET.get("dispositivo"))
     _apply_report_permissions(sistema, preview)
     _ensure_workflow_navigation(sistema, preview)
+    preview["designer_links"] = _designer_links(sistema, preview)
     template_name = (
         "sistema/application_preview_workflow.html"
         if preview.get("page_kind") == "workflow"
         else "sistema/application_preview_roles.html"
     )
-    return render(
-        request,
-        template_name,
-        {"sistema": sistema, "preview": preview},
-    )
+    return render(request, template_name, {"sistema": sistema, "preview": preview})

@@ -64,6 +64,20 @@ def _require_entity(entity_name, entities, *, page_id, component_id=None, action
         raise AdvancedPageContractError("unknown_entity_reference", "Página avançada referencia entidade inexistente.", page_id=page_id, component_id=component_id, action_id=action_id)
 
 
+def _validate_navigation_context(source_page, target_page, *, action_id):
+    target_context = target_page.get("context") or {}
+    if target_context.get("kind") != "record":
+        return
+    source_context = source_page.get("context") or {}
+    if source_context.get("kind") != "record" or source_context.get("entity") != target_context.get("entity"):
+        raise AdvancedPageContractError(
+            "incompatible_navigation_context",
+            "Navegação para página de registro exige contexto de registro da mesma entidade.",
+            page_id=source_page["id"],
+            action_id=action_id,
+        )
+
+
 def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, workflows=None, reports=None, forms=None, dashboards=None):
     config = normalize_advanced_pages_config(raw_config, strict=True)
     entities = _entity_map(entities_metadata)
@@ -71,6 +85,7 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
     report_ids = _report_ids(reports)
     form_entities = _form_entities(forms)
     dashboard_available = _dashboard_available(dashboards)
+    pages_by_id = {page["id"]: page for page in config["pages"]}
 
     for page in config["pages"]:
         page_id = page["id"]
@@ -104,7 +119,11 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
 
         for action in page["actions"]:
             action_id, target, kind = action["id"], action["target"], action["kind"]
-            if kind == "crud":
+            if kind == "navigate":
+                target_page = pages_by_id.get(target["page"])
+                if target_page is not None:
+                    _validate_navigation_context(page, target_page, action_id=action_id)
+            elif kind == "crud":
                 _require_entity(target["entity"], entities, page_id=page_id, action_id=action_id)
             elif kind == "workflow":
                 entity = target["entity"]

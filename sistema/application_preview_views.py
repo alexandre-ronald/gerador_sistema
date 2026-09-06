@@ -62,6 +62,24 @@ def _advanced_page_from_designer_referer(request, sistema):
     return str((first_enabled or {}).get("id") or "").strip()
 
 
+def _advanced_record_entity_id(sistema, selected_page_id):
+    """Resolve a entidade da página record para manter a navegação contextual ativa."""
+    selected_page_id = str(selected_page_id or "").strip()
+    if not selected_page_id:
+        return None
+    structure = _draft_structure(sistema)
+    config = normalize_advanced_pages_config(structure.get("advanced_pages"), strict=False)
+    page = next((item for item in config.get("pages", []) if item.get("id") == selected_page_id and item.get("enabled")), None)
+    context = (page or {}).get("context") or {}
+    if context.get("kind") != "record" or not context.get("entity"):
+        return None
+    return (
+        Entidade.objects.filter(modulo__sistema=sistema, nome=context.get("entity"))
+        .values_list("pk", flat=True)
+        .first()
+    )
+
+
 def _designer_links(sistema, preview):
     """Expõe somente rotas para os Designers; não cria nem persiste configuração."""
     sistema_id = sistema.pk
@@ -201,9 +219,12 @@ def application_preview(request, sistema_id):
     referer_advanced_page = _advanced_page_from_designer_referer(request, sistema) if not explicit_page_kind else ""
     requested_page_kind = explicit_page_kind or ("advanced" if referer_advanced_page else "list")
     selected_advanced_page = request.GET.get("pagina_avancada") or referer_advanced_page
+    selected_entity_id = request.GET.get("entidade")
+    if not selected_entity_id and requested_page_kind == "advanced":
+        selected_entity_id = _advanced_record_entity_id(sistema, selected_advanced_page)
     preview = build_preview_shell(
         sistema,
-        selected_entity_id=request.GET.get("entidade"),
+        selected_entity_id=selected_entity_id,
         page_kind="list" if requested_page_kind == "advanced" else requested_page_kind,
         selected_report_id=request.GET.get("relatorio"),
         selected_workflow_state=request.GET.get("estado"),

@@ -135,7 +135,7 @@ Gate reportado verde pelo usuário em 2026-09-06.
 
 ### GEN-071.2 — Related Collection Component
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Permitir uma tabela/lista relacionada ao registro atual.
 
@@ -145,9 +145,13 @@ Exemplo:
 Fornecedor atual → Contratos deste fornecedor
 ```
 
-O Page Designer agora oferece **Tabela relacionada** somente de forma compatível com o contrato relacional da GEN-071.1. Em uma página `record`, ele descobre campos relacionais que apontam para a entidade de contexto, cria a tabela com `config.relation` e permite escolher o campo de relação no inspector. O Preview identifica visualmente a coleção relacionada e mostra a regra declarativa aplicada.
+O Page Designer oferece **Tabela relacionada** somente de forma compatível com o contrato relacional da GEN-071.1. Em uma página `record`, ele descobre campos relacionais que apontam para a entidade de contexto, cria a tabela com `config.relation` e permite escolher o campo de relação no inspector. O Preview identifica visualmente a coleção relacionada e mostra a regra declarativa aplicada.
+
+Gate reportado verde pelo usuário em 2026-09-06.
 
 ### GEN-071.3 — Métricas relacionais
+
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
 
 Permitir métricas derivadas de uma coleção relacionada, inicialmente com operações seguras e declarativas:
 
@@ -158,6 +162,30 @@ avg
 min
 max
 ```
+
+Representação canônica:
+
+```json
+{
+  "type": "metric",
+  "binding": {"kind": "entity", "ref": "Contrato", "field": ""},
+  "config": {
+    "relation": {
+      "source": "page_context",
+      "source_field": "pk",
+      "target_field": "fornecedor"
+    },
+    "aggregate": {
+      "operation": "sum",
+      "field": "valor"
+    }
+  }
+}
+```
+
+`count` não exige campo. `sum` e `avg` aceitam apenas campos numéricos. `min` e `max` aceitam campos numéricos ou temporais diretamente conhecidos pelo domínio. Expressões, funções arbitrárias e lookups livres permanecem proibidos.
+
+O Page Designer agora oferece **Métrica relacionada** e permite configurar cálculo e campo. O Preview projeta valor demonstrativo coerente e mantém a origem relacional explícita.
 
 ### GEN-071.4 — Ações com transporte de contexto
 
@@ -228,3 +256,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** o valor da composição precisa ser configurável pelo usuário, não apenas representável no contrato.
 
 **Impacto:** páginas `record` passam a poder adicionar uma tabela relacionada a partir das relações conhecidas do domínio, com filtro declarativo pelo contexto atual e representação correspondente no Preview Studio.
+
+### 2026-09-06 — validação da GEN-071.2 e implementação da GEN-071.3
+
+**Decisão:** considerar a coleção relacionada validada após gate verde e adicionar agregações relacionais declarativas sobre a mesma relação segura.
+
+**Motivo:** uma experiência operacional precisa resumir a coleção relacionada em KPIs sem exigir consultas manuais.
+
+**Impacto:** páginas `record` passam a poder exibir contagem, soma, média, mínimo e máximo de registros relacionados, com validação de tipo e Preview demonstrativo coerente.

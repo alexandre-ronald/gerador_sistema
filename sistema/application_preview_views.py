@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -30,6 +32,24 @@ def _device_preview(raw_device):
         "options": [dict(item) for item in PREVIEW_DEVICES.values()],
         **PREVIEW_DEVICES[selected],
     }
+
+
+def _advanced_page_from_designer_referer(request, sistema):
+    """Mantém o contexto no retorno Designer → Preview sem persistir estado efêmero.
+
+    O botão legado de Preview no Page Designer aponta para a rota base. Quando o
+    Designer foi aberto contextualmente com ``?pagina=<id>``, o Referer carrega o
+    ID estável e permite retornar à mesma página sem criar uma segunda fonte de
+    verdade. Referers de outras rotas são ignorados.
+    """
+    referer = str(request.META.get("HTTP_REFERER") or "").strip()
+    if not referer:
+        return ""
+    parsed = urlparse(referer)
+    designer_path = reverse("sistema:page_designer", args=[sistema.pk])
+    if parsed.path != designer_path:
+        return ""
+    return str((parse_qs(parsed.query).get("pagina") or [""])[0]).strip()
 
 
 def _designer_links(sistema, preview):
@@ -167,7 +187,10 @@ def _apply_report_permissions(sistema, preview):
 @login_required
 def application_preview(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
-    requested_page_kind = request.GET.get("pagina", "list")
+    explicit_page_kind = request.GET.get("pagina")
+    referer_advanced_page = _advanced_page_from_designer_referer(request, sistema) if not explicit_page_kind else ""
+    requested_page_kind = explicit_page_kind or ("advanced" if referer_advanced_page else "list")
+    selected_advanced_page = request.GET.get("pagina_avancada") or referer_advanced_page
     preview = build_preview_shell(
         sistema,
         selected_entity_id=request.GET.get("entidade"),
@@ -180,7 +203,7 @@ def application_preview(request, sistema_id):
     _apply_report_permissions(sistema, preview)
     _ensure_workflow_navigation(sistema, preview)
     if requested_page_kind == "advanced":
-        build_advanced_page_preview(sistema, preview, request.GET.get("pagina_avancada"))
+        build_advanced_page_preview(sistema, preview, selected_advanced_page)
     preview["designer_links"] = _designer_links(sistema, preview)
     if preview.get("page_kind") == "workflow":
         template_name = "sistema/application_preview_workflow.html"

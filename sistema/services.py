@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from django.template.loader import render_to_string
 from django.utils.text import slugify
 
+from .advanced_page_generation import prepare_advanced_pages_generation
 from .api_designer import normalize_api_config
 from .business_rules import normalize_business_rules_config
 from .crud_designer import normalize_crud_config
@@ -170,6 +171,7 @@ class GeradorService:
     def _prepare_context(self):
         modulos = list(self.sistema.modulos.prefetch_related("entidades__campos")); app_names = {}; dashboard = self._dashboard_config(); forms_config = self._forms_config(); cruds_config = self._cruds_config(); rules_config = self._business_rules_config(); api_config = self._api_config(); integrations_config = self._integrations_config(); notifications_config = self._notifications_config(); structure = self._draft_structure(); workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
         for widget in dashboard.get("widgets", []): widget["grid_column_start"] = int(widget.get("x", 0)) + 1; widget["grid_row_start"] = int(widget.get("y", 0)) + 1
+        all_entities = []
         for modulo in modulos:
             modulo.app_name = self._python_identifier(modulo.nome, "app")
             if notifications_config["enabled"] and modulo.app_name == "djangoforge_notifications": raise ValueError("O nome de módulo 'djangoforge_notifications' é reservado para a Central de Notificações.")
@@ -178,7 +180,7 @@ class GeradorService:
             for entidade in modulo.entidades_geracao:
                 entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade"); entidade.classe_nome = self._class_name(entidade.nome)
                 if entidade.classe_nome in class_names: raise ValueError(f"Entidades '{class_names[entidade.classe_nome]}' e '{entidade.nome}' no módulo '{modulo.nome}' geram a mesma classe '{entidade.classe_nome}'.")
-                class_names[entidade.classe_nome] = entidade.nome; entidade.campos_geracao = list(entidade.campos.all())
+                class_names[entidade.classe_nome] = entidade.nome; entidade.campos_geracao = list(entidade.campos.all()); all_entities.append(entidade)
                 if entidade.gerar_crud_views: modulo.entidades_crud.append(entidade)
                 field_names = {}
                 for campo in entidade.campos_geracao:
@@ -189,7 +191,8 @@ class GeradorService:
                     else: campo.classe_relacionada = ""; campo.app_relacionada = ""
                 self._prepare_form_generation(entidade, forms_config); self._prepare_crud_generation(entidade, cruds_config); self._prepare_business_rules_generation(entidade, rules_config); self._prepare_api_generation(entidade, api_config, workflows)
                 if entidade.api_enabled: modulo.entidades_api.append(entidade)
-        return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config),"notifications": notifications_config}
+        advanced_pages = prepare_advanced_pages_generation(structure.get("advanced_pages"), entities=all_entities)
+        return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config),"notifications": notifications_config,"advanced_pages": advanced_pages}
 
     def _registrar_versao(self):
         ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada")

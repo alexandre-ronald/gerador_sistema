@@ -9,7 +9,7 @@ NUMERIC_FIELD_TYPES = ("IntegerField", "FloatField", "DecimalField")
 ORDERABLE_FIELD_TYPES = NUMERIC_FIELD_TYPES + ("DateField", "DateTimeField", "TimeField")
 
 
-def normalize_related_metric(component, entities):
+def normalize_related_metric(component, entities, *, page_id):
     """Normaliza ``component.config.aggregate`` para métricas relacionais.
 
     A métrica só é considerada relacional quando o componente ``metric`` possui
@@ -22,7 +22,6 @@ def normalize_related_metric(component, entities):
     if relation is None and aggregate is None:
         return component
 
-    page_id = component.get("_page_id")
     component_id = component.get("id")
     if component.get("type") != "metric" or relation is None:
         if aggregate is not None:
@@ -78,7 +77,6 @@ def normalize_related_metric(component, entities):
             )
 
     normalized = deepcopy(component)
-    normalized.pop("_page_id", None)
     normalized_config = deepcopy(config)
     normalized_config["aggregate"] = {"operation": operation, "field": field_name}
     normalized["config"] = normalized_config

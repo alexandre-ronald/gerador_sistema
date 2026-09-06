@@ -123,3 +123,28 @@ class PageDesignerShellTests(TestCase):
         response = self.client.get(reverse("sistema:page_designer", args=[self.sistema.pk]))
         self.assertContains(response, "contrato_detail")
         self.assertContains(response, "Detalhe do Contrato")
+
+    def test_preview_roundtrip_prioritizes_requested_page_without_persisting_order(self):
+        config = self.page_config()
+        config["pages"].append({
+            "id": "central_contratos",
+            "name": "Central de Contratos",
+            "slug": "contratos/central",
+            "enabled": True,
+            "context": {"kind": "collection", "entity": "Contrato"},
+            "navigation": {"visible": True, "label": "Central", "icon": "bi-window", "group": "Contratos", "order": 20},
+            "components": [],
+            "actions": [],
+        })
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            descricao="Rascunho",
+            estrutura_json={"advanced_pages": config},
+        )
+        url = reverse("sistema:page_designer", args=[self.sistema.pk]) + "?pagina=central_contratos"
+        response = self.client.get(url)
+        projected = json.loads(response.context["advanced_pages_json"])
+        self.assertEqual(projected["pages"][0]["id"], "central_contratos")
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        self.assertEqual(draft.estrutura_json["advanced_pages"]["pages"][0]["id"], "contrato_detail")

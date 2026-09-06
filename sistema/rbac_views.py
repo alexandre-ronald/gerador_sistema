@@ -64,7 +64,7 @@ def permission_designer(request, sistema_id):
         if not isinstance(workflow, dict): continue
         workflow_ui[entity_name] = [{"id": str(item.get("id") or ""), "label": str(item.get("label") or item.get("id") or "")} for item in (workflow.get("transitions") or []) if isinstance(item, dict) and item.get("id")]
 
-    return render(request, "sistema/permission_designer.html", {
+    return render(request, "sistema/permission_designer_reports.html", {
         "sistema": sistema,
         "crud_actions_json": json.dumps(list(CRUD_ACTIONS), ensure_ascii=False),
         "entities_json": json.dumps(metadata, ensure_ascii=False),

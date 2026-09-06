@@ -81,6 +81,18 @@ class AdvancedPagesSemanticTests(SimpleTestCase):
         config = validate_advanced_pages_semantics(raw, **self.catalogs(), dashboards={"widgets": []})
         self.assertEqual(config["pages"][0]["components"][0]["type"], "dashboard")
 
+    def test_rejects_dashboard_without_dashboard_contract(self):
+        raw = self.config()
+        raw["pages"][0]["components"] = [{
+            "id": "dashboard_principal",
+            "type": "dashboard",
+            "layout": {"x": 0, "y": 0, "w": 12, "h": 3},
+            "binding": {"kind": "dashboard", "ref": "main"},
+        }]
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(raw, **self.catalogs(), dashboards={})
+        self.assertEqual(error.exception.code, "unknown_dashboard_reference")
+
     def test_rejects_unknown_context_entity(self):
         raw = self.config()
         raw["pages"][0]["context"]["entity"] = "Fantasma"
@@ -114,6 +126,28 @@ class AdvancedPagesSemanticTests(SimpleTestCase):
         raw["pages"][0]["actions"][2]["target"]["report"] = "fantasma"
         with self.assertRaises(AdvancedPageContractError) as error:
             validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual(error.exception.code, "unknown_report_reference")
+
+    def test_rejects_workflow_action_without_workflow_catalog(self):
+        raw = self.config()
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(
+                raw,
+                entities_metadata=self.metadata(),
+                workflows={},
+                reports={"Contrato": [{"id": "contratos_geral"}]},
+            )
+        self.assertEqual(error.exception.code, "unknown_workflow_transition")
+
+    def test_rejects_report_action_without_report_catalog(self):
+        raw = self.config()
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(
+                raw,
+                entities_metadata=self.metadata(),
+                workflows={"Contrato": {"transitions": [{"id": "aprovar"}]}},
+                reports={},
+            )
         self.assertEqual(error.exception.code, "unknown_report_reference")
 
     def test_validation_does_not_mutate_input(self):

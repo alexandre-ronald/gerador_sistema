@@ -51,8 +51,12 @@ def _form_entities(forms):
 
 
 def _dashboard_available(dashboard):
-    """Dashboard Builder persiste um contrato singular em estrutura_json['dashboard']."""
-    return isinstance(dashboard, dict)
+    """Dashboard Builder persiste um contrato singular em estrutura_json['dashboard'].
+
+    Dicionário vazio representa ausência explícita do catálogo no Page Designer e,
+    portanto, deve falhar fechado. Contratos persistidos reais são dicionários não vazios.
+    """
+    return isinstance(dashboard, dict) and bool(dashboard)
 
 
 def _require_entity(entity_name, entities, *, page_id, component_id=None, action_id=None):

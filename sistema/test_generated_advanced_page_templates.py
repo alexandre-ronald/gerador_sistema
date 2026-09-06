@@ -33,6 +33,9 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
                     {"id": "relatorio", "type": "link", "title": "Relatório", "layout": {"x": 8, "y": 1, "w": 4, "h": 1}, "binding": {"kind": "none", "ref": "", "field": ""}, "action": "abrir_relatorio", "config": {}},
                     {"id": "detalhe", "type": "record_detail", "title": "Dados", "layout": {"x": 0, "y": 2, "w": 12, "h": 2}, "binding": {"kind": "page_context", "ref": "", "field": ""}, "action": "", "config": {}},
                     {"id": "tabela", "type": "table", "title": "Contratos", "layout": {"x": 0, "y": 4, "w": 12, "h": 3}, "binding": {"kind": "entity", "ref": "Contrato", "field": ""}, "action": "", "config": {}},
+                    {"id": "formulario", "type": "form", "title": "Editar contrato", "layout": {"x": 0, "y": 7, "w": 12, "h": 3}, "binding": {"kind": "form", "ref": "Contrato", "field": ""}, "action": "", "config": {}},
+                    {"id": "report_block", "type": "report", "title": "Relatório geral", "layout": {"x": 0, "y": 10, "w": 6, "h": 2}, "binding": {"kind": "report", "ref": "Contrato", "field": ""}, "action": "", "config": {"report_id": "geral"}},
+                    {"id": "dashboard_block", "type": "dashboard", "title": "Painel", "layout": {"x": 6, "y": 10, "w": 6, "h": 2}, "binding": {"kind": "dashboard", "ref": "dashboard", "field": ""}, "action": "", "config": {}},
                 ],
                 "actions": [
                     {"id": "editar_contrato", "kind": "crud", "label": "Editar contrato", "target": {"entity": "Contrato", "operation": "update"}},
@@ -60,6 +63,18 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertEqual(actions["abrir_relatorio"]["url_name"], "contratos:contrato_report_geral")
         self.assertEqual(page["components"][2]["runtime_action"]["id"], "editar_contrato")
 
+    def test_generation_projects_form_report_and_dashboard_components(self):
+        page = self.page()
+        form = page["components"][6]
+        report = page["components"][7]
+        dashboard = page["components"][8]
+        self.assertEqual(form["form_class_name"], "ContratoForm")
+        self.assertEqual(form["native_operation"], "update")
+        self.assertTrue(form["native_requires_pk"])
+        self.assertEqual(report["report_id"], "geral")
+        self.assertEqual(report["native_url_name"], "contratos:contrato_report_geral")
+        self.assertEqual(dashboard["native_url_name"], "dashboard")
+
     def test_generated_page_template_is_valid_django_template(self):
         source = render_to_string("gerador/snippets/advanced_page_html.txt", {"page": self.page()})
         Template(source)
@@ -69,6 +84,10 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn("{{ row.numero }}", source)
         self.assertIn("{{ advanced_component_editar_action_url }}", source)
         self.assertIn("Editar contrato", source)
+        self.assertIn('name="_advanced_form_component" value="formulario"', source)
+        self.assertIn("{% for field in advanced_component_formulario.visible_fields %}", source)
+        self.assertIn("{{ advanced_component_report_block_native_url }}", source)
+        self.assertIn("{{ advanced_component_dashboard_block_native_url }}", source)
         self.assertIn("grid-template-columns:repeat(12", source)
 
     def test_runtime_emits_component_binding_and_action_contract(self):
@@ -78,6 +97,11 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn('"binding_field": "status"', source)
         self.assertIn('"operation": "update"', source)
         self.assertIn('"report": "geral"', source)
+        self.assertIn('"form_class_name": "ContratoForm"', source)
+        self.assertIn('"native_operation": "update"', source)
         self.assertIn("_action_allowed", source)
         self.assertIn("_action_url", source)
+        self.assertIn("_build_form_component", source)
+        self.assertIn("apply_initial_state", source)
+        self.assertIn("run_business_rules", source)
         self.assertIn("can_report", source)

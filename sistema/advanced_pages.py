@@ -201,12 +201,15 @@ def _normalize_action(raw, *, page_id):
         if not entity or not report:
             raise AdvancedPageContractError("invalid_report_action_target", "Ação de relatório exige entidade e relatório.", page_id=page_id, action_id=action_id)
         normalized_target = {"entity": entity, "report": report}
-    return {
+    normalized = {
         "id": action_id,
         "kind": kind,
         "label": str(raw.get("label") or "").strip(),
         "target": normalized_target,
     }
+    if isinstance(raw.get("transport"), dict):
+        normalized["transport"] = deepcopy(raw["transport"])
+    return normalized
 
 
 def _check_layout_collisions(components, *, page_id):

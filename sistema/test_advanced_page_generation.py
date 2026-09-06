@@ -48,6 +48,32 @@ class AdvancedPageGenerationTests(SimpleTestCase):
         self.assertEqual(page["components"][0]["grid_column_start"], 3)
         self.assertEqual(page["components"][0]["grid_row_start"], 4)
 
+    def test_navigation_action_projects_target_context_for_runtime_rbac(self):
+        raw = self.config()
+        raw["pages"].append({
+            "id": "central_contratos",
+            "name": "Central de Contratos",
+            "slug": "contratos/central",
+            "enabled": True,
+            "context": {"kind": "collection", "entity": "Contrato"},
+            "navigation": {"visible": True, "label": "Central", "icon": "", "group": "Contratos", "order": 1},
+            "components": [],
+            "actions": [],
+        })
+        raw["pages"][0]["actions"] = [{
+            "id": "abrir_central",
+            "kind": "navigate",
+            "label": "Abrir central",
+            "target": {"page": "central_contratos"},
+        }]
+        result = prepare_advanced_pages_generation(raw, entities=[self.entity()])
+        action = result["pages"][0]["actions"][0]
+        self.assertEqual(action["url_name"], "advanced_page_central_contratos")
+        self.assertEqual(action["target_context_kind"], "collection")
+        self.assertEqual(action["target_context_entity"], "Contrato")
+        self.assertEqual(action["target_context_app_name"], "contratos")
+        self.assertFalse(action["requires_pk"])
+
     def test_disabled_pages_are_not_emitted_to_runtime(self):
         raw = self.config()
         raw["pages"][0]["enabled"] = False

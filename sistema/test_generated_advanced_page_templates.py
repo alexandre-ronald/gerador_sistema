@@ -36,10 +36,12 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
                     {"id": "formulario", "type": "form", "title": "Editar contrato", "layout": {"x": 0, "y": 7, "w": 12, "h": 3}, "binding": {"kind": "form", "ref": "Contrato", "field": ""}, "action": "", "config": {}},
                     {"id": "report_block", "type": "report", "title": "Relatório geral", "layout": {"x": 0, "y": 10, "w": 6, "h": 2}, "binding": {"kind": "report", "ref": "Contrato", "field": ""}, "action": "", "config": {"report_id": "geral"}},
                     {"id": "dashboard_block", "type": "dashboard", "title": "Painel", "layout": {"x": 6, "y": 10, "w": 6, "h": 2}, "binding": {"kind": "dashboard", "ref": "dashboard", "field": ""}, "action": "", "config": {}},
+                    {"id": "aprovar", "type": "workflow_action", "title": "Aprovar", "layout": {"x": 0, "y": 12, "w": 4, "h": 1}, "binding": {"kind": "workflow", "ref": "Contrato", "field": ""}, "action": "aprovar_contrato", "config": {}},
                 ],
                 "actions": [
                     {"id": "editar_contrato", "kind": "crud", "label": "Editar contrato", "target": {"entity": "Contrato", "operation": "update"}},
                     {"id": "abrir_relatorio", "kind": "report", "label": "Relatório geral", "target": {"entity": "Contrato", "report": "geral"}},
+                    {"id": "aprovar_contrato", "kind": "workflow", "label": "Aprovar contrato", "target": {"entity": "Contrato", "transition": "aprovar"}},
                 ],
             }],
         }
@@ -55,12 +57,14 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertEqual(status["binding_field"]["code"], "status")
         self.assertEqual([field["code"] for field in detail["binding_fields"]], ["numero", "status"])
 
-    def test_generation_projects_crud_and_report_actions(self):
+    def test_generation_projects_crud_report_and_workflow_actions(self):
         page = self.page()
         actions = {action["id"]: action for action in page["actions"]}
         self.assertEqual(actions["editar_contrato"]["url_name"], "contratos:contrato_update")
         self.assertTrue(actions["editar_contrato"]["requires_pk"])
         self.assertEqual(actions["abrir_relatorio"]["url_name"], "contratos:contrato_report_geral")
+        self.assertEqual(actions["aprovar_contrato"]["url_name"], "contratos:contrato_transition")
+        self.assertTrue(actions["aprovar_contrato"]["requires_pk"])
         self.assertEqual(page["components"][2]["runtime_action"]["id"], "editar_contrato")
 
     def test_generation_projects_form_report_and_dashboard_components(self):
@@ -88,6 +92,8 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn("{% for field in advanced_component_formulario.visible_fields %}", source)
         self.assertIn("{{ advanced_component_report_block_native_url }}", source)
         self.assertIn("{{ advanced_component_dashboard_block_native_url }}", source)
+        self.assertIn('<form method="post" action="{{ advanced_component_aprovar_action_url }}"', source)
+        self.assertIn("Aprovar contrato", source)
         self.assertIn("grid-template-columns:repeat(12", source)
 
     def test_runtime_emits_component_binding_and_action_contract(self):
@@ -97,6 +103,7 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn('"binding_field": "status"', source)
         self.assertIn('"operation": "update"', source)
         self.assertIn('"report": "geral"', source)
+        self.assertIn('"transition": "aprovar"', source)
         self.assertIn('"form_class_name": "ContratoForm"', source)
         self.assertIn('"native_operation": "update"', source)
         self.assertIn("_action_allowed", source)
@@ -105,3 +112,4 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn("apply_initial_state", source)
         self.assertIn("run_business_rules", source)
         self.assertIn("can_report", source)
+        self.assertIn("can_transition", source)

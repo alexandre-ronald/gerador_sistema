@@ -71,6 +71,31 @@ class AdvancedPagesSemanticTests(SimpleTestCase):
             validate_advanced_pages_semantics(raw, **self.catalogs())
         self.assertEqual(error.exception.code, "incompatible_navigation_context")
 
+    def test_rejects_record_crud_action_without_same_record_context(self):
+        raw = self.config()
+        raw["pages"][0]["context"] = {"kind": "collection", "entity": "Contrato"}
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual(error.exception.code, "incompatible_action_context")
+
+    def test_rejects_workflow_action_without_same_record_context(self):
+        raw = self.config()
+        raw["pages"][0]["actions"] = [raw["pages"][0]["actions"][1]]
+        raw["pages"][0]["context"] = {"kind": "collection", "entity": "Contrato"}
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual(error.exception.code, "incompatible_action_context")
+
+    def test_collection_crud_actions_remain_valid_without_record_context(self):
+        raw = self.config()
+        raw["pages"][0]["context"] = {"kind": "collection", "entity": "Contrato"}
+        raw["pages"][0]["actions"] = [
+            {"id": "listar", "kind": "crud", "target": {"entity": "Contrato", "operation": "list"}},
+            {"id": "criar", "kind": "crud", "target": {"entity": "Contrato", "operation": "create"}},
+        ]
+        config = validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual([item["target"]["operation"] for item in config["pages"][0]["actions"]], ["list", "create"])
+
     def test_accepts_real_form_designer_contract_by_entity(self):
         raw = self.config()
         raw["pages"][0]["components"] = [{

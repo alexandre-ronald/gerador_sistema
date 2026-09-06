@@ -41,12 +41,13 @@
   const content=container.querySelector('.preview-content');
   if(content)content.replaceChildren(tpl.content.cloneNode(true));
   const params=new URLSearchParams(window.location.search);const role=params.get('papel');const device=params.get('dispositivo');
+  const preserved=['papel','dispositivo','entidade','estado','relatorio'];
   const data=[...document.querySelectorAll('#preview-advanced-navigation-data [data-page-id]')];
-  const makeHref=id=>{const q=new URLSearchParams();q.set('pagina','advanced');q.set('pagina_avancada',id);if(role)q.set('papel',role);if(device)q.set('dispositivo',device);return '?'+q.toString();};
+  const makeHref=id=>{const q=new URLSearchParams();q.set('pagina','advanced');q.set('pagina_avancada',id);preserved.forEach(key=>{const value=params.get(key);if(value)q.set(key,value)});return '?'+q.toString();};
   const side=container.querySelector('.preview-nav');
-  if(side&&data.length){const label=document.createElement('div');label.className='preview-nav-label';label.textContent='Páginas';side.appendChild(label);data.forEach(item=>{const a=document.createElement('a');a.href=makeHref(item.dataset.pageId);a.className='preview-nav-item'+(item.dataset.active==='1'?' active':'');a.innerHTML='<i class="bi '+(item.dataset.icon||'bi-window')+'"></i><span></span>';a.querySelector('span').textContent=item.dataset.label;side.appendChild(a);});}
+  if(side&&data.length){const label=document.createElement('div');label.className='preview-nav-label';label.textContent='Páginas';side.appendChild(label);data.forEach(item=>{const a=document.createElement('a');a.href=makeHref(item.dataset.pageId);a.className='preview-nav-item'+(item.dataset.active==='1'?' active':'');a.dataset.advancedPageLink=item.dataset.pageId;a.innerHTML='<i class="bi '+(item.dataset.icon||'bi-window')+'"></i><span></span>';a.querySelector('span').textContent=item.dataset.label;side.appendChild(a);});}
   const top=container.querySelector('.preview-navbar-links');
-  if(top&&data.length){data.forEach(item=>{const a=document.createElement('a');a.href=makeHref(item.dataset.pageId);a.className='preview-navbar-link'+(item.dataset.active==='1'?' active':'');a.textContent=item.dataset.label;top.appendChild(a);});}
+  if(top&&data.length){data.forEach(item=>{const a=document.createElement('a');a.href=makeHref(item.dataset.pageId);a.className='preview-navbar-link'+(item.dataset.active==='1'?' active':'');a.dataset.advancedPageLink=item.dataset.pageId;a.textContent=item.dataset.label;top.appendChild(a);});}
 })();
 </script>
 {% endif %}

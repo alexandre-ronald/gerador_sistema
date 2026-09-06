@@ -1,5 +1,6 @@
 {% load workflow_generation report_generation %}from django.urls import path
 from . import views
+from .rbac import protected_report_view
 
 app_name = '{{ app_name }}'
 
@@ -11,5 +12,5 @@ urlpatterns = [
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.edit %}    path('{{ entidade.codigo_nome }}/<int:pk>/editar/', views.{{ entidade.classe_nome }}UpdateView.as_view(), name='{{ entidade.codigo_nome }}_update'),
 {% endif %}{% if workflow.enabled %}    path('{{ entidade.codigo_nome }}/<int:pk>/workflow/<str:transition_id>/', views.{{ entidade.codigo_nome }}_transition, name='{{ entidade.codigo_nome }}_transition'),
 {% endif %}{% if not entidade.crud_designer_ready or entidade.crud_actions.delete %}    path('{{ entidade.codigo_nome }}/<int:pk>/deletar/', views.{{ entidade.classe_nome }}DeleteView.as_view(), name='{{ entidade.codigo_nome }}_delete'),
-{% endif %}{% endfor %}{% for entidade in entidades %}{% report_generation_configs entidade as reports %}{% for report in reports %}    path('{{ entidade.codigo_nome }}/relatorios/{{ report.id }}/', views.{{ report.view_name }}, name='{{ report.view_name }}'),
+{% endif %}{% endfor %}{% for entidade in entidades %}{% report_generation_configs entidade as reports %}{% for report in reports %}    path('{{ entidade.codigo_nome }}/relatorios/{{ report.id }}/', protected_report_view(views.{{ report.view_name }}, '{{ entidade.nome|escapejs }}', '{{ report.id|escapejs }}'), name='{{ report.view_name }}'),
 {% endfor %}{% endfor %}]

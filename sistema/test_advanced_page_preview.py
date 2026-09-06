@@ -55,6 +55,45 @@ class AdvancedPagePreviewTests(TestCase):
         self.assertEqual(len(page["components_projection"][1]["demo_rows"]), 4)
         self.assertEqual([item["id"] for item in preview["advanced_pages"]], ["central_contratos"])
 
+    def test_workflow_action_projects_confirmation_contract(self):
+        draft = VersaoGeracao.objects.get(sistema=self.sistema, numero=0)
+        structure = draft.estrutura_json
+        page = structure["advanced_pages"]["pages"][0]
+        page["context"] = {"kind": "record", "entity": "Contrato"}
+        page["components"].append({
+            "id": "aprovar",
+            "type": "workflow_action",
+            "title": "Aprovar",
+            "layout": {"x": 0, "y": 4, "w": 4, "h": 1},
+            "binding": {"kind": "workflow", "ref": "Contrato", "field": ""},
+            "action": "aprovar_contrato",
+            "config": {},
+        })
+        page["actions"] = [{
+            "id": "aprovar_contrato",
+            "kind": "workflow",
+            "label": "Aprovar contrato",
+            "target": {"entity": "Contrato", "transition": "aprovar"},
+        }]
+        structure["workflows"] = {
+            "Contrato": {
+                "enabled": True,
+                "transitions": [{
+                    "id": "aprovar",
+                    "label": "Aprovar",
+                    "confirm": True,
+                    "confirm_message": "Confirmar aprovação do contrato?",
+                }],
+            }
+        }
+        draft.estrutura_json = structure
+        draft.save(update_fields=["estrutura_json"])
+        preview = build_preview_shell(self.sistema)
+        build_advanced_page_preview(self.sistema, preview, "central_contratos")
+        action = preview["advanced_page"]["actions_projection"]["aprovar_contrato"]
+        self.assertTrue(action["confirm"])
+        self.assertEqual(action["confirm_message"], "Confirmar aprovação do contrato?")
+
     def test_preview_view_renders_advanced_shell_and_designer_roundtrip_link(self):
         self.client.force_login(self.user)
         url = reverse("sistema:application_preview", args=[self.sistema.pk])

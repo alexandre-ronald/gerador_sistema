@@ -112,6 +112,24 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
             component["binding_fields"] = _field_specs(binding_entity)
             component["binding_field"] = next((field for field in component["binding_fields"] if field["name"] == binding.get("field")), None)
             component["runtime_action"] = deepcopy(action_map.get(component.get("action"))) if component.get("action") else None
+            component["native_url_name"] = ""
+            component["native_requires_pk"] = False
+            component["native_operation"] = ""
+            component["form_class_name"] = ""
+            component["report_id"] = ""
+
+            if component["type"] == "form" and binding_entity:
+                same_record = context.get("kind") == "record" and context.get("entity") == binding.get("ref")
+                component["native_operation"] = "update" if same_record else "create"
+                component["native_requires_pk"] = same_record
+                component["form_class_name"] = f"{binding_meta['model_name']}Form"
+            elif component["type"] == "report" and binding_entity:
+                report_id = str(component.get("config", {}).get("report_id") or "").strip()
+                component["report_id"] = report_id
+                if report_id:
+                    component["native_url_name"] = f"{binding_meta['app_name']}:{binding_meta['entity_code']}_report_{report_id}"
+            elif component["type"] == "dashboard":
+                component["native_url_name"] = "dashboard"
 
         pages.append(page)
 

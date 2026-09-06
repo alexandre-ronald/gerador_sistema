@@ -98,11 +98,9 @@ Advanced Page Designer
 
 ## Fonte de verdade
 
-A GEN-070 deve possuir contrato declarativo persistido para páginas avançadas, mas esse contrato não pode duplicar configurações já pertencentes a outros Designers.
+A GEN-070 possui contrato declarativo persistido para páginas avançadas, definido e validado na GEN-070.1. Esse contrato não duplica configurações já pertencentes a outros Designers.
 
-A definição exata do schema será fechada na GEN-070.1 antes da implementação funcional.
-
-Diretriz inicial:
+Estrutura canônica:
 
 ```text
 advanced_pages
@@ -115,7 +113,7 @@ advanced_pages
     └── ações/referências a contratos existentes
 ```
 
-O contrato deve usar IDs estáveis e referências explícitas.
+O contrato usa IDs estáveis e referências explícitas.
 
 ## O que é uma página avançada
 
@@ -170,7 +168,7 @@ A existência de um componente visual não autoriza duplicar a lógica de seu De
 
 ## Layout
 
-A composição deve reutilizar o conceito de grade de 12 colunas já adotado no projeto.
+A composição reutiliza o conceito de grade de 12 colunas já adotado no projeto.
 
 Requisitos iniciais:
 
@@ -186,9 +184,9 @@ Uma alteração de tamanho não pode causar sobreposição silenciosa.
 
 ## Binding de dados
 
-Componentes devem obter dados por referências declarativas e normalizadas.
+Componentes obtêm dados por referências declarativas e normalizadas.
 
-A GEN-070 não deve incentivar SQL ou Python inserido pelo usuário.
+A GEN-070 não incentiva SQL ou Python inserido pelo usuário.
 
 Bindings podem apontar para capacidades já existentes, por exemplo:
 
@@ -218,7 +216,7 @@ Página: Central de Contratos
 Contexto: coleção de Contratos
 ```
 
-Esse contexto deve ser explícito no contrato para que Designer, Preview e Runtime interpretem a página da mesma maneira.
+Esse contexto é explícito no contrato para que Designer, Preview e Runtime interpretem a página da mesma maneira.
 
 ## Ações
 
@@ -469,4 +467,10 @@ python manage.py test
 
 ## Status
 
-**GEN-070.1 — Contrato, domínio e governança: DOCUMENTED / AWAITING IMPLEMENTATION**
+- **GEN-070.1 — Contrato, domínio e governança: IMPLEMENTED / VALIDATED**
+- **GEN-070.2 — Page Designer Shell: IMPLEMENTED / VALIDATED**
+- **GEN-070.3 — Layout Engine: IMPLEMENTED / VALIDATED**
+- **GEN-070.4 — Componentes e bindings: IMPLEMENTED / VALIDATED**
+- **Próxima fase: GEN-070.5 — Ações e experiências de processo**
+
+Validação registrada em 2026-09-06: gates estruturais/semânticos verdes e validação visual aprovada pelo usuário para catálogo, bindings e canvas da GEN-070.4.

@@ -16,19 +16,52 @@ ADVANCED_PAGES = {
         "context_app_name": "{{ page.context_app_name|escapejs }}",
         "context_model_name": "{{ page.context_model_name|escapejs }}",
         "template": "advanced_pages/{{ page.id|escapejs }}.html",
+        "components": [
+{% for component in page.components %}            {
+                "id": "{{ component.id|escapejs }}",
+                "type": "{{ component.type|escapejs }}",
+                "runtime_key": "{{ component.runtime_key|escapejs }}",
+                "binding_kind": "{{ component.binding.kind|escapejs }}",
+                "binding_entity": "{{ component.binding.ref|escapejs }}",
+                "binding_field": "{{ component.binding.field|escapejs }}",
+                "binding_app_name": "{{ component.binding_app_name|escapejs }}",
+                "binding_model_name": "{{ component.binding_model_name|escapejs }}",
+            },
+{% endfor %}        ],
     },
 {% endfor %}}
 
 
-def _model_for(page):
-    app_name = page.get("context_app_name")
-    model_name = page.get("context_model_name")
+def _model(app_name, model_name):
     if not app_name or not model_name:
-        raise Http404("Contexto da página avançada inválido.")
+        raise Http404("Referência de entidade inválida na página avançada.")
     model = apps.get_model(app_name, model_name)
     if model is None:
         raise Http404("Entidade da página avançada não encontrada.")
     return model
+
+
+def _model_for(page):
+    return _model(page.get("context_app_name"), page.get("context_model_name"))
+
+
+def _rbac_for(app_name):
+    if not app_name:
+        return None
+    try:
+        return __import__(f"{app_name}.rbac", fromlist=["has_entity_action"])
+    except Exception:
+        return None
+
+
+def _has_entity_action(request, app_name, entity_name, action):
+    rbac = _rbac_for(app_name)
+    if rbac is None:
+        return False
+    try:
+        return bool(rbac.has_entity_action(request.user, entity_name, action))
+    except Exception:
+        return False
 
 
 def _require_page_access(request, page):
@@ -38,18 +71,38 @@ def _require_page_access(request, page):
         return
     if kind not in {"collection", "record"} or not entity_name:
         raise PermissionDenied("Contexto da página avançada inválido.")
-    app_name = page.get("context_app_name")
-    if not app_name:
-        raise PermissionDenied("Política da página avançada inválida.")
-    try:
-        rbac = __import__(f"{app_name}.rbac", fromlist=["has_entity_action"])
-        action = "list" if kind == "collection" else "view"
-        if not rbac.has_entity_action(request.user, entity_name, action):
-            raise PermissionDenied(f"Acesso negado para {entity_name}:{action}.")
-    except PermissionDenied:
-        raise
-    except Exception as exc:
-        raise PermissionDenied("Não foi possível validar a política da página avançada.") from exc
+    action = "list" if kind == "collection" else "view"
+    if not _has_entity_action(request, page.get("context_app_name"), entity_name, action):
+        raise PermissionDenied(f"Acesso negado para {entity_name}:{action}.")
+
+
+def _component_allowed(request, page, component):
+    kind = component.get("binding_kind")
+    component_type = component.get("type")
+    if kind in {"none", "page_context"}:
+        return True
+    entity_name = component.get("binding_entity")
+    app_name = component.get("binding_app_name")
+    if kind in {"entity", "crud"}:
+        action = "list" if component_type == "table" else "view"
+        return bool(entity_name and _has_entity_action(request, app_name, entity_name, action))
+    if kind in {"field", "form", "workflow"}:
+        return bool(entity_name and _has_entity_action(request, app_name, entity_name, "view"))
+    return False
+
+
+def _load_component_data(page, component, *, advanced_record=None, advanced_collection=None):
+    kind = component.get("binding_kind")
+    if kind == "page_context":
+        return advanced_record if page.get("context_kind") == "record" else advanced_collection
+    if kind in {"entity", "crud"}:
+        return _model(component.get("binding_app_name"), component.get("binding_model_name"))._default_manager.all()
+    if kind == "field":
+        if advanced_record is None or component.get("binding_entity") != page.get("context_entity"):
+            return None
+        field_name = component.get("binding_field")
+        return getattr(advanced_record, field_name, None) if field_name else None
+    return None
 
 
 @login_required
@@ -68,4 +121,15 @@ def advanced_page_view(request, page_id, pk=None):
         context["advanced_collection"] = _model_for(page)._default_manager.all()
     elif kind != "none":
         raise Http404("Contexto da página avançada inválido.")
+
+    for component in page.get("components", []):
+        key = component["runtime_key"]
+        visible = _component_allowed(request, page, component)
+        context[f"{key}_visible"] = visible
+        context[key] = _load_component_data(
+            page,
+            component,
+            advanced_record=context["advanced_record"],
+            advanced_collection=context["advanced_collection"],
+        ) if visible else None
     return render(request, page["template"], context)

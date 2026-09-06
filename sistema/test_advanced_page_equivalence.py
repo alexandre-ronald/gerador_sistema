@@ -127,7 +127,8 @@ class AdvancedPageEquivalenceTests(TestCase):
         self.assertIn('"contrato_detail": {', runtime_source)
         self.assertIn('"aprovar_contrato": {', runtime_source)
         self.assertIn('"transition": "aprovar"', runtime_source)
-        self.assertIn("_workflow_transition_contract", runtime_source)
+        self.assertIn("_workflow_confirmation", runtime_source)
+        self.assertIn("WORKFLOWS", runtime_source)
         self.assertIn("can_transition", runtime_source)
 
         page_source = render_to_string("gerador/snippets/advanced_page_html.txt", {"page": generated_page})

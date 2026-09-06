@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -53,4 +55,6 @@ class PageDesignerPreviewSelectionTests(TestCase):
         self.assertContains(response, "previewUrl.searchParams.set('pagina_avancada', pageId)")
         self.assertContains(response, "designerUrl.searchParams.set('pagina', pageId)")
         self.assertContains(response, "item.dataset.id")
-        self.assertLess(response.content.decode().find('"id": "pagina_dois"'), response.content.decode().find('"id": "pagina_um"'))
+
+        config = json.loads(response.context["advanced_pages_json"])
+        self.assertEqual([page["id"] for page in config["pages"]], ["pagina_dois", "pagina_um"])

@@ -182,9 +182,10 @@ def application_preview(request, sistema_id):
     if requested_page_kind == "advanced":
         build_advanced_page_preview(sistema, preview, request.GET.get("pagina_avancada"))
     preview["designer_links"] = _designer_links(sistema, preview)
-    template_name = (
-        "sistema/application_preview_workflow.html"
-        if preview.get("page_kind") == "workflow"
-        else "sistema/application_preview_roles.html"
-    )
+    if preview.get("page_kind") == "workflow":
+        template_name = "sistema/application_preview_workflow.html"
+    elif preview.get("page_kind") == "advanced":
+        template_name = "sistema/application_preview_advanced.html"
+    else:
+        template_name = "sistema/application_preview_roles.html"
     return render(request, template_name, {"sistema": sistema, "preview": preview})

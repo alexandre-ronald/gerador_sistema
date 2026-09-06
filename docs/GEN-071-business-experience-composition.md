@@ -229,7 +229,13 @@ Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.5 — Preview da experiência composta
 
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+
 Projetar coleções, métricas e ações relacionais no Preview Studio com dados demonstrativos coerentes.
+
+O Preview reúne agora, na mesma página avançada, a coleção relacionada, métricas derivadas e ações vinculadas. Métricas relacionais mostram operação/origem; coleções mantêm a regra de relação; ações CRUD `create` com transporte exibem explicitamente o vínculo que será preenchido no runtime, por exemplo `Contrato.fornecedor ← Fornecedor atual`.
+
+A projeção continua somente leitura e demonstrativa. A execução real das consultas e do transporte de contexto pertence à GEN-071.6.
 
 ### GEN-071.6 — Runtime gerado
 
@@ -306,3 +312,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** a mensagem de sucesso permanecia na tela entre salvamentos, tornando impossível distinguir uma confirmação antiga de um novo salvamento.
 
 **Impacto:** ao salvar, a confirmação anterior é removida imediatamente, o botão entra em estado `Salvando...`, a confirmação inclui horário do salvamento e a mensagem de sucesso some automaticamente após alguns segundos.
+
+### 2026-09-06 — implementação da GEN-071.5
+
+**Decisão:** consolidar no Preview Studio a leitura conjunta dos contratos relacionais já validados nas etapas 071.2, 071.3 e 071.4.
+
+**Motivo:** o valor da composição deve ser perceptível como uma experiência única, e não como recursos isolados do Designer.
+
+**Impacto:** o Preview passa a identificar a origem de métricas relacionais e o transporte de contexto de ações, mantendo a tabela relacionada e respeitando a mesma projeção/RBAC já existente. A execução permanece reservada ao runtime da GEN-071.6.

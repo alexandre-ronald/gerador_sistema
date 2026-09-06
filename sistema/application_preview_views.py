@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
+from .advanced_page_preview import build_advanced_page_preview
 from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
 
@@ -41,15 +42,19 @@ def _designer_links(sistema, preview):
             entity_id = page.get("entity_id")
             break
 
-    def link(key, label, route, icon, *, entity_context=False):
+    def link(key, label, route, icon, *, entity_context=False, query=""):
         url = reverse(f"sistema:{route}", args=[sistema_id])
         if entity_context and entity_id:
-            url = f"{url}?entidade={entity_id}"
+            query = f"entidade={entity_id}" if not query else f"{query}&entidade={entity_id}"
+        if query:
+            url = f"{url}?{query}"
         return {"id": key, "label": label, "url": url, "icon": icon}
 
     page_kind = preview.get("page_kind") or "list"
     contextual = []
-    if page_kind == "form":
+    if page_kind == "advanced" and preview.get("advanced_page"):
+        contextual.append(link("advanced", "Editar página", "page_designer", "bi-window-stack", query=f"pagina={preview['advanced_page']['id']}"))
+    elif page_kind == "form":
         contextual.append(link("form", "Editar formulário", "form_designer", "bi-ui-checks-grid", entity_context=True))
     elif page_kind == "dashboard":
         contextual.append(link("dashboard", "Editar dashboard", "dashboard_builder", "bi-grid-1x2", entity_context=True))
@@ -162,10 +167,11 @@ def _apply_report_permissions(sistema, preview):
 @login_required
 def application_preview(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
+    requested_page_kind = request.GET.get("pagina", "list")
     preview = build_preview_shell(
         sistema,
         selected_entity_id=request.GET.get("entidade"),
-        page_kind=request.GET.get("pagina", "list"),
+        page_kind="list" if requested_page_kind == "advanced" else requested_page_kind,
         selected_report_id=request.GET.get("relatorio"),
         selected_workflow_state=request.GET.get("estado"),
         selected_role_id=request.GET.get("papel"),
@@ -173,6 +179,8 @@ def application_preview(request, sistema_id):
     preview["device_preview"] = _device_preview(request.GET.get("dispositivo"))
     _apply_report_permissions(sistema, preview)
     _ensure_workflow_navigation(sistema, preview)
+    if requested_page_kind == "advanced":
+        build_advanced_page_preview(sistema, preview, request.GET.get("pagina_avancada"))
     preview["designer_links"] = _designer_links(sistema, preview)
     template_name = (
         "sistema/application_preview_workflow.html"

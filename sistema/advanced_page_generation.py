@@ -68,6 +68,7 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
                 "label": action["label"],
                 "target": deepcopy(target),
                 "app_name": "",
+                "model_name": "",
                 "entity_code": "",
                 "url_name": "",
                 "requires_pk": False,
@@ -90,6 +91,7 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
                 target_entity = entity_map.get(target.get("entity"))
                 target_meta = _entity_metadata(target_entity)
                 runtime["app_name"] = target_meta["app_name"]
+                runtime["model_name"] = target_meta["model_name"]
                 runtime["entity_code"] = target_meta["entity_code"]
                 if action["kind"] == "crud" and target_entity:
                     operation = target.get("operation")

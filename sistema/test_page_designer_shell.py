@@ -44,11 +44,30 @@ class PageDesignerShellTests(TestCase):
         response = self.client.get(reverse("sistema:page_designer", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Advanced Page Designer")
-        self.assertContains(response, "GEN-070.3")
-        self.assertContains(response, "Layout Engine")
-        self.assertContains(response, "Canvas · 12 colunas")
+        self.assertContains(response, "GEN-070.4")
+        self.assertContains(response, "Componentes e Bindings")
+        self.assertContains(response, "KPI / Métrica")
+        self.assertContains(response, "Tabela / Lista")
         self.assertContains(response, "Contrato")
         self.assertContains(response, "Salvar páginas")
+
+    def test_designer_exposes_existing_designer_catalogs(self):
+        VersaoGeracao.objects.create(
+            sistema=self.sistema,
+            numero=0,
+            descricao="Rascunho",
+            estrutura_json={
+                "forms": {"Contrato": {"title": "Cadastro de Contrato", "sections": [], "fields": []}},
+                "reports": {"Contrato": [{"id": "geral", "name": "Relatório Geral"}]},
+                "workflows": {"Contrato": {"transitions": [{"id": "aprovar", "label": "Aprovar"}]}},
+                "dashboard": {"widgets": []},
+            },
+        )
+        response = self.client.get(reverse("sistema:page_designer", args=[self.sistema.pk]))
+        self.assertContains(response, "Relatório Geral")
+        self.assertContains(response, "aprovar")
+        self.assertContains(response, "Cadastro de Contrato")
+        self.assertContains(response, 'dashboard\\u0022: true')
 
     def test_save_persists_advanced_pages_in_draft(self):
         response = self.client.post(

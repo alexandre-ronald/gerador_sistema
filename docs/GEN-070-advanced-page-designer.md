@@ -471,6 +471,7 @@ python manage.py test
 - **GEN-070.2 — Page Designer Shell: IMPLEMENTED / VALIDATED**
 - **GEN-070.3 — Layout Engine: IMPLEMENTED / VALIDATED**
 - **GEN-070.4 — Componentes e bindings: IMPLEMENTED / VALIDATED**
-- **Próxima fase: GEN-070.5 — Ações e experiências de processo**
+- **GEN-070.5 — Ações e experiências de processo: IMPLEMENTED / VALIDATED**
+- **Próxima fase: GEN-070.6 — Runtime Contract Enforcement**
 
-Validação registrada em 2026-09-06: gates estruturais/semânticos verdes e validação visual aprovada pelo usuário para catálogo, bindings e canvas da GEN-070.4.
+Validação registrada em 2026-09-06: gates de contrato, semântica, layout e Page Designer verdes. A validação visual da GEN-070.5 foi aprovada pelo usuário após criação de página, componentes e ações declarativas no Advanced Page Designer.

@@ -1,0 +1,191 @@
+# GEN-071 — Business Experience Composition
+
+Status: **PLANEJADA / EM IMPLEMENTAÇÃO**
+
+## Objetivo
+
+> Transformar o Advanced Page Designer em uma ferramenta capaz de compor experiências operacionais reais de negócio, combinando um registro principal com dados relacionados, indicadores, listas, relatórios e ações, sem exigir que o usuário programe Django.
+
+A GEN-071 existe para provar o valor prático da composição avançada por meio de páginas orientadas ao trabalho do usuário, e não apenas às entidades isoladas.
+
+## Problema que esta GEN resolve
+
+A GEN-070 criou o contrato, o Designer, o Preview e o runtime de páginas avançadas. Porém, uma página composta apenas por campos do próprio registro ainda pode parecer pouco diferente de um CRUD ou Form Designer.
+
+A GEN-071 deve permitir experiências como uma **Central do Fornecedor**:
+
+```text
+Fornecedor atual
+    ├── dados principais
+    ├── KPIs derivados
+    ├── contratos relacionados
+    ├── relatórios relacionados
+    ├── ações de CRUD
+    └── ações de workflow
+```
+
+O objetivo é permitir que o usuário modele uma tela de trabalho completa sem escrever views, queries ou templates manualmente.
+
+## Princípio arquitetural
+
+> O Advanced Page Designer compõe experiências. Os Designers especializados continuam sendo donos das capacidades que ele referencia.
+
+A GEN-071 não cria uma segunda definição de CRUD, Form, Report, Dashboard, Workflow ou RBAC.
+
+## Caso de uso de referência
+
+O caso de prova da GEN-071 será **Central do Fornecedor**.
+
+Entidade principal:
+
+```text
+Fornecedor
+```
+
+Experiência esperada:
+
+```text
+CENTRAL DO FORNECEDOR
+
+Fornecedor                       Situação
+Hospitalar Nordeste              Ativo
+
+Contratos ativos                 Total contratado
+7                                R$ 2.840.000
+
+CONTRATOS DO FORNECEDOR
+[tabela relacionada filtrada pelo fornecedor atual]
+
+RELATÓRIOS
+[relatórios vinculados ao fornecedor]
+
+AÇÕES
+[Editar fornecedor] [Novo contrato] [Ação de workflow]
+```
+
+A implementação deve ser genérica. O caso Fornecedor/Contrato é somente o cenário de validação.
+
+## Escopo incluído
+
+- bindings relacionais entre o contexto atual da página e entidades relacionadas;
+- componente de coleção relacionada;
+- filtros declarativos baseados no registro de contexto;
+- métricas derivadas de coleções relacionadas;
+- ações que transportam contexto entre páginas e CRUDs;
+- Preview demonstrativo fiel ao contrato relacional;
+- geração/runtime das relações configuradas;
+- enforcement de RBAC também sobre dados, ações e destinos relacionados;
+- equivalência Designer → Preview → geração → runtime;
+- teste funcional de uma Central do Fornecedor composta sem código manual.
+
+## Escopo não incluído
+
+- editor visual de consultas SQL;
+- linguagem livre de SQL, Python ou JavaScript fornecida pelo usuário;
+- substituição do ORM Django por uma query language própria;
+- redefinição de relacionamentos de modelo já pertencentes ao domínio;
+- criação de workflows, relatórios ou formulários dentro do Advanced Page Designer;
+- joins arbitrários sem caminho relacional conhecido pelo contrato/modelo;
+- BI ou analytics ad hoc de propósito geral.
+
+## Fonte de verdade
+
+A fonte de verdade continua sendo o contrato declarativo persistido da aplicação.
+
+A GEN-071 pode evoluir o contrato `advanced_pages`, mas referências relacionais devem usar IDs/nomes estáveis e relações já conhecidas pelo modelo da aplicação.
+
+Preview e runtime são projeções do mesmo contrato.
+
+## Roadmap
+
+### GEN-071.1 — Modelo relacional de bindings
+
+Definir contrato, normalização, validação e semântica para relacionar o contexto atual a outras entidades.
+
+Critério mínimo:
+
+```text
+Página record: Fornecedor
+       ↓
+relação declarativa
+       ↓
+Contrato.fornecedor = contexto.pk
+```
+
+Nenhum SQL livre será armazenado.
+
+### GEN-071.2 — Related Collection Component
+
+Permitir uma tabela/lista relacionada ao registro atual.
+
+Exemplo:
+
+```text
+Fornecedor atual → Contratos deste fornecedor
+```
+
+### GEN-071.3 — Métricas relacionais
+
+Permitir métricas derivadas de uma coleção relacionada, inicialmente com operações seguras e declarativas:
+
+```text
+count
+sum
+avg
+min
+max
+```
+
+### GEN-071.4 — Ações com transporte de contexto
+
+Permitir que ações levem o contexto atual para CRUDs ou outras páginas.
+
+Exemplo:
+
+```text
+Novo contrato
+    ↓
+formulário Contrato
+    ↓
+fornecedor preenchido com o fornecedor atual
+```
+
+### GEN-071.5 — Preview da experiência composta
+
+Projetar coleções, métricas e ações relacionais no Preview Studio com dados demonstrativos coerentes.
+
+### GEN-071.6 — Runtime gerado
+
+Gerar consultas ORM seguras a partir do contrato relacional normalizado.
+
+### GEN-071.7 — Runtime Contract Enforcement relacional
+
+Aplicar RBAC, contexto e validação fail-closed também aos componentes e ações relacionais.
+
+### GEN-071.8 — Central do Fornecedor end-to-end
+
+Montar e validar o caso de referência sem escrever código específico de negócio no gerador.
+
+### GEN-071.9 — Equivalência e regressão
+
+Criar gate transversal Designer → Preview → geração → runtime.
+
+### GEN-071.10 — Freeze
+
+Executar regressão completa e preservar baseline segura.
+
+## Critério de sucesso da GEN
+
+A GEN-071 só será considerada bem-sucedida se o usuário conseguir montar uma experiência como **Central do Fornecedor** usando o DjangoForge e o sistema gerado reproduzir essa experiência com comportamento coerente.
+
+O critério não é apenas "o contrato aceita relações". O critério é o valor entregue ao usuário final.
+
+## Changelog
+
+### 2026-09-06 — criação da GEN-071
+
+**Decisão:** criar a GEN-071 como Business Experience Composition.
+
+**Motivo:** a GEN-070 provou a infraestrutura de páginas avançadas, mas a composição precisa demonstrar valor real por meio de experiências que combinem um registro principal com informações e capacidades relacionadas.
+
+**Impacto:** o próximo ciclo passa a priorizar composição relacional e uma prova end-to-end de Central do Fornecedor, sem ampliar silenciosamente a GEN-070 congelada.

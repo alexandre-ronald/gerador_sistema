@@ -1,0 +1,101 @@
+{% extends 'sistema/page_designer_contextual.html' %}
+{% block content %}
+{{ block.super }}
+<script>
+(function(){
+  function selectedPage(){
+    const id=new URL(window.location.href).searchParams.get('pagina');
+    if(typeof state==='undefined') return null;
+    return (state.config.pages||[]).find(page=>page.id===id) || (state.config.pages||[])[0] || null;
+  }
+  function selectedComponent(){
+    const page=selectedPage();
+    if(!page||typeof state==='undefined'||!state.selectedBlock) return null;
+    return (page.components||[]).find(component=>component.id===state.selectedBlock)||null;
+  }
+  function relationalCandidates(page){
+    const rows=[];
+    (state.entities||[]).forEach(entity=>{
+      (entity.fields||[]).forEach(field=>{
+        if(['ForeignKey','OneToOneField','ManyToManyField'].includes(field.type)&&field.related_entity===page.context?.entity){
+          rows.push({entity:entity.name,field:field.name});
+        }
+      });
+    });
+    return rows;
+  }
+  function metricFields(entityName,operation){
+    const entity=(state.entities||[]).find(item=>item.name===entityName);
+    const numeric=['IntegerField','FloatField','DecimalField'];
+    const orderable=[...numeric,'DateField','DateTimeField','TimeField'];
+    const allowed=operation==='sum'||operation==='avg'?numeric:orderable;
+    return (entity?.fields||[]).filter(field=>allowed.includes(field.type));
+  }
+  function uniqueId(page){
+    const used=new Set((page.components||[]).map(component=>component.id));
+    let id='related_metric',index=2;
+    while(used.has(id)) id=`related_metric_${index++}`;
+    return id;
+  }
+  function addRelatedMetric(){
+    const page=selectedPage();
+    if(!page||page.context?.kind!=='record'||!page.context?.entity){
+      alert('Métricas relacionadas exigem uma página com contexto "Um registro".');return;
+    }
+    const candidates=relationalCandidates(page);
+    if(!candidates.length){alert(`Nenhuma entidade possui relação com ${page.context.entity}.`);return;}
+    const candidate=candidates[0];
+    const id=uniqueId(page);
+    const layout=typeof firstFree==='function'?firstFree(page,4,1,0,0):{x:0,y:(page.components||[]).length,w:4,h:1};
+    page.components.push({id,type:'metric',title:`Total de ${candidate.entity}`,layout,binding:{kind:'entity',ref:candidate.entity,field:''},action:'',config:{relation:{source:'page_context',source_field:'pk',target_field:candidate.field},aggregate:{operation:'count',field:''}}});
+    state.selectedBlock=id;
+    if(typeof dirty==='function') dirty();
+    if(typeof render==='function') render();
+    requestAnimationFrame(syncInspector);
+  }
+  function ensureButton(){
+    const palette=document.getElementById('componentPalette');
+    if(!palette||document.getElementById('btnRelatedMetric')) return;
+    const button=document.createElement('button');
+    button.id='btnRelatedMetric';button.type='button';button.className='btn btn-sm btn-outline-primary';
+    button.innerHTML='<i class="bi bi-calculator me-1"></i>Métrica relacionada';
+    button.addEventListener('click',addRelatedMetric);palette.appendChild(button);
+  }
+  function ensureInspector(){
+    let area=document.getElementById('relatedMetricArea');if(area)return area;
+    const relationArea=document.getElementById('relatedCollectionArea')||document.getElementById('bindingArea');if(!relationArea)return null;
+    area=document.createElement('div');area.id='relatedMetricArea';area.className='row g-3 mt-0 d-none';
+    area.innerHTML='<div class="col-md-4"><label class="field-label">Cálculo</label><select id="relatedMetricOperation" class="form-select"><option value="count">Contagem</option><option value="sum">Soma</option><option value="avg">Média</option><option value="min">Mínimo</option><option value="max">Máximo</option></select></div><div class="col-md-4"><label class="field-label">Campo</label><select id="relatedMetricField" class="form-select"></select></div><div class="col-md-4"><label class="field-label">Origem</label><div id="relatedMetricSummary" class="form-control bg-body-tertiary"></div></div><div class="col-12"><div class="page-meta">A métrica é calculada somente sobre os registros relacionados ao contexto atual.</div></div>';
+    relationArea.insertAdjacentElement('afterend',area);return area;
+  }
+  function syncInspector(){
+    const area=ensureInspector();if(!area)return;
+    const component=selectedComponent();
+    const aggregate=component?.config?.aggregate;
+    const visible=!!(component&&component.type==='metric'&&component.config?.relation&&aggregate);
+    area.classList.toggle('d-none',!visible);if(!visible)return;
+    const operation=document.getElementById('relatedMetricOperation');operation.value=aggregate.operation||'count';
+    const fieldSelect=document.getElementById('relatedMetricField');
+    const fields=metricFields(component.binding?.ref,operation.value).map(field=>({value:field.name,label:field.label||field.name}));
+    if(typeof fillSelect==='function') fillSelect(fieldSelect,fields,aggregate.field||'','Campo...');
+    fieldSelect.disabled=operation.value==='count';
+    const summary=document.getElementById('relatedMetricSummary');
+    if(summary) summary.textContent=operation.value==='count'?`count(${component.binding?.ref})`:`${operation.value}(${component.binding?.ref}.${aggregate.field||'campo'})`;
+  }
+  document.addEventListener('click',event=>{if(event.target.closest('.layout-block'))requestAnimationFrame(syncInspector);});
+  document.addEventListener('change',event=>{
+    const component=selectedComponent();if(!component?.config?.aggregate)return;
+    if(event.target.id==='relatedMetricOperation'){
+      component.config.aggregate.operation=event.target.value;
+      if(event.target.value==='count')component.config.aggregate.field='';
+      else {const first=metricFields(component.binding?.ref,event.target.value)[0];component.config.aggregate.field=first?.name||'';}
+      if(typeof dirty==='function')dirty();syncInspector();
+    }
+    if(event.target.id==='relatedMetricField'){
+      component.config.aggregate.field=event.target.value;if(typeof dirty==='function')dirty();syncInspector();
+    }
+  });
+  requestAnimationFrame(()=>{ensureButton();ensureInspector();syncInspector();});
+})();
+</script>
+{% endblock %}

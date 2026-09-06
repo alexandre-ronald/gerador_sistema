@@ -444,6 +444,14 @@ Não se deve apagar silenciosamente decisões anteriores; quando uma decisão fo
 
 **Impacto:** a GEN-070 inclui enforcement de CRUD, workflow, relatórios, navegação e páginas avançadas, além de testes de equivalência Preview × Runtime.
 
+### 2026-09-06 — fechamento da GEN-070
+
+**Decisão:** considerar concluída a implementação funcional da GEN-070 após o gate transversal de equivalência e a regressão completa do projeto.
+
+**Motivo:** Designer, contrato persistido, Preview, geração e runtime passaram pelos gates específicos e pelo `python manage.py check` + `python manage.py test` completos, reportados verdes pelo usuário.
+
+**Impacto:** a GEN-070 entra em estado congelado; novas funcionalidades devem ser planejadas em marco posterior, preservando esta baseline.
+
 ## Gate inicial
 
 A GEN-070 parte da baseline final da GEN-069:
@@ -473,6 +481,19 @@ python manage.py test
 - **GEN-070.4 — Componentes e bindings: IMPLEMENTED / VALIDATED**
 - **GEN-070.5 — Ações e experiências de processo: IMPLEMENTED / VALIDATED**
 - **GEN-070.6 — Runtime Contract Enforcement: IMPLEMENTED / VALIDATED**
-- **Próxima fase: GEN-070.7 — Runtime de páginas avançadas**
+- **GEN-070.7 — Runtime de páginas avançadas: IMPLEMENTED / VALIDATED**
+- **GEN-070.8 — Preview Studio integrado: IMPLEMENTED / VALIDATED**
+- **GEN-070.9 — Equivalência e testes: IMPLEMENTED / VALIDATED**
+- **GEN-070.10 — Regressão e freeze: VALIDATED**
+- **GEN-070 — CONCLUÍDA / CONGELADA**
 
-Validação registrada em 2026-09-06: os gates consolidados da GEN-070.6 ficaram verdes após enforcement de CRUD, workflow e relatórios no runtime gerado, proteção de acesso direto a relatórios, filtragem RBAC da navegação, decisões compartilháveis para páginas/componentes/ações avançadas e hardening semântico fail-closed. O gate final executado pelo usuário reuniu `sistema.test_runtime_contracts`, `sistema.test_advanced_pages_semantics`, `sistema.test_generated_rbac_reports` e `sistema.test_page_designer_shell`, com 34 testes verdes. A validação visual da GEN-070.5 permanece aprovada após criação de página, componentes e ações declarativas no Advanced Page Designer.
+Validação final registrada em 2026-09-06: o gate transversal confirmou a preservação de identidade e comportamento entre contrato persistido, Preview, projeção de geração e runtime gerado, incluindo contexto de registro, componentes, ação de workflow e confirmação herdada do Workflow Designer. Em seguida, o usuário executou `python manage.py check` e a suíte completa `python manage.py test`, ambos sem falhas.
+
+Baseline intermediária de equivalência:
+
+```text
+gen-070-equivalence-safe-baseline
+d13c311431f3731b0eb66b3fb4192801a124bf4d
+```
+
+A baseline final será registrada no roadmap e preservada pela branch `gen-070-regression-safe-baseline-final` após o commit documental de fechamento.

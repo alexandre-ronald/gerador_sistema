@@ -29,10 +29,15 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
                 "components": [
                     {"id": "titulo", "type": "title", "title": "Contrato", "layout": {"x": 0, "y": 0, "w": 12, "h": 1}, "binding": {"kind": "none", "ref": "", "field": ""}, "action": "", "config": {}},
                     {"id": "status", "type": "field_summary", "title": "Status", "layout": {"x": 0, "y": 1, "w": 4, "h": 1}, "binding": {"kind": "field", "ref": "Contrato", "field": "status"}, "action": "", "config": {}},
+                    {"id": "editar", "type": "button", "title": "Editar", "layout": {"x": 4, "y": 1, "w": 4, "h": 1}, "binding": {"kind": "none", "ref": "", "field": ""}, "action": "editar_contrato", "config": {}},
+                    {"id": "relatorio", "type": "link", "title": "Relatório", "layout": {"x": 8, "y": 1, "w": 4, "h": 1}, "binding": {"kind": "none", "ref": "", "field": ""}, "action": "abrir_relatorio", "config": {}},
                     {"id": "detalhe", "type": "record_detail", "title": "Dados", "layout": {"x": 0, "y": 2, "w": 12, "h": 2}, "binding": {"kind": "page_context", "ref": "", "field": ""}, "action": "", "config": {}},
                     {"id": "tabela", "type": "table", "title": "Contratos", "layout": {"x": 0, "y": 4, "w": 12, "h": 3}, "binding": {"kind": "entity", "ref": "Contrato", "field": ""}, "action": "", "config": {}},
                 ],
-                "actions": [],
+                "actions": [
+                    {"id": "editar_contrato", "kind": "crud", "label": "Editar contrato", "target": {"entity": "Contrato", "operation": "update"}},
+                    {"id": "abrir_relatorio", "kind": "report", "label": "Relatório geral", "target": {"entity": "Contrato", "report": "geral"}},
+                ],
             }],
         }
 
@@ -42,10 +47,18 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
     def test_generation_adds_field_and_runtime_metadata(self):
         page = self.page()
         status = page["components"][1]
-        detail = page["components"][2]
+        detail = page["components"][4]
         self.assertEqual(status["runtime_key"], "advanced_component_status")
         self.assertEqual(status["binding_field"]["code"], "status")
         self.assertEqual([field["code"] for field in detail["binding_fields"]], ["numero", "status"])
+
+    def test_generation_projects_crud_and_report_actions(self):
+        page = self.page()
+        actions = {action["id"]: action for action in page["actions"]}
+        self.assertEqual(actions["editar_contrato"]["url_name"], "contratos:contrato_update")
+        self.assertTrue(actions["editar_contrato"]["requires_pk"])
+        self.assertEqual(actions["abrir_relatorio"]["url_name"], "contratos:contrato_report_geral")
+        self.assertEqual(page["components"][2]["runtime_action"]["id"], "editar_contrato")
 
     def test_generated_page_template_is_valid_django_template(self):
         source = render_to_string("gerador/snippets/advanced_page_html.txt", {"page": self.page()})
@@ -54,12 +67,17 @@ class GeneratedAdvancedPageTemplateTests(SimpleTestCase):
         self.assertIn("{{ advanced_component_status }}", source)
         self.assertIn("{% for row in advanced_component_tabela %}", source)
         self.assertIn("{{ row.numero }}", source)
+        self.assertIn("{{ advanced_component_editar_action_url }}", source)
+        self.assertIn("Editar contrato", source)
         self.assertIn("grid-template-columns:repeat(12", source)
 
-    def test_runtime_emits_component_binding_contract(self):
+    def test_runtime_emits_component_binding_and_action_contract(self):
         source = render_to_string("gerador/snippets/advanced_pages_runtime.txt", {"advanced_pages": {"pages": [self.page()]}})
         compile(source, "advanced_pages.py", "exec")
         self.assertIn('"runtime_key": "advanced_component_status"', source)
         self.assertIn('"binding_field": "status"', source)
-        self.assertIn("_component_allowed", source)
-        self.assertIn("_load_component_data", source)
+        self.assertIn('"operation": "update"', source)
+        self.assertIn('"report": "geral"', source)
+        self.assertIn("_action_allowed", source)
+        self.assertIn("_action_url", source)
+        self.assertIn("can_report", source)

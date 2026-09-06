@@ -44,7 +44,9 @@ class PageDesignerShellTests(TestCase):
         response = self.client.get(reverse("sistema:page_designer", args=[self.sistema.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Advanced Page Designer")
-        self.assertContains(response, "GEN-070.2")
+        self.assertContains(response, "GEN-070.3")
+        self.assertContains(response, "Layout Engine")
+        self.assertContains(response, "Canvas · 12 colunas")
         self.assertContains(response, "Contrato")
         self.assertContains(response, "Salvar páginas")
 

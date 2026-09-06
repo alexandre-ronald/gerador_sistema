@@ -33,17 +33,17 @@ class PreviewDesignerRoundTripTests(SimpleTestCase):
     def test_form_returns_to_same_entity_form_preview(self):
         html = self.render_header("form_designer", {"entidade": "42"})
         preview = reverse("sistema:application_preview", args=[self.sistema.id])
-        self.assertIn(f'{preview}?pagina=form&amp;entidade=42', html)
+        self.assertIn(f'{preview}?pagina=form&entidade=42', html)
 
     def test_workflow_returns_to_same_entity_workflow_preview(self):
         html = self.render_header("workflow_designer", {"entidade": "42"})
         preview = reverse("sistema:application_preview", args=[self.sistema.id])
-        self.assertIn(f'{preview}?pagina=workflow&amp;entidade=42', html)
+        self.assertIn(f'{preview}?pagina=workflow&entidade=42', html)
 
     def test_report_returns_to_same_entity_report_preview(self):
         html = self.render_header("report_designer", {"entidade": "42"})
         preview = reverse("sistema:application_preview", args=[self.sistema.id])
-        self.assertIn(f'{preview}?pagina=report&amp;entidade=42', html)
+        self.assertIn(f'{preview}?pagina=report&entidade=42', html)
 
     def test_dashboard_returns_to_dashboard_preview(self):
         html = self.render_header("dashboard_builder")

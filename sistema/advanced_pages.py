@@ -4,10 +4,12 @@ O módulo é deliberadamente independente de Django: Designer, Preview e gerador
 podem consumir a mesma normalização sem criar uma segunda fonte de verdade.
 """
 from copy import deepcopy
+import re
 
 
 CONTRACT_VERSION = 1
 UNSAFE_TOKENS = ("__", "\\", "..")
+SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$")
 CONTEXT_KINDS = ("none", "record", "collection")
 COMPONENT_TYPES = (
     "title",
@@ -225,7 +227,7 @@ def _normalize_page(raw):
     page_id = _safe_id(raw.get("id"), code="invalid_page_id")
     name = _label(raw.get("name"), code="empty_page_name", page_id=page_id)
     slug = str(raw.get("slug") or "").strip().strip("/")
-    if not slug or any(token in slug for token in UNSAFE_TOKENS) or " " in slug:
+    if not slug or any(token in slug for token in UNSAFE_TOKENS) or not SAFE_SLUG_RE.fullmatch(slug):
         raise AdvancedPageContractError("invalid_page_slug", "Slug da página é inválido.", page_id=page_id)
 
     raw_components = raw.get("components", [])
@@ -270,20 +272,8 @@ def _normalize_page(raw):
     }
 
 
-def normalize_advanced_pages_config(raw_config=None, *, strict=True):
-    """Normaliza o contrato persistido em ``estrutura_json['advanced_pages']``.
-
-    Em modo estrito, qualquer configuração inválida falha fechada. O modo tolerante é
-    destinado a telas de Designer/inspeção e descarta páginas inválidas sem promovê-las
-    a uma configuração executável.
-    """
-    if raw_config is None:
-        raw_config = default_advanced_pages_config()
-    if not isinstance(raw_config, dict):
-        if strict:
-            raise AdvancedPageContractError("invalid_advanced_pages_config", "Configuração de páginas avançadas deve ser um objeto.")
-        return default_advanced_pages_config()
-
+def normalize_advanced_pages_config(raw_config, *, strict=True):
+    raw_config = raw_config if isinstance(raw_config, dict) else {}
     version = raw_config.get("version", CONTRACT_VERSION)
     if version != CONTRACT_VERSION:
         if strict:
@@ -293,35 +283,47 @@ def normalize_advanced_pages_config(raw_config=None, *, strict=True):
     raw_pages = raw_config.get("pages", [])
     if not isinstance(raw_pages, list):
         if strict:
-            raise AdvancedPageContractError("invalid_pages", "Pages deve ser uma lista.")
+            raise AdvancedPageContractError("invalid_pages", "Páginas devem ser uma lista.")
         raw_pages = []
 
     pages = []
     page_ids = set()
-    slugs = set()
+    page_slugs = set()
     for item in raw_pages:
         try:
             page = _normalize_page(item)
-            if page["id"] in page_ids:
-                raise AdvancedPageContractError("duplicate_page_id", "ID de página duplicado.", page_id=page["id"])
-            if page["slug"] in slugs:
-                raise AdvancedPageContractError("duplicate_page_slug", "Slug de página duplicado.", page_id=page["id"])
-            page_ids.add(page["id"])
-            slugs.add(page["slug"])
-            pages.append(page)
         except AdvancedPageContractError:
             if strict:
                 raise
+            continue
+        if page["id"] in page_ids:
+            if strict:
+                raise AdvancedPageContractError("duplicate_page_id", "ID de página duplicado.", page_id=page["id"])
+            continue
+        if page["slug"] in page_slugs:
+            if strict:
+                raise AdvancedPageContractError("duplicate_page_slug", "Slug de página duplicado.", page_id=page["id"])
+            continue
+        page_ids.add(page["id"])
+        page_slugs.add(page["slug"])
+        pages.append(page)
 
-    known_pages = {page["id"] for page in pages}
+    known_page_ids = {page["id"] for page in pages}
+    valid_pages = []
     for page in pages:
-        for action in page["actions"]:
-            if action["kind"] == "navigate" and str(action["target"].get("page") or "").strip() not in known_pages:
-                if strict:
-                    raise AdvancedPageContractError("unknown_navigation_page", "Ação referencia página avançada inexistente.", page_id=page["id"], action_id=action["id"])
+        try:
+            for action in page["actions"]:
+                if action["kind"] == "navigate" and action["target"].get("page") not in known_page_ids:
+                    raise AdvancedPageContractError("unknown_navigation_page", "Ação de navegação referencia página inexistente.", page_id=page["id"], action_id=action["id"])
+        except AdvancedPageContractError:
+            if strict:
+                raise
+            continue
+        valid_pages.append(page)
 
-    return {"version": CONTRACT_VERSION, "pages": pages}
+    return {"version": version, "pages": valid_pages}
 
 
 def page_map(config):
-    return {page["id"]: deepcopy(page) for page in (config or {}).get("pages", []) if isinstance(page, dict) and page.get("id")}
+    normalized = normalize_advanced_pages_config(config, strict=True)
+    return {page["id"]: deepcopy(page) for page in normalized["pages"]}

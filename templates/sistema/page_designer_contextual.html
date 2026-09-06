@@ -1,0 +1,51 @@
+{% extends 'sistema/page_designer.html' %}
+{% block content %}
+{{ block.super }}
+<script>
+(function(){
+  const previewBase = "{% url 'sistema:application_preview' sistema.pk %}";
+
+  function selectedPageId(){
+    const urlId = new URL(window.location.href).searchParams.get('pagina');
+    if(urlId) return urlId;
+    const active = document.querySelector('.page-item.active');
+    return active ? active.dataset.id : '';
+  }
+
+  function syncSelection(pageId){
+    if(!pageId) return;
+    const designerUrl = new URL(window.location.href);
+    designerUrl.searchParams.set('pagina', pageId);
+    window.history.replaceState({}, '', designerUrl.pathname + designerUrl.search + designerUrl.hash);
+
+    const previewLink = Array.from(document.querySelectorAll('.toolbar-actions a'))
+      .find(a => (a.textContent || '').trim().includes('Ver Preview'));
+    if(previewLink){
+      const previewUrl = new URL(previewBase, window.location.origin);
+      previewUrl.searchParams.set('pagina', 'advanced');
+      previewUrl.searchParams.set('pagina_avancada', pageId);
+      previewLink.href = previewUrl.pathname + previewUrl.search;
+    }
+  }
+
+  document.addEventListener('click', function(event){
+    const item = event.target.closest('.page-item');
+    if(item && item.dataset.id){
+      syncSelection(item.dataset.id);
+      return;
+    }
+
+    const previewLink = event.target.closest('.toolbar-actions a');
+    if(previewLink && (previewLink.textContent || '').trim().includes('Ver Preview')){
+      const pageId = selectedPageId();
+      if(pageId) syncSelection(pageId);
+    }
+  });
+
+  requestAnimationFrame(function(){
+    const pageId = selectedPageId() || document.querySelector('.page-item')?.dataset.id || '';
+    if(pageId) syncSelection(pageId);
+  });
+})();
+</script>
+{% endblock %}

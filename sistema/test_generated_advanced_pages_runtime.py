@@ -4,6 +4,14 @@ from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
 
+class _EmptyVersionQuery:
+    def filter(self, **kwargs):
+        return self
+
+    def first(self):
+        return None
+
+
 class GeneratedAdvancedPagesRuntimeTests(SimpleTestCase):
     def pages(self):
         return {"pages": [
@@ -21,6 +29,9 @@ class GeneratedAdvancedPagesRuntimeTests(SimpleTestCase):
             },
         ]}
 
+    def system(self):
+        return SimpleNamespace(nome="Teste", versoes=_EmptyVersionQuery())
+
     def test_generated_runtime_supports_none_collection_and_record(self):
         source = render_to_string("gerador/snippets/advanced_pages_runtime.txt", {"advanced_pages": self.pages()})
         compile(source, "advanced_pages.py", "exec")
@@ -33,8 +44,7 @@ class GeneratedAdvancedPagesRuntimeTests(SimpleTestCase):
 
     def test_generated_root_urls_emit_record_and_collection_routes(self):
         source = render_to_string("gerador/snippets/urls_root_v2.txt", {
-            "sistema": SimpleNamespace(nome="Teste"),
-            "runtime_rbac": {"enabled": False, "roles": []},
+            "sistema": self.system(),
             "advanced_pages": self.pages(),
             "notifications": {"enabled": False},
             "api": {"enabled": False},

@@ -1,8 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 
-from .application_preview import build_preview_shell
+from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
+
+
+def _draft_structure(sistema):
+    versao = sistema.versoes.filter(numero=0).first()
+    return versao.estrutura_json if versao and isinstance(versao.estrutura_json, dict) else {}
 
 
 def _ensure_workflow_navigation(sistema, preview):
@@ -12,8 +17,7 @@ def _ensure_workflow_navigation(sistema, preview):
     workflows = list(projected) if isinstance(projected, list) else []
     known_entities = {str(item.get("entity") or "") for item in workflows if isinstance(item, dict)}
 
-    versao = sistema.versoes.filter(numero=0).first()
-    estrutura = versao.estrutura_json if versao and isinstance(versao.estrutura_json, dict) else {}
+    estrutura = _draft_structure(sistema)
     stored = estrutura.get("workflows") if isinstance(estrutura.get("workflows"), dict) else {}
     if not stored:
         navigation["workflows"] = workflows
@@ -50,6 +54,63 @@ def _ensure_workflow_navigation(sistema, preview):
     navigation["workflows"] = workflows
 
 
+def _apply_report_permissions(sistema, preview):
+    """Filtra relatórios pelo papel simulado e bloqueia acesso direto não autorizado."""
+    simulation = preview.get("role_simulation") or {}
+    invalid_role = bool(simulation.get("invalid_role"))
+    active_role = bool(simulation.get("active"))
+    if not invalid_role and not active_role:
+        return
+
+    estrutura = _draft_structure(sistema)
+    raw_rbac = estrutura.get("rbac") if isinstance(estrutura.get("rbac"), dict) else {}
+    report_policies = raw_rbac.get("reports")
+
+    # Compatibilidade: contratos RBAC antigos, anteriores às permissões de relatório,
+    # mantêm a visão legada até serem salvos novamente no Permission Designer.
+    if not invalid_role and not isinstance(report_policies, dict):
+        return
+
+    role_id = simulation.get("selected_role_id") or ""
+
+    def allowed(report):
+        if invalid_role:
+            return False
+        entity_policies = report_policies.get(report.get("entity")) if isinstance(report_policies, dict) else None
+        if not isinstance(entity_policies, dict):
+            return False
+        authorized_roles = entity_policies.get(report.get("id"))
+        return isinstance(authorized_roles, list) and role_id in authorized_roles
+
+    original_report_page = preview.get("report_page")
+    visible_reports = [report for report in (preview.get("reports") or []) if allowed(report)]
+    preview["reports"] = visible_reports
+    preview["entity_reports"] = [
+        report
+        for report in (preview.get("entity_reports") or [])
+        if allowed(report)
+    ]
+
+    report_page = original_report_page if isinstance(original_report_page, dict) and allowed(original_report_page) else None
+    preview["report_page"] = report_page
+    preview.setdefault("navigation", {})["reports"] = _report_navigation_rows(visible_reports, report_page)
+
+    if preview.get("page_kind") == "report" and original_report_page and report_page is None:
+        preview["report_access_denied"] = {
+            "entity": original_report_page.get("entity"),
+            "id": original_report_page.get("id"),
+            "title": original_report_page.get("title"),
+        }
+        preview["list_page"] = None
+        preview["form_page"] = None
+        preview["dashboard_page"] = None
+        preview["workflow_page"] = None
+        preview["content"] = {
+            "title": "Relatório não disponível para este papel",
+            "subtitle": "O Permission Designer não autorizou o papel simulado a acessar este relatório.",
+        }
+
+
 @login_required
 def application_preview(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
@@ -61,6 +122,7 @@ def application_preview(request, sistema_id):
         selected_workflow_state=request.GET.get("estado"),
         selected_role_id=request.GET.get("papel"),
     )
+    _apply_report_permissions(sistema, preview)
     _ensure_workflow_navigation(sistema, preview)
     template_name = (
         "sistema/application_preview_workflow.html"

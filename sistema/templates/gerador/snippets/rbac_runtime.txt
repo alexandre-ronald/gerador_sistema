@@ -99,3 +99,19 @@ def require_report(user, entity_name, report_id):
     if not can_report(user, entity_name, report_id):
         raise RBACRuntimeError(f"Relatório não autorizado para {entity_name}:{report_id}.")
     return True
+
+
+def protected_report_view(view_func, entity_name, report_id):
+    """Protege também acesso direto à URL do relatório."""
+    from functools import wraps
+    from django.core.exceptions import PermissionDenied
+
+    @wraps(view_func)
+    def wrapped(request, *args, **kwargs):
+        try:
+            require_report(request.user, entity_name, report_id)
+        except RBACRuntimeError as exc:
+            raise PermissionDenied(str(exc))
+        return view_func(request, *args, **kwargs)
+
+    return wrapped

@@ -1,6 +1,7 @@
-"""Validação semântica do contrato GEN-070 — Advanced Page Designer."""
+"""Validação semântica do contrato GEN-070/071 — Advanced Page Designer."""
 from copy import deepcopy
 
+from .advanced_page_relations import normalize_component_relation
 from .advanced_pages import AdvancedPageContractError, normalize_advanced_pages_config
 
 
@@ -14,11 +15,18 @@ def _entity_map(entities_metadata):
             continue
         fields = item.get("fields") or item.get("campos") or []
         field_names = set()
+        fields_meta = {}
         for field in fields:
-            field_name = str((field.get("name") or field.get("nome")) if isinstance(field, dict) else field or "").strip()
+            if isinstance(field, dict):
+                field_name = str(field.get("name") or field.get("nome") or "").strip()
+                field_meta = deepcopy(field)
+            else:
+                field_name = str(field or "").strip()
+                field_meta = {"name": field_name}
             if field_name:
                 field_names.add(field_name)
-        result[name] = {"metadata": deepcopy(item), "fields": field_names}
+                fields_meta[field_name] = field_meta
+        result[name] = {"metadata": deepcopy(item), "fields": field_names, "fields_meta": fields_meta}
     return result
 
 
@@ -104,6 +112,7 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
         if context["kind"] in ("record", "collection"):
             _require_entity(context["entity"], entities, page_id=page_id)
 
+        normalized_components = []
         for component in page["components"]:
             component_id = component["id"]
             binding = component["binding"]
@@ -127,6 +136,10 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
                     raise AdvancedPageContractError("unknown_form_reference", "Binding referencia formulário inexistente para a entidade.", page_id=page_id, component_id=component_id)
             if kind == "dashboard" and dashboards is not None and not dashboard_available:
                 raise AdvancedPageContractError("unknown_dashboard_reference", "Binding referencia dashboard inexistente.", page_id=page_id, component_id=component_id)
+
+            normalized_components.append(normalize_component_relation(component, page, entities))
+
+        page["components"] = normalized_components
 
         for action in page["actions"]:
             action_id, target, kind = action["id"], action["target"], action["kind"]

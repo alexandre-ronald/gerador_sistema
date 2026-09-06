@@ -66,6 +66,23 @@ class AdvancedPagePreviewTests(TestCase):
         self.assertContains(response, 'data-preview-designer="advanced"')
         self.assertContains(response, "Central de Contratos")
 
+    def test_advanced_navigation_marks_selected_page_and_exposes_contextual_link(self):
+        self.client.force_login(self.user)
+        url = reverse("sistema:application_preview", args=[self.sistema.pk])
+        response = self.client.get(url, {
+            "pagina": "advanced",
+            "pagina_avancada": "central_contratos",
+            "dispositivo": "tablet",
+        })
+        self.assertEqual(response.status_code, 200)
+        navigation = response.context["preview"]["advanced_pages"]
+        self.assertEqual(len(navigation), 1)
+        self.assertTrue(navigation[0]["active"])
+        self.assertContains(response, 'data-active="1"')
+        self.assertContains(response, "const preserved=['papel','dispositivo','entidade','estado','relatorio']")
+        self.assertContains(response, "q.set('pagina_avancada',id)")
+        self.assertContains(response, "a.dataset.advancedPageLink=item.dataset.pageId")
+
     def test_designer_referer_returns_to_same_advanced_page(self):
         self.client.force_login(self.user)
         designer_url = reverse("sistema:page_designer", args=[self.sistema.pk]) + "?pagina=central_contratos"

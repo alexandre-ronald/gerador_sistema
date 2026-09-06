@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
+from django.urls import NoReverseMatch, reverse
 
 ADVANCED_PAGES = {
 {% for page in advanced_pages.pages %}    "{{ page.id|escapejs }}": {
@@ -16,6 +17,20 @@ ADVANCED_PAGES = {
         "context_app_name": "{{ page.context_app_name|escapejs }}",
         "context_model_name": "{{ page.context_model_name|escapejs }}",
         "template": "advanced_pages/{{ page.id|escapejs }}.html",
+        "actions": {
+{% for action in page.actions %}            "{{ action.id|escapejs }}": {
+                "id": "{{ action.id|escapejs }}",
+                "kind": "{{ action.kind|escapejs }}",
+                "label": "{{ action.label|escapejs }}",
+                "url_name": "{{ action.url_name|escapejs }}",
+                "app_name": "{{ action.app_name|escapejs }}",
+                "requires_pk": {{ action.requires_pk|yesno:"True,False" }},
+                "entity": "{{ action.target.entity|default:''|escapejs }}",
+                "operation": "{{ action.target.operation|default:''|escapejs }}",
+                "transition": "{{ action.target.transition|default:''|escapejs }}",
+                "report": "{{ action.target.report|default:''|escapejs }}",
+            },
+{% endfor %}        },
         "components": [
 {% for component in page.components %}            {
                 "id": "{{ component.id|escapejs }}",
@@ -26,6 +41,7 @@ ADVANCED_PAGES = {
                 "binding_field": "{{ component.binding.field|escapejs }}",
                 "binding_app_name": "{{ component.binding_app_name|escapejs }}",
                 "binding_model_name": "{{ component.binding_model_name|escapejs }}",
+                "action_id": "{{ component.action|escapejs }}",
             },
 {% endfor %}        ],
     },
@@ -76,7 +92,49 @@ def _require_page_access(request, page):
         raise PermissionDenied(f"Acesso negado para {entity_name}:{action}.")
 
 
+def _action_allowed(request, page, action):
+    if not action or not action.get("url_name"):
+        return False
+    kind = action.get("kind")
+    if kind == "navigate":
+        return True
+    entity = action.get("entity")
+    app_name = action.get("app_name")
+    if kind == "crud":
+        return bool(entity and _has_entity_action(request, app_name, entity, action.get("operation")))
+    rbac = _rbac_for(app_name)
+    if rbac is None or not entity:
+        return False
+    try:
+        if kind == "workflow":
+            return bool(rbac.can_transition(request.user, entity, action.get("transition")))
+        if kind == "report":
+            return bool(rbac.can_report(request.user, entity, action.get("report")))
+    except Exception:
+        return False
+    return False
+
+
+def _action_url(page, action, *, advanced_record=None):
+    if not action or not action.get("url_name"):
+        return ""
+    kwargs = {}
+    if action.get("requires_pk"):
+        if advanced_record is None:
+            return ""
+        kwargs["pk"] = advanced_record.pk
+    if action.get("kind") == "workflow":
+        kwargs["transition_id"] = action.get("transition")
+    try:
+        return reverse(action["url_name"], kwargs=kwargs or None)
+    except NoReverseMatch:
+        return ""
+
+
 def _component_allowed(request, page, component):
+    action_id = component.get("action_id")
+    if action_id:
+        return _action_allowed(request, page, page.get("actions", {}).get(action_id))
     kind = component.get("binding_kind")
     component_type = component.get("type")
     if kind in {"none", "page_context"}:
@@ -125,11 +183,11 @@ def advanced_page_view(request, page_id, pk=None):
     for component in page.get("components", []):
         key = component["runtime_key"]
         visible = _component_allowed(request, page, component)
+        action = page.get("actions", {}).get(component.get("action_id")) if component.get("action_id") else None
+        action_url = _action_url(page, action, advanced_record=context["advanced_record"]) if visible and action else ""
+        if action and not action_url:
+            visible = False
         context[f"{key}_visible"] = visible
-        context[key] = _load_component_data(
-            page,
-            component,
-            advanced_record=context["advanced_record"],
-            advanced_collection=context["advanced_collection"],
-        ) if visible else None
+        context[f"{key}_action_url"] = action_url
+        context[key] = _load_component_data(page, component, advanced_record=context["advanced_record"], advanced_collection=context["advanced_collection"]) if visible else None
     return render(request, page["template"], context)

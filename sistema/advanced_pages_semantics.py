@@ -1,6 +1,7 @@
 """Validação semântica do contrato GEN-070/071 — Advanced Page Designer."""
 from copy import deepcopy
 
+from .advanced_page_action_transport import normalize_action_transport
 from .advanced_page_metrics import normalize_related_metric
 from .advanced_page_relations import normalize_component_relation
 from .advanced_pages import AdvancedPageContractError, normalize_advanced_pages_config
@@ -143,6 +144,7 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
 
         page["components"] = normalized_components
 
+        normalized_actions = []
         for action in page["actions"]:
             action_id, target, kind = action["id"], action["target"], action["kind"]
             if kind == "navigate":
@@ -175,4 +177,6 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
                 _require_entity(entity, entities, page_id=page_id, action_id=action_id)
                 if target["report"] not in report_ids.get(entity, set()):
                     raise AdvancedPageContractError("unknown_report_reference", "Ação referencia relatório inexistente.", page_id=page_id, action_id=action_id)
+            normalized_actions.append(normalize_action_transport(action, page, entities))
+        page["actions"] = normalized_actions
     return config

@@ -70,6 +70,44 @@
     });
   }
 
+  function installSaveFeedback(){
+    const button=document.getElementById('btnSave');
+    const alertArea=document.getElementById('alertArea');
+    const saveStatus=document.getElementById('saveStatus');
+    if(!button||button.dataset.saveFeedbackInstalled==='1'||typeof button.onclick!=='function') return;
+
+    button.dataset.saveFeedbackInstalled='1';
+    const originalSave=button.onclick;
+    button.onclick=async function(event){
+      if(button.disabled) return;
+      if(alertArea) alertArea.replaceChildren();
+      if(saveStatus) saveStatus.textContent='Salvando...';
+
+      const originalHtml=button.innerHTML;
+      button.disabled=true;
+      button.innerHTML='<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Salvando...';
+
+      try{
+        await originalSave.call(button,event);
+        if(saveStatus?.textContent==='Salvo'){
+          const now=new Date();
+          const stamp=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          saveStatus.textContent=`Salvo às ${stamp}`;
+          const success=alertArea?.querySelector('.alert-success');
+          if(success){
+            success.textContent=`Página, componentes e ações salvos com sucesso às ${stamp}.`;
+            window.setTimeout(()=>{
+              if(success.isConnected) success.remove();
+            },3500);
+          }
+        }
+      } finally {
+        button.disabled=false;
+        button.innerHTML=originalHtml;
+      }
+    };
+  }
+
   const list=document.getElementById('actionList');
   if(list){
     const observer=new MutationObserver(()=>requestAnimationFrame(syncActionTransports));
@@ -83,7 +121,10 @@
   document.addEventListener('click',event=>{
     if(event.target.closest('#actionPalette')||event.target.closest('.page-item'))requestAnimationFrame(syncActionTransports);
   });
-  requestAnimationFrame(syncActionTransports);
+  requestAnimationFrame(()=>{
+    syncActionTransports();
+    installSaveFeedback();
+  });
 })();
 </script>
 {% endblock %}

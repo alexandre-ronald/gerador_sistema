@@ -1,0 +1,40 @@
+{% extends 'sistema/permission_designer.html' %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+.report-permission-entity{border:1px solid var(--bs-border-color);border-radius:14px;overflow:hidden;margin-bottom:1rem}
+.report-permission-entity:last-child{margin-bottom:0}
+.report-permission-head{padding:.85rem 1rem;background:var(--bs-tertiary-bg);border-bottom:1px solid var(--bs-border-color)}
+.report-permission-item{padding:1rem;border-bottom:1px solid var(--bs-border-color)}
+.report-permission-item:last-child{border-bottom:0}
+.report-role-grid{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:.75rem}
+.report-role-option{display:flex;align-items:center;gap:.5rem;border:1px solid var(--bs-border-color);border-radius:999px;padding:.45rem .75rem;background:var(--bs-body-bg);cursor:pointer}
+.report-role-option:hover{border-color:var(--bs-primary)}
+</style>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+<div class="container-fluid p-0 mt-3" data-report-permissions>
+<section class="perm-panel p-3">
+    <div class="intent-card mb-3">
+        <div class="fw-semibold">Quem pode acessar os relatórios?</div>
+        <div class="small text-secondary">Os relatórios habilitados no Report Designer aparecem aqui. Escolha explicitamente quais papéis podem visualizá-los.</div>
+    </div>
+    <h5 class="fw-bold mb-1">Acesso aos relatórios</h5>
+    <div class="small text-secondary mb-3">Sem um papel autorizado, o relatório fica indisponível quando o controle de acesso estiver ativo.</div>
+    <div id="reportPermissionMatrix"></div>
+</section>
+</div>
+<script>
+const reports={{ reports_json|safe }};
+if(!rbac.reports||typeof rbac.reports!=='object')rbac.reports={};
+function ensureReportPolicy(entity){if(!rbac.reports[entity]||typeof rbac.reports[entity]!=='object')rbac.reports[entity]={};return rbac.reports[entity];}
+function toggleReport(entity,reportId,roleId,checked){const policy=ensureReportPolicy(entity);const current=new Set(policy[reportId]||[]);checked?current.add(roleId):current.delete(roleId);policy[reportId]=roleIds().filter(id=>current.has(id));renderRoleSummary();}
+function renderReportPermissions(){const root=document.getElementById('reportPermissionMatrix');if(!root)return;const available=entities.map(entity=>({entity,reports:reports[entity.name]||[]})).filter(item=>item.reports.length);if(!available.length){root.innerHTML='<div class="perm-empty">Nenhum relatório habilitado no Report Designer.</div>';return;}if(!rbac.roles.length){root.innerHTML='<div class="perm-empty">Crie ao menos um papel para configurar o acesso aos relatórios.</div>';return;}root.innerHTML=available.map(({entity,reports:entityReports})=>`<div class="report-permission-entity"><div class="report-permission-head"><div class="fw-bold">${esc(entity.label)}</div><div class="small text-secondary">Relatórios disponíveis</div></div>${entityReports.map(report=>{const allowed=new Set((rbac.reports[entity.name]||{})[report.id]||[]);return `<div class="report-permission-item"><div class="fw-semibold"><i class="bi bi-file-earmark-bar-graph me-1"></i>${esc(report.label||report.title||report.id)}</div><div class="small text-secondary">${esc(report.title||report.id)}</div><div class="report-role-grid">${rbac.roles.map(role=>`<label class="report-role-option"><input class="form-check-input mt-0" type="checkbox" ${allowed.has(role.id)?'checked':''} onchange="toggleReport('${jsq(entity.name)}','${jsq(report.id)}','${jsq(role.id)}',this.checked)"><span>${esc(role.label)}</span></label>`).join('')}</div></div>`;}).join('')}</div>`).join('');}
+const baseRenderAll=renderAll;renderAll=function(){baseRenderAll();renderReportPermissions();};
+const baseRemoveRole=removeRole;removeRole=function(i){const roleId=rbac.roles[i]?.id;Object.values(rbac.reports||{}).forEach(entityReports=>Object.keys(entityReports||{}).forEach(reportId=>entityReports[reportId]=(entityReports[reportId]||[]).filter(id=>id!==roleId)));baseRemoveRole(i);renderReportPermissions();};
+renderReportPermissions();
+</script>
+{% endblock %}

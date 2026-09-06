@@ -136,4 +136,4 @@ class AdvancedPageEquivalenceTests(TestCase):
         self.assertIn("advanced_component_status_resumo_visible", page_source)
         self.assertIn("advanced_component_aprovar_action_url", page_source)
         self.assertIn("advanced_component_aprovar_confirm", page_source)
-        self.assertIn("advancedWorkflowConfirmModal", page_source)
+        self.assertIn("advancedWorkflowConfirm_advanced_component_aprovar", page_source)

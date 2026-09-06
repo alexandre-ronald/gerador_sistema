@@ -67,17 +67,40 @@ Baseline final:
 
 Responsabilidade principal: projetar visualmente a experiência resultante dos contratos existentes, incluindo shell, listagens, formulários, dashboard, relatórios, workflow, RBAC, dispositivos e navegação Preview ↔ Designers.
 
-## Marco atual
-
 ### GEN-070 — Advanced Page Designer
 
-Status: **PLANEJADA / EM INÍCIO DE IMPLEMENTAÇÃO**
+Status: **CONCLUÍDA / CONGELADA**
 
 Objetivo:
 
 > Permitir montar páginas e experiências de negócio além do CRUD padrão, mantendo o mesmo contrato declarativo como fonte de verdade e garantindo que aquilo que é desenhado, visualizado e gerado tenha comportamento equivalente no runtime.
 
-A GEN-070 incorpora a necessidade anteriormente identificada como **Runtime Contract Enforcement**. Essa responsabilidade não será tratada como uma GEN separada neste momento; ela passa a fazer parte do Advanced Page Designer porque páginas avançadas só são válidas se permissões, ações, relatórios, workflows, navegação e demais contratos forem respeitados também no runtime gerado.
+Responsabilidade principal: composição de páginas e experiências além do CRUD, layout declarativo em 12 colunas, componentes e bindings, ações de processo, integração com Preview Studio, runtime de páginas avançadas e Runtime Contract Enforcement para CRUD, workflow, relatórios, navegação e ações aplicáveis.
+
+A GEN-070 preserva os Designers especializados como donos de seus contratos. O Advanced Page Designer compõe essas capacidades; não redefine Form, CRUD, Report, Dashboard, Workflow ou Permission Designer.
+
+Gate final de regressão em 2026-09-06:
+
+```text
+python manage.py check
+python manage.py test
+```
+
+Ambos reportados verdes pelo usuário após o gate transversal de equivalência Contrato → Preview → geração → runtime.
+
+Baseline intermediária de equivalência:
+
+```text
+gen-070-equivalence-safe-baseline
+d13c311431f3731b0eb66b3fb4192801a124bf4d
+```
+
+Baseline final:
+
+```text
+gen-070-regression-safe-baseline-final
+<registrada no commit documental final>
+```
 
 Arquivo detalhado:
 
@@ -85,22 +108,22 @@ Arquivo detalhado:
 docs/GEN-070-advanced-page-designer.md
 ```
 
-Branch de trabalho:
+Branch histórica de implementação:
 
 ```text
 gen-070-advanced-page-designer
 ```
 
-Base de partida:
+Base de partida da GEN-070:
 
 ```text
 gen-069-regression-safe-baseline-final
 574fa04baf9fdce67a145a79e647b81900f4b9dd
 ```
 
-## Direção após a GEN-070
+## Próximo marco
 
-Os marcos posteriores serão oficializados neste arquivo antes de sua implementação. Não há numeração futura considerada definitiva enquanto não estiver registrada aqui.
+Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fronteiras sejam registrados neste arquivo antes da implementação estrutural.
 
 ## Changelog de planejamento
 
@@ -119,3 +142,11 @@ Os marcos posteriores serão oficializados neste arquivo antes de sua implementa
 **Motivo:** páginas e experiências avançadas não devem formar um runtime paralelo nem ignorar contratos já definidos pelos Designers.
 
 **Impacto:** a GEN-070 passa a incluir tanto composição avançada de páginas quanto enforcement de contratos no runtime gerado, com testes de equivalência entre Designer, Preview e Runtime.
+
+### 2026-09-06 — conclusão e freeze da GEN-070
+
+**Decisão:** encerrar a GEN-070 após conclusão das fases 070.1 a 070.10, gate transversal de equivalência e regressão completa.
+
+**Motivo:** os contratos, Designer, Preview, geração, runtime e enforcement foram validados em conjunto e a suíte completa permaneceu verde.
+
+**Impacto:** a GEN-070 passa a ser baseline histórica congelada. Novas capacidades devem ser planejadas em um novo marco, sem ampliar silenciosamente o escopo desta GEN.

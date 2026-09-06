@@ -7,6 +7,8 @@
 .preview-device-choice{display:inline-flex;align-items:center;gap:.35rem;padding:.42rem .7rem;border-radius:.55rem;color:var(--bs-secondary-color);text-decoration:none;font-size:.78rem;font-weight:700;white-space:nowrap}
 .preview-device-choice:hover{color:var(--bs-primary);background:var(--bs-body-bg)}
 .preview-device-choice.active{color:var(--bs-primary);background:var(--bs-body-bg);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.preview-designer-actions{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.preview-designer-action{white-space:nowrap}
 .preview-stage[data-preview-device-stage]{display:flex;justify-content:center}
 .preview-stage[data-preview-device-stage] .preview-device{transition:max-width .22s ease,width .22s ease}
 .preview-stage[data-preview-device-stage][data-device="desktop"] .preview-device{width:100%;max-width:1280px}
@@ -52,9 +54,21 @@
     <div class="card-body py-3">
       <div class="d-flex flex-column flex-xl-row align-items-xl-center justify-content-between gap-3">
         <div>
-          <div class="small text-uppercase fw-bold text-primary mb-1">Simulação · GEN-069.8</div>
-          <div class="fw-bold">Papel e dispositivo</div>
-          <div class="small text-secondary">As simulações são efêmeras e não alteram os contratos dos Designers.</div>
+          <div class="small text-uppercase fw-bold text-primary mb-1">Preview Studio · GEN-069.9</div>
+          <div class="fw-bold">Validar e voltar ao Designer</div>
+          <div class="small text-secondary">O Preview apenas projeta o contrato. As alterações continuam sendo feitas nos Designers.</div>
+        </div>
+        <div class="preview-designer-actions" data-preview-designer-actions>
+          {% for action in preview.designer_links %}
+          <a href="{{ action.url }}" class="btn btn-sm {% if forloop.first %}btn-primary{% else %}btn-outline-secondary{% endif %} preview-designer-action" data-preview-designer="{{ action.id }}"><i class="bi {{ action.icon }} me-1"></i>{{ action.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      <hr class="my-3">
+      <div class="d-flex flex-column flex-xl-row align-items-xl-end justify-content-between gap-3">
+        <div>
+          <div class="small fw-bold mb-1">Simulação</div>
+          <div class="small text-secondary">Papel e dispositivo são efêmeros e não alteram os contratos.</div>
         </div>
         <div class="d-flex flex-column flex-lg-row align-items-lg-end gap-3">
           <div>
@@ -78,38 +92,24 @@
                 {% for role in preview.role_simulation.roles %}
                 <option value="{{ role.id }}" {% if preview.role_simulation.selected_role_id == role.id %}selected{% endif %}>{{ role.label }}</option>
                 {% endfor %}
-                {% if preview.role_simulation.invalid_role %}
-                <option value="{{ preview.role_simulation.requested_role_id }}" selected>Papel inválido: {{ preview.role_simulation.requested_role_id }}</option>
-                {% endif %}
+                {% if preview.role_simulation.invalid_role %}<option value="{{ preview.role_simulation.requested_role_id }}" selected>Papel inválido: {{ preview.role_simulation.requested_role_id }}</option>{% endif %}
               </select>
             </div>
             <noscript><button class="btn btn-sm btn-primary" type="submit">Aplicar</button></noscript>
           </form>
         </div>
       </div>
-      {% if preview.device_preview.invalid %}
-      <div class="alert alert-secondary py-2 px-3 mt-3 mb-0 small" data-preview-invalid-device><i class="bi bi-display me-1"></i>Dispositivo desconhecido normalizado para Desktop.</div>
-      {% endif %}
+      {% if preview.device_preview.invalid %}<div class="alert alert-secondary py-2 px-3 mt-3 mb-0 small" data-preview-invalid-device><i class="bi bi-display me-1"></i>Dispositivo desconhecido normalizado para Desktop.</div>{% endif %}
       {% if preview.role_simulation.invalid_role %}
-      <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small" data-preview-invalid-role>
-        <i class="bi bi-shield-exclamation me-1"></i>O papel solicitado não existe no Permission Designer. A prévia está em modo fail-closed: nenhuma capacidade CRUD, transição ou relatório é concedido.
-      </div>
+      <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small" data-preview-invalid-role><i class="bi bi-shield-exclamation me-1"></i>O papel solicitado não existe no Permission Designer. A prévia está em modo fail-closed: nenhuma capacidade CRUD, transição ou relatório é concedido.</div>
       {% elif preview.role_simulation.active %}
-      <div class="alert alert-primary py-2 px-3 mt-3 mb-0 small" data-preview-active-role="{{ preview.role_simulation.selected_role_id }}">
-        <i class="bi bi-person-badge me-1"></i>Simulando <strong>{{ preview.role_simulation.selected_role.label }}</strong>. Listagens, formulários, fluxos e relatórios respeitam as permissões declaradas para esse papel.
-      </div>
+      <div class="alert alert-primary py-2 px-3 mt-3 mb-0 small" data-preview-active-role="{{ preview.role_simulation.selected_role_id }}"><i class="bi bi-person-badge me-1"></i>Simulando <strong>{{ preview.role_simulation.selected_role.label }}</strong>. Listagens, formulários, fluxos e relatórios respeitam as permissões declaradas para esse papel.</div>
       {% endif %}
-      {% if preview.report_access_denied %}
-      <div class="alert alert-danger py-2 px-3 mt-3 mb-0 small" data-preview-report-access-denied="{{ preview.report_access_denied.id }}">
-        <i class="bi bi-shield-lock me-1"></i>O papel simulado não possui acesso ao relatório <strong>{{ preview.report_access_denied.title }}</strong>. O acesso direto também foi bloqueado.
-      </div>
-      {% endif %}
+      {% if preview.report_access_denied %}<div class="alert alert-danger py-2 px-3 mt-3 mb-0 small" data-preview-report-access-denied="{{ preview.report_access_denied.id }}"><i class="bi bi-shield-lock me-1"></i>O papel simulado não possui acesso ao relatório <strong>{{ preview.report_access_denied.title }}</strong>. O acesso direto também foi bloqueado.</div>{% endif %}
     </div>
   </div>
 </div>
-<div data-preview-device-container="{{ preview.device_preview.selected }}">
-{{ block.super }}
-</div>
+<div data-preview-device-container="{{ preview.device_preview.selected }}">{{ block.super }}</div>
 <script>
 (function(){
   const container=document.querySelector('[data-preview-device-container]');
@@ -117,29 +117,12 @@
   const stage=container.querySelector('.preview-stage');
   if(stage){stage.dataset.previewDeviceStage='';stage.dataset.device=container.dataset.previewDeviceContainer;}
   const device=container.dataset.previewDeviceContainer;
-  container.querySelectorAll('a[href^="?"]').forEach(function(link){
-    const url=new URL(link.href,window.location.href);
-    if(!url.searchParams.has('dispositivo'))url.searchParams.set('dispositivo',device);
-    link.href=url.pathname+'?'+url.searchParams.toString();
-  });
+  container.querySelectorAll('a[href^="?"]').forEach(function(link){const url=new URL(link.href,window.location.href);if(!url.searchParams.has('dispositivo'))url.searchParams.set('dispositivo',device);link.href=url.pathname+'?'+url.searchParams.toString();});
   if(device==='mobile'){
-    const sidebar=container.querySelector('.preview-sidebar');
-    const brand=sidebar&&sidebar.querySelector('.preview-brand');
-    const nav=sidebar&&sidebar.querySelector('.preview-nav');
+    const sidebar=container.querySelector('.preview-sidebar');const brand=sidebar&&sidebar.querySelector('.preview-brand');const nav=sidebar&&sidebar.querySelector('.preview-nav');
     if(sidebar&&brand&&nav&&!brand.querySelector('.preview-mobile-menu-toggle')){
-      const button=document.createElement('button');
-      button.type='button';
-      button.className='preview-mobile-menu-toggle';
-      button.setAttribute('aria-label','Abrir menu');
-      button.setAttribute('aria-expanded','false');
-      button.innerHTML='<i class="bi bi-list fs-5"></i>';
-      button.addEventListener('click',function(){
-        const open=sidebar.classList.toggle('mobile-menu-open');
-        button.setAttribute('aria-expanded',open?'true':'false');
-        button.setAttribute('aria-label',open?'Fechar menu':'Abrir menu');
-        button.innerHTML=open?'<i class="bi bi-x-lg"></i>':'<i class="bi bi-list fs-5"></i>';
-      });
-      brand.appendChild(button);
+      const button=document.createElement('button');button.type='button';button.className='preview-mobile-menu-toggle';button.setAttribute('aria-label','Abrir menu');button.setAttribute('aria-expanded','false');button.innerHTML='<i class="bi bi-list fs-5"></i>';
+      button.addEventListener('click',function(){const open=sidebar.classList.toggle('mobile-menu-open');button.setAttribute('aria-expanded',open?'true':'false');button.setAttribute('aria-label',open?'Fechar menu':'Abrir menu');button.innerHTML=open?'<i class="bi bi-x-lg"></i>':'<i class="bi bi-list fs-5"></i>';});brand.appendChild(button);
     }
   }
 })();

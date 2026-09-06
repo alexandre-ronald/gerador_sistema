@@ -69,6 +69,15 @@ def _transition_allowed(role_simulation, entity_name, transition_id):
     return isinstance(roles, list) and role_id in roles
 
 
+def _workflow_transition(structure, entity_name, transition_id):
+    workflows = structure.get("workflows") if isinstance(structure.get("workflows"), dict) else {}
+    workflow = workflows.get(entity_name) if isinstance(workflows.get(entity_name), dict) else {}
+    for item in workflow.get("transitions") or []:
+        if isinstance(item, dict) and str(item.get("id") or "") == str(transition_id or ""):
+            return item
+    return None
+
+
 def _page_context_allowed(role_simulation, page):
     context = (page or {}).get("context") or {}
     kind = context.get("kind")
@@ -87,6 +96,8 @@ def _action_projection(action, page_map, entities, structure, role_simulation):
     kind = action.get("kind")
     allowed = True
     description = ""
+    confirm = False
+    confirm_message = ""
     if kind == "navigate":
         target_page = page_map.get(target.get("page"))
         allowed = bool(target_page and target_page.get("enabled") and _page_context_allowed(role_simulation, target_page))
@@ -100,8 +111,12 @@ def _action_projection(action, page_map, entities, structure, role_simulation):
         description = f"Relatório {target.get('report')} · {target.get('entity')}"
     elif kind == "workflow":
         allowed = _transition_allowed(role_simulation, target.get("entity"), target.get("transition"))
+        transition = _workflow_transition(structure, target.get("entity"), target.get("transition"))
+        confirm = bool(transition and transition.get("confirm"))
+        if confirm:
+            confirm_message = str(transition.get("confirm_message") or "Confirme para continuar.")
         description = f"Transição {target.get('transition')} · {target.get('entity')}"
-    return {**deepcopy(action), "allowed": bool(allowed), "description": description}
+    return {**deepcopy(action), "allowed": bool(allowed), "description": description, "confirm": confirm, "confirm_message": confirm_message}
 
 
 def _component_projection(component, page, entities, structure, role_simulation, actions):

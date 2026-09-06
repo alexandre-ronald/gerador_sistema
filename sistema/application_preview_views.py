@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
 from .advanced_page_preview import build_advanced_page_preview
+from .advanced_pages import normalize_advanced_pages_config
 from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
 
@@ -37,10 +38,11 @@ def _device_preview(raw_device):
 def _advanced_page_from_designer_referer(request, sistema):
     """Mantém o contexto no retorno Designer → Preview sem persistir estado efêmero.
 
-    O botão legado de Preview no Page Designer aponta para a rota base. Quando o
-    Designer foi aberto contextualmente com ``?pagina=<id>``, o Referer carrega o
-    ID estável e permite retornar à mesma página sem criar uma segunda fonte de
-    verdade. Referers de outras rotas são ignorados.
+    Quando o Designer foi aberto contextualmente com ``?pagina=<id>``, o Referer
+    carrega o ID estável e permite retornar à mesma página. Quando o botão
+    ``Ver Preview`` foi usado a partir da rota base do Designer, escolhemos a
+    primeira página avançada ativa do contrato, em vez de cair silenciosamente
+    na listagem CRUD legada. Referers de outras rotas são ignorados.
     """
     referer = str(request.META.get("HTTP_REFERER") or "").strip()
     if not referer:
@@ -49,7 +51,15 @@ def _advanced_page_from_designer_referer(request, sistema):
     designer_path = reverse("sistema:page_designer", args=[sistema.pk])
     if parsed.path != designer_path:
         return ""
-    return str((parse_qs(parsed.query).get("pagina") or [""])[0]).strip()
+
+    contextual_page = str((parse_qs(parsed.query).get("pagina") or [""])[0]).strip()
+    if contextual_page:
+        return contextual_page
+
+    structure = _draft_structure(sistema)
+    config = normalize_advanced_pages_config(structure.get("advanced_pages"), strict=False)
+    first_enabled = next((page for page in config.get("pages", []) if page.get("enabled")), None)
+    return str((first_enabled or {}).get("id") or "").strip()
 
 
 def _designer_links(sistema, preview):

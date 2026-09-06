@@ -1,4 +1,6 @@
-{% load report_generation %}from django.apps import apps
+{% load report_generation %}import importlib
+
+from django.apps import apps
 {% if notifications.enabled %}from djangoforge_notifications.models import Notification
 {% endif %}
 # Generated from the persisted system specification. Keep URL/permission
@@ -15,7 +17,7 @@ NAVIGATION_MODULES = [
         "label": "{{ modulo.nome|escapejs }}",
         "items": [
 {% for entidade in modulo.entidades_geracao %}{% if entidade.gerar_crud_views %}
-            {"label": "{{ entidade.nome|escapejs }}","model_name": "{{ entidade.classe_nome }}","url_name": "{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list","active_url_names": ["{{ entidade.codigo_nome }}_list","{{ entidade.codigo_nome }}_create","{{ entidade.codigo_nome }}_update","{{ entidade.codigo_nome }}_detail","{{ entidade.codigo_nome }}_delete"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}"},
+            {"label": "{{ entidade.nome|escapejs }}","model_name": "{{ entidade.classe_nome }}","entity_name": "{{ entidade.nome|escapejs }}","rbac_action": "list","url_name": "{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list","active_url_names": ["{{ entidade.codigo_nome }}_list","{{ entidade.codigo_nome }}_create","{{ entidade.codigo_nome }}_update","{{ entidade.codigo_nome }}_detail","{{ entidade.codigo_nome }}_delete"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}"},
 {% endif %}{% endfor %}
         ],
     },
@@ -25,17 +27,46 @@ NAVIGATION_MODULES = [
         "label": "Relatórios",
         "items": [
 {% for modulo in modulos %}{% for entidade in modulo.entidades_geracao %}{% report_generation_configs entidade as reports %}{% for report in reports %}
-            {"label": "{{ report.navigation.label|escapejs }}","group_label": "{% for part in report.navigation.path %}{% if not forloop.first %} > {% endif %}{{ part|escapejs }}{% endfor %}","model_name": "{{ entidade.classe_nome }}","url_name": "{{ modulo.app_name }}:{{ report.view_name }}","active_url_names": ["{{ report.view_name }}"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}","is_report": True},
+            {"label": "{{ report.navigation.label|escapejs }}","group_label": "{% for part in report.navigation.path %}{% if not forloop.first %} > {% endif %}{{ part|escapejs }}{% endfor %}","model_name": "{{ entidade.classe_nome }}","entity_name": "{{ entidade.nome|escapejs }}","report_id": "{{ report.id|escapejs }}","url_name": "{{ modulo.app_name }}:{{ report.view_name }}","active_url_names": ["{{ report.view_name }}"],"permission": "{{ modulo.app_name }}.view_{{ entidade.codigo_nome }}","app_name": "{{ modulo.app_name }}","is_report": True},
 {% endfor %}{% endfor %}{% endfor %}
         ],
     },
 ]
 
 
+def _rbac_item_allowed(request, item):
+    """Aplica no menu a mesma decisão usada pelas rotas geradas.
+
+    Falhas de import/configuração negam o item somente quando ele depende de
+    uma capacidade RBAC declarada, mantendo itens não-RBAC compatíveis.
+    """
+    entity_name = item.get("entity_name")
+    if not entity_name:
+        return True
+    app_name = item.get("app_name")
+    if not app_name:
+        return False
+    try:
+        rbac = importlib.import_module(f"{app_name}.rbac")
+        if item.get("is_report"):
+            return bool(rbac.can_report(request.user, entity_name, item.get("report_id")))
+        return bool(rbac.has_entity_action(request.user, entity_name, item.get("rbac_action") or "list"))
+    except Exception:
+        return False
+
+
 def _allowed_items(request, items):
     user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated: return []
-    return [item for item in items if not item["permission"] or user.has_perm(item["permission"])]
+    if user is None or not user.is_authenticated:
+        return []
+    result = []
+    for item in items:
+        if item["permission"] and not user.has_perm(item["permission"]):
+            continue
+        if not _rbac_item_allowed(request, item):
+            continue
+        result.append(item)
+    return result
 
 
 def _mark_active_items(request, items):

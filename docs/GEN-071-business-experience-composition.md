@@ -100,6 +100,8 @@ Preview e runtime são projeções do mesmo contrato.
 
 ### GEN-071.1 — Modelo relacional de bindings
 
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+
 Definir contrato, normalização, validação e semântica para relacionar o contexto atual a outras entidades.
 
 Critério mínimo:
@@ -112,7 +114,22 @@ relação declarativa
 Contrato.fornecedor = contexto.pk
 ```
 
-Nenhum SQL livre será armazenado.
+Representação canônica inicial:
+
+```json
+{
+  "binding": {"kind": "entity", "ref": "Contrato", "field": ""},
+  "config": {
+    "relation": {
+      "source": "page_context",
+      "source_field": "pk",
+      "target_field": "fornecedor"
+    }
+  }
+}
+```
+
+A validação é fail-closed: a página deve ser `record`, o destino deve ser uma entidade conhecida, `target_field` deve existir, ser relacional e apontar para a entidade do contexto. Lookup livre (`__`), SQL e caminhos arbitrários não são aceitos.
 
 ### GEN-071.2 — Related Collection Component
 
@@ -189,3 +206,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** a GEN-070 provou a infraestrutura de páginas avançadas, mas a composição precisa demonstrar valor real por meio de experiências que combinem um registro principal com informações e capacidades relacionadas.
 
 **Impacto:** o próximo ciclo passa a priorizar composição relacional e uma prova end-to-end de Central do Fornecedor, sem ampliar silenciosamente a GEN-070 congelada.
+
+### 2026-09-06 — implementação da GEN-071.1
+
+**Decisão:** representar a primeira relação segura em `component.config.relation`, mantendo o binding de entidade existente e compatibilidade com o contrato da GEN-070.
+
+**Motivo:** permitir `Contrato.fornecedor = page_context.pk` sem introduzir SQL, lookup ORM arbitrário ou uma segunda fonte de verdade.
+
+**Impacto:** a validação semântica passa a conhecer metadados de tipo e entidade relacionada dos campos e rejeita relações incompatíveis antes de Preview/geração/runtime.

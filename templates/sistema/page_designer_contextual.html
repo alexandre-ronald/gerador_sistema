@@ -84,7 +84,6 @@
     const isRelatedTable = !!(component && component.type === 'table' && relation);
     area.classList.toggle('d-none', !isRelatedTable);
     if(!isRelatedTable || !page) return;
-
     const fields = relationalFields(component.binding?.ref, page.context?.entity);
     const select = document.getElementById('relationTargetField');
     if(typeof fillSelect === 'function') fillSelect(select, fields, relation.target_field || '', 'Campo relacional...');
@@ -101,113 +100,61 @@
 
   function addRelatedCollection(){
     const page = selectedPage();
-    if(!page || page.context?.kind !== 'record' || !page.context?.entity){
-      alert('Coleções relacionadas exigem uma página com contexto "Um registro".');
-      return;
-    }
+    if(!page || page.context?.kind !== 'record' || !page.context?.entity){ alert('Coleções relacionadas exigem uma página com contexto "Um registro".'); return; }
     const candidates = [];
-    (state.entities || []).forEach(entity => {
-      relationalFields(entity.name, page.context.entity).forEach(field => candidates.push({entity:entity.name, field:field.value}));
-    });
-    if(!candidates.length){
-      alert(`Nenhuma entidade possui campo relacional apontando para ${page.context.entity}.`);
-      return;
-    }
+    (state.entities || []).forEach(entity => relationalFields(entity.name, page.context.entity).forEach(field => candidates.push({entity:entity.name, field:field.value})));
+    if(!candidates.length){ alert(`Nenhuma entidade possui campo relacional apontando para ${page.context.entity}.`); return; }
     const candidate = candidates[0];
     const id = uniqueRelatedId(page);
     const layout = typeof firstFree === 'function' ? firstFree(page, 12, 3, 0, 0) : {x:0,y:(page.components || []).length,w:12,h:3};
-    page.components.push({
-      id,
-      type:'table',
-      title:`${candidate.entity} relacionados`,
-      layout,
-      binding:{kind:'entity',ref:candidate.entity,field:''},
-      action:'',
-      config:{relation:{source:'page_context',source_field:'pk',target_field:candidate.field}}
-    });
+    page.components.push({id,type:'table',title:`${candidate.entity} relacionados`,layout,binding:{kind:'entity',ref:candidate.entity,field:''},action:'',config:{relation:{source:'page_context',source_field:'pk',target_field:candidate.field}}});
     state.selectedBlock = id;
     if(typeof dirty === 'function') dirty();
     if(typeof render === 'function') render();
-    requestAnimationFrame(syncRelationInspector);
+    requestAnimationFrame(function(){ ensureRelatedCollectionButton(); syncRelationInspector(); });
   }
 
   function ensureRelatedCollectionButton(){
     const palette = document.getElementById('componentPalette');
     if(!palette || document.getElementById('btnRelatedCollection')) return;
     const button = document.createElement('button');
-    button.id = 'btnRelatedCollection';
-    button.type = 'button';
-    button.className = 'btn btn-sm btn-outline-primary';
+    button.id = 'btnRelatedCollection'; button.type = 'button'; button.className = 'btn btn-sm btn-outline-primary';
     button.innerHTML = '<i class="bi bi-diagram-2 me-1"></i>Tabela relacionada';
-    button.addEventListener('click', addRelatedCollection);
-    palette.appendChild(button);
+    button.addEventListener('click', addRelatedCollection); palette.appendChild(button);
   }
 
   function syncSelection(pageId){
     if(!pageId) return;
-    const designerUrl = new URL(window.location.href);
-    designerUrl.searchParams.set('pagina', pageId);
+    const designerUrl = new URL(window.location.href); designerUrl.searchParams.set('pagina', pageId);
     window.history.replaceState({}, '', designerUrl.pathname + designerUrl.search + designerUrl.hash);
-
-    const previewLink = Array.from(document.querySelectorAll('.toolbar-actions a'))
-      .find(a => (a.textContent || '').trim().includes('Ver Preview'));
-    if(previewLink){
-      const previewUrl = new URL(previewBase, window.location.origin);
-      previewUrl.searchParams.set('pagina', 'advanced');
-      previewUrl.searchParams.set('pagina_avancada', pageId);
-      previewLink.href = previewUrl.pathname + previewUrl.search;
-    }
-    requestAnimationFrame(function(){ syncRecordNavigationRule(); syncRelationInspector(); });
+    const previewLink = Array.from(document.querySelectorAll('.toolbar-actions a')).find(a => (a.textContent || '').trim().includes('Ver Preview'));
+    if(previewLink){ const previewUrl = new URL(previewBase, window.location.origin); previewUrl.searchParams.set('pagina','advanced'); previewUrl.searchParams.set('pagina_avancada',pageId); previewLink.href=previewUrl.pathname+previewUrl.search; }
+    requestAnimationFrame(function(){ ensureRelatedCollectionButton(); syncRecordNavigationRule(); syncRelationInspector(); });
   }
 
   document.addEventListener('click', function(event){
     const item = event.target.closest('.page-item');
-    if(item && item.dataset.id){
-      syncSelection(item.dataset.id);
-      return;
-    }
-
+    if(item && item.dataset.id){ syncSelection(item.dataset.id); return; }
     const previewLink = event.target.closest('.toolbar-actions a');
-    if(previewLink && (previewLink.textContent || '').trim().includes('Ver Preview')){
-      const pageId = selectedPageId();
-      if(pageId) syncSelection(pageId);
-    }
-
+    if(previewLink && (previewLink.textContent || '').trim().includes('Ver Preview')){ const pageId=selectedPageId(); if(pageId) syncSelection(pageId); }
     if(event.target.closest('.layout-block')) requestAnimationFrame(syncRelationInspector);
   });
 
   document.addEventListener('change', function(event){
-    if(event.target && event.target.id === 'contextKind'){
-      const page = selectedPage();
-      if(page && page.context) page.context.kind = event.target.value;
-      requestAnimationFrame(function(){ syncRecordNavigationRule(); syncRelationInspector(); });
-    }
-    if(event.target && event.target.id === 'bindingEntity'){
-      const component = selectedComponent();
-      const page = selectedPage();
-      if(component?.config?.relation && page){
-        const fields = relationalFields(event.target.value, page.context?.entity);
-        component.config.relation.target_field = fields[0]?.value || '';
-        requestAnimationFrame(syncRelationInspector);
-      }
-    }
-    if(event.target && event.target.id === 'relationTargetField'){
-      const component = selectedComponent();
-      if(component?.config?.relation){
-        component.config.relation.target_field = event.target.value;
-        if(typeof dirty === 'function') dirty();
-        syncRelationInspector();
-      }
-    }
+    if(event.target && event.target.id === 'contextKind'){ const page=selectedPage(); if(page&&page.context) page.context.kind=event.target.value; requestAnimationFrame(function(){ ensureRelatedCollectionButton(); syncRecordNavigationRule(); syncRelationInspector(); }); }
+    if(event.target && event.target.id === 'bindingEntity'){ const component=selectedComponent(); const page=selectedPage(); if(component?.config?.relation&&page){ const fields=relationalFields(event.target.value,page.context?.entity); component.config.relation.target_field=fields[0]?.value||''; requestAnimationFrame(syncRelationInspector); } }
+    if(event.target && event.target.id === 'relationTargetField'){ const component=selectedComponent(); if(component?.config?.relation){ component.config.relation.target_field=event.target.value; if(typeof dirty==='function') dirty(); syncRelationInspector(); } }
   });
 
+  const palette = document.getElementById('componentPalette');
+  if(palette){
+    new MutationObserver(function(){ if(!document.getElementById('btnRelatedCollection')) requestAnimationFrame(ensureRelatedCollectionButton); }).observe(palette,{childList:true});
+  }
+
   requestAnimationFrame(function(){
-    const pageId = selectedPageId() || document.querySelector('.page-item')?.dataset.id || '';
+    const pageId=selectedPageId()||document.querySelector('.page-item')?.dataset.id||'';
     if(pageId) syncSelection(pageId);
-    ensureRelatedCollectionButton();
-    ensureRelationInspector();
-    syncRecordNavigationRule();
-    syncRelationInspector();
+    ensureRelatedCollectionButton(); ensureRelationInspector(); syncRecordNavigationRule(); syncRelationInspector();
   });
 })();
 </script>

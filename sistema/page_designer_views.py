@@ -43,6 +43,25 @@ def _designer_catalog(estrutura):
     }
 
 
+def _prioritize_selected_page(config, selected_page_id):
+    """Preserva o contrato e apenas muda a ordem da projeção entregue ao Designer.
+
+    O JS legado seleciona o primeiro item ao abrir. Ao retornar do Preview com
+    ``?pagina=<id>``, colocar essa página na frente faz o round-trip selecionar
+    efetivamente o mesmo contrato sem criar estado paralelo nem persistir ordem.
+    """
+    selected_page_id = str(selected_page_id or "").strip()
+    if not selected_page_id:
+        return config
+    pages = list(config.get("pages") or [])
+    index = next((i for i, page in enumerate(pages) if page.get("id") == selected_page_id), None)
+    if index is None or index == 0:
+        return config
+    selected = pages.pop(index)
+    pages.insert(0, selected)
+    return {**config, "pages": pages}
+
+
 @login_required
 def page_designer(request, sistema_id):
     sistema = get_object_or_404(Sistema, pk=sistema_id, usuario=request.user)
@@ -50,6 +69,7 @@ def page_designer(request, sistema_id):
     estrutura = _draft_structure(sistema)
     raw_config = estrutura.get("advanced_pages") if isinstance(estrutura.get("advanced_pages"), dict) else None
     config = normalize_advanced_pages_config(raw_config, strict=False)
+    config = _prioritize_selected_page(config, request.GET.get("pagina"))
     return render(request, "sistema/page_designer.html", {"sistema": sistema, "advanced_pages_json": json.dumps(config, ensure_ascii=False), "entities_json": json.dumps(metadata, ensure_ascii=False), "designer_catalog_json": json.dumps(_designer_catalog(estrutura), ensure_ascii=False)})
 
 

@@ -20,6 +20,7 @@ from . import observability_views
 from . import interface_designer_views
 from . import application_blueprint_views
 from . import application_preview_views
+from . import page_designer_views
 
 app_name = 'sistema'
 
@@ -30,6 +31,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/workspace/', views.sistema_workspace, name='workspace'),
     path('sistemas/<int:sistema_id>/blueprint/', application_blueprint_views.application_blueprint, name='application_blueprint'),
     path('sistemas/<int:sistema_id>/preview-studio/', application_preview_views.application_preview, name='application_preview'),
+    path('sistemas/<int:sistema_id>/page-designer/', page_designer_views.page_designer, name='page_designer'),
+    path('sistemas/<int:sistema_id>/page-designer/salvar/', page_designer_views.salvar_page_designer, name='salvar_page_designer'),
     path('sistemas/<int:sistema_id>/editar/', views.editar_sistema, name='editar_sistema'),
     path('sistemas/<int:sistema_id>/interface/', interface_designer_views.interface_designer, name='interface_designer'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),

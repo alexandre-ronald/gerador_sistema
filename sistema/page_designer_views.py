@@ -18,10 +18,29 @@ def _draft_structure(sistema):
 
 
 def _entity_metadata(sistema):
-    entities = list(Entidade.objects.filter(modulo__sistema=sistema).select_related("modulo").prefetch_related("campos").order_by("modulo__nome", "nome"))
+    entities = list(
+        Entidade.objects.filter(modulo__sistema=sistema)
+        .select_related("modulo")
+        .prefetch_related("campos__entidade_relacionada")
+        .order_by("modulo__nome", "nome")
+    )
     metadata = []
     for entity in entities:
-        metadata.append({"name": entity.nome, "label": entity.nome, "module": entity.modulo.nome, "fields": [{"name": field.nome, "label": field.verbose_name or field.nome} for field in entity.campos.all()]})
+        fields = []
+        for field in entity.campos.all():
+            fields.append({
+                "name": field.nome,
+                "label": field.verbose_name or field.nome,
+                "type": field.tipo,
+                "related_entity": field.entidade_relacionada.nome if field.entidade_relacionada_id else "",
+                "related_name": field.related_name_str or "",
+            })
+        metadata.append({
+            "name": entity.nome,
+            "label": entity.nome,
+            "module": entity.modulo.nome,
+            "fields": fields,
+        })
     return entities, metadata
 
 

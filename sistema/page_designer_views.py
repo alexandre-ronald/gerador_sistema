@@ -28,8 +28,8 @@ def _entity_metadata(sistema):
 def _catalogs(estrutura):
     workflows = estrutura.get("workflows") if isinstance(estrutura.get("workflows"), dict) else {}
     reports = estrutura.get("reports") if isinstance(estrutura.get("reports"), dict) else {}
-    forms = estrutura.get("forms") if isinstance(estrutura.get("forms"), dict) else None
-    dashboard = estrutura.get("dashboard") if isinstance(estrutura.get("dashboard"), dict) else None
+    forms = estrutura.get("forms") if isinstance(estrutura.get("forms"), dict) else {}
+    dashboard = estrutura.get("dashboard") if isinstance(estrutura.get("dashboard"), dict) else {}
     return workflows, reports, forms, dashboard
 
 
@@ -39,7 +39,7 @@ def _designer_catalog(estrutura):
         "forms": sorted(forms.keys()) if forms else [],
         "reports": {entity: [{"id": str(item.get("id") or ""), "name": str(item.get("name") or item.get("title") or item.get("id") or "")} for item in items if isinstance(item, dict) and item.get("id")] for entity, items in reports.items() if isinstance(items, list)},
         "workflows": {entity: [{"id": str(item.get("id") or ""), "name": str(item.get("name") or item.get("label") or item.get("id") or "")} for item in (value.get("transitions") or []) if isinstance(item, dict) and item.get("id")] for entity, value in workflows.items() if isinstance(value, dict)},
-        "dashboard": bool(dashboard is not None),
+        "dashboard": bool(dashboard),
     }
 
 

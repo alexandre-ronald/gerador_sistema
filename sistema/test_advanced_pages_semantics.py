@@ -43,6 +43,34 @@ class AdvancedPagesSemanticTests(SimpleTestCase):
         config = validate_advanced_pages_semantics(self.config(), **self.catalogs())
         self.assertEqual(config["pages"][0]["context"]["entity"], "Contrato")
 
+    def test_accepts_navigation_to_record_page_from_same_record_context(self):
+        raw = self.config()
+        raw["pages"].append({
+            "id": "contrato_workbench",
+            "name": "Workbench do Contrato",
+            "slug": "contratos/workbench",
+            "context": {"kind": "record", "entity": "Contrato"},
+            "components": [],
+            "actions": [],
+        })
+        raw["pages"][0]["actions"].append({"id": "abrir_workbench", "kind": "navigate", "target": {"page": "contrato_workbench"}})
+        config = validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual(config["pages"][0]["actions"][-1]["target"]["page"], "contrato_workbench")
+
+    def test_rejects_navigation_to_record_page_without_compatible_record_context(self):
+        raw = self.config()
+        raw["pages"].append({
+            "id": "central_contratos",
+            "name": "Central de Contratos",
+            "slug": "contratos/central",
+            "context": {"kind": "collection", "entity": "Contrato"},
+            "components": [],
+            "actions": [{"id": "abrir_detalhe", "kind": "navigate", "target": {"page": "contrato_detail"}}],
+        })
+        with self.assertRaises(AdvancedPageContractError) as error:
+            validate_advanced_pages_semantics(raw, **self.catalogs())
+        self.assertEqual(error.exception.code, "incompatible_navigation_context")
+
     def test_accepts_real_form_designer_contract_by_entity(self):
         raw = self.config()
         raw["pages"][0]["components"] = [{

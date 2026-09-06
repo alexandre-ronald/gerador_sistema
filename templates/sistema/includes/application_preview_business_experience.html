@@ -1,0 +1,48 @@
+{% if preview.advanced_page %}
+<style>
+.preview-business-origin{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:.66rem;color:var(--preview-muted)}
+.preview-business-origin i{color:var(--preview-primary)}
+.preview-business-transport{margin-top:7px;padding:7px 9px;border:1px dashed var(--preview-border);border-radius:8px;background:var(--preview-soft);font-size:.66rem;color:var(--preview-muted)}
+.preview-business-transport strong{color:var(--preview-primary)}
+</style>
+<div id="preview-business-experience-data" class="d-none">
+  {% for component in preview.advanced_page.components_projection %}
+    {% if component.type == 'metric' and component.special.related_metric %}
+      <span data-related-metric="{{ component.id }}" data-operation="{{ component.special.aggregate_label }}" data-field="{{ component.special.aggregate_field }}" data-relation="{{ component.special.relation_summary }}"></span>
+    {% endif %}
+    {% if component.action_projection.transport_projection %}
+      <span data-context-action="{{ component.id }}" data-transport-summary="{{ component.action_projection.transport_projection.summary }}"></span>
+    {% endif %}
+  {% endfor %}
+</div>
+<script>
+(function(){
+  const root=document.getElementById('preview-business-experience-data');
+  if(!root)return;
+
+  root.querySelectorAll('[data-related-metric]').forEach(item=>{
+    const article=document.querySelector(`[data-advanced-component="${CSS.escape(item.dataset.relatedMetric)}"]`);
+    const body=article?.querySelector('.preview-advanced-body');
+    if(!body||body.querySelector('[data-related-metric-origin]'))return;
+    const origin=document.createElement('div');
+    origin.className='preview-business-origin';
+    origin.dataset.relatedMetricOrigin='1';
+    origin.innerHTML='<i class="bi bi-calculator"></i>';
+    const field=item.dataset.field?` · ${item.dataset.field}`:'';
+    origin.appendChild(document.createTextNode(`${item.dataset.operation}${field} · ${item.dataset.relation}`));
+    body.appendChild(origin);
+  });
+
+  root.querySelectorAll('[data-context-action]').forEach(item=>{
+    const article=document.querySelector(`[data-advanced-component="${CSS.escape(item.dataset.contextAction)}"]`);
+    if(!article||article.querySelector('[data-context-transport-note]'))return;
+    const note=document.createElement('div');
+    note.className='preview-business-transport';
+    note.dataset.contextTransportNote='1';
+    note.innerHTML='<i class="bi bi-arrow-right-circle me-1"></i><strong>Contexto automático:</strong> ';
+    note.appendChild(document.createTextNode(item.dataset.transportSummary));
+    article.appendChild(note);
+  });
+})();
+</script>
+{% endif %}

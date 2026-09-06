@@ -1,6 +1,7 @@
 """Validação semântica do contrato GEN-070/071 — Advanced Page Designer."""
 from copy import deepcopy
 
+from .advanced_page_metrics import normalize_related_metric
 from .advanced_page_relations import normalize_component_relation
 from .advanced_pages import AdvancedPageContractError, normalize_advanced_pages_config
 
@@ -137,7 +138,8 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
             if kind == "dashboard" and dashboards is not None and not dashboard_available:
                 raise AdvancedPageContractError("unknown_dashboard_reference", "Binding referencia dashboard inexistente.", page_id=page_id, component_id=component_id)
 
-            normalized_components.append(normalize_component_relation(component, page, entities))
+            related = normalize_component_relation(component, page, entities)
+            normalized_components.append(normalize_related_metric(related, entities, page_id=page_id))
 
         page["components"] = normalized_components
 

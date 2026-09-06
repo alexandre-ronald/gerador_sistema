@@ -24,7 +24,7 @@ class GeneratedRBACReportTests(TestCase):
         self.user = User.objects.create_user(username="rbac-report@example.com", password="secret")
         self.sistema = Sistema.objects.create(usuario=self.user, nome="Sistema RBAC")
         self.modulo = Modulo.objects.create(sistema=self.sistema, nome="contratos")
-        self.entidade = Entidade.objects.create(modulo=self.modulo, nome="Contrato")
+        self.entidade = Entidade.objects.create(modulo=self.modulo, nome="Contrato", gerar_crud_views=True)
         VersaoGeracao.objects.create(
             sistema=self.sistema,
             numero=0,
@@ -37,7 +37,12 @@ class GeneratedRBACReportTests(TestCase):
                         {"id": "gestor", "label": "Gestor", "group": "Gestores", "order": 0},
                         {"id": "leitor", "label": "Leitor", "group": "Leitores", "order": 1},
                     ],
-                    "entities": {},
+                    "entities": {
+                        "Contrato": {
+                            "roles": {"gestor": ["list", "view"], "leitor": ["view"]},
+                            "transitions": {},
+                        }
+                    },
                     "reports": {"Contrato": {"geral": ["gestor"]}},
                 },
             },
@@ -71,3 +76,26 @@ class GeneratedRBACReportTests(TestCase):
         self.assertFalse(namespace["can_report"](leitor, "Contrato", "geral"))
         self.assertFalse(namespace["can_report"](gestor, "Contrato", "inexistente"))
         self.assertIn("protected_report_view", namespace)
+
+    def test_generated_navigation_uses_same_rbac_contract(self):
+        self.modulo.app_name = "contratos"
+        self.modulo.entidades_geracao = [self.entidade]
+        self.entidade.codigo_nome = "contrato"
+        self.entidade.classe_nome = "Contrato"
+
+        source = render_to_string(
+            "gerador/snippets/navigation_context.txt",
+            {
+                "modulos": [self.modulo],
+                "notifications": {"enabled": False},
+            },
+        )
+
+        compile(source, "<generated-navigation>", "exec")
+        self.assertIn('"entity_name": "Contrato"', source)
+        self.assertIn('"rbac_action": "list"', source)
+        self.assertIn('"report_id": "geral"', source)
+        self.assertIn("def _rbac_item_allowed", source)
+        self.assertIn("rbac.has_entity_action", source)
+        self.assertIn("rbac.can_report", source)
+        self.assertIn("except Exception:\n        return False", source)

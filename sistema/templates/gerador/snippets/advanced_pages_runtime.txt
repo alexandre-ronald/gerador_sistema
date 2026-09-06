@@ -25,6 +25,7 @@ ADVANCED_PAGES = {
                 "label": "{{ action.label|escapejs }}",
                 "url_name": "{{ action.url_name|escapejs }}",
                 "app_name": "{{ action.app_name|escapejs }}",
+                "model_name": "{{ action.model_name|default:''|escapejs }}",
                 "requires_pk": {{ action.requires_pk|yesno:"True,False" }},
                 "entity": "{{ action.target.entity|default:''|escapejs }}",
                 "operation": "{{ action.target.operation|default:''|escapejs }}",
@@ -145,6 +146,27 @@ def _action_url(page, action, *, advanced_record=None):
         return reverse(action["url_name"], kwargs=kwargs or None)
     except NoReverseMatch:
         return ""
+
+
+def _workflow_confirmation(action):
+    if not action or action.get("kind") != "workflow":
+        return False, ""
+    app_name = action.get("app_name")
+    model_name = action.get("model_name")
+    transition_id = action.get("transition")
+    if not app_name or not model_name or not transition_id:
+        return False, ""
+    try:
+        workflow = __import__(f"{app_name}.workflow", fromlist=["WORKFLOWS"])
+        config = (getattr(workflow, "WORKFLOWS", {}) or {}).get(model_name) or {}
+        transition = next((item for item in config.get("transitions", []) if item.get("id") == transition_id), None)
+        if not transition:
+            return False, ""
+        confirm = bool(transition.get("confirm"))
+        message = str(transition.get("confirm_message") or "Confirme para continuar.") if confirm else ""
+        return confirm, message
+    except Exception:
+        return False, ""
 
 
 def _component_native_url(component, *, advanced_record=None):
@@ -282,13 +304,17 @@ def advanced_page_view(request, page_id, pk=None):
         action = page.get("actions", {}).get(component.get("action_id")) if component.get("action_id") else None
         action_url = _action_url(page, action, advanced_record=context["advanced_record"]) if visible and action else ""
         native_url = _component_native_url(component, advanced_record=context["advanced_record"]) if visible else ""
+        confirm, confirm_message = _workflow_confirmation(action) if visible else (False, "")
         if action and not action_url:
             visible = False
+            confirm, confirm_message = False, ""
         if component.get("type") in {"report", "dashboard"} and not native_url:
             visible = False
         context[f"{key}_visible"] = visible
         context[f"{key}_action_url"] = action_url
         context[f"{key}_native_url"] = native_url
+        context[f"{key}_confirm"] = confirm
+        context[f"{key}_confirm_message"] = confirm_message
         if visible and component.get("type") == "form":
             form, saved = _build_form_component(request, page, component, advanced_record=context["advanced_record"])
             if form is None:

@@ -1,0 +1,31 @@
+{% if preview.advanced_page %}
+<div id="preview-related-collection-data" class="d-none">
+  {% for component in preview.advanced_page.components_projection %}
+    {% if component.type == 'table' and component.config.relation %}
+      <span
+        data-related-component="{{ component.id }}"
+        data-related-entity="{{ component.binding.ref }}"
+        data-related-field="{{ component.config.relation.target_field }}"
+        data-context-entity="{{ preview.advanced_page.context.entity }}"
+      ></span>
+    {% endif %}
+  {% endfor %}
+</div>
+<script>
+(function(){
+  const rows=[...document.querySelectorAll('#preview-related-collection-data [data-related-component]')];
+  rows.forEach(item=>{
+    const article=document.querySelector(`[data-advanced-component="${CSS.escape(item.dataset.relatedComponent)}"]`);
+    if(!article)return;
+    const header=article.querySelector('.preview-advanced-body.border-bottom');
+    if(!header || header.querySelector('[data-related-collection-badge]'))return;
+    const note=document.createElement('div');
+    note.className='preview-advanced-note mt-1';
+    note.dataset.relatedCollectionBadge='';
+    note.innerHTML='<i class="bi bi-diagram-2 me-1"></i>';
+    note.appendChild(document.createTextNode(`${item.dataset.relatedEntity}.${item.dataset.relatedField} = ${item.dataset.contextEntity} atual`));
+    header.appendChild(note);
+  });
+})();
+</script>
+{% endif %}

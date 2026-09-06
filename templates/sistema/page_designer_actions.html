@@ -1,0 +1,89 @@
+{% extends 'sistema/page_designer_metrics.html' %}
+{% block content %}
+{{ block.super }}
+<script>
+(function(){
+  function currentPage(){
+    if(typeof current==='function') return current();
+    if(typeof state==='undefined') return null;
+    const id=new URL(window.location.href).searchParams.get('pagina');
+    return (state.config.pages||[]).find(page=>page.id===id) || (state.config.pages||[])[0] || null;
+  }
+
+  function compatibleFields(targetEntity, contextEntity){
+    const entity=(state.entities||[]).find(item=>item.name===targetEntity);
+    return (entity?.fields||[])
+      .filter(field=>['ForeignKey','OneToOneField','ManyToManyField'].includes(field.type)&&field.related_entity===contextEntity)
+      .map(field=>({value:field.name,label:field.label||field.name}));
+  }
+
+  function syncActionTransports(){
+    const page=currentPage();
+    const list=document.getElementById('actionList');
+    if(!page||!list) return;
+    const rows=[...list.querySelectorAll('.action-item')];
+    rows.forEach((row,index)=>{
+      const action=page.actions?.[index];
+      if(!action) return;
+      row.querySelector('[data-action-transport]')?.remove();
+      if(action.kind!=='crud') return;
+
+      const isCreate=action.target?.operation==='create';
+      const isRecord=page.context?.kind==='record'&&!!page.context?.entity;
+      const fields=isCreate&&isRecord?compatibleFields(action.target?.entity,page.context.entity):[];
+      if(!isCreate||!isRecord||!fields.length){
+        if(action.transport){delete action.transport;if(typeof dirty==='function')dirty();}
+        return;
+      }
+
+      const panel=document.createElement('div');
+      panel.dataset.actionTransport='1';
+      panel.style.gridColumn='1 / -1';
+      panel.className='border-top pt-2 mt-1';
+      const enabled=!!action.transport;
+      panel.innerHTML='<div class="d-flex align-items-center justify-content-between gap-3 flex-wrap"><div><div class="form-check form-switch"><input class="form-check-input" type="checkbox" data-transport-toggle><label class="form-check-label small fw-semibold">Levar contexto atual para o novo registro</label></div><div class="page-meta">Preenche automaticamente um vínculo da nova entidade com o registro atual.</div></div><div class="d-flex align-items-center gap-2" data-transport-fields><select class="form-select form-select-sm" data-transport-field style="min-width:220px"></select><span class="page-meta" data-transport-summary></span></div></div>';
+      const toggle=panel.querySelector('[data-transport-toggle]');
+      const select=panel.querySelector('[data-transport-field]');
+      const wrap=panel.querySelector('[data-transport-fields]');
+      const summary=panel.querySelector('[data-transport-summary]');
+      toggle.checked=enabled;
+      if(typeof fillSelect==='function') fillSelect(select,fields,action.transport?.target_field||fields[0].value,'Campo de vínculo...');
+      wrap.classList.toggle('d-none',!enabled);
+      if(summary) summary.textContent=enabled?`${action.target.entity}.${select.value} ← ${page.context.entity} atual`:'';
+
+      toggle.addEventListener('change',()=>{
+        if(toggle.checked){
+          action.transport={source:'page_context',source_field:'pk',target_field:select.value||fields[0].value};
+        }else{
+          delete action.transport;
+        }
+        if(typeof dirty==='function')dirty();
+        syncActionTransports();
+      });
+      select.addEventListener('change',()=>{
+        if(!action.transport)return;
+        action.transport.target_field=select.value;
+        if(typeof dirty==='function')dirty();
+        if(summary)summary.textContent=`${action.target.entity}.${select.value} ← ${page.context.entity} atual`;
+      });
+      row.appendChild(panel);
+    });
+  }
+
+  const list=document.getElementById('actionList');
+  if(list){
+    const observer=new MutationObserver(()=>requestAnimationFrame(syncActionTransports));
+    observer.observe(list,{childList:true,subtree:false});
+  }
+  document.addEventListener('change',event=>{
+    if(event.target.closest('.action-item')||event.target.id==='contextKind'||event.target.id==='contextEntity'){
+      requestAnimationFrame(syncActionTransports);
+    }
+  });
+  document.addEventListener('click',event=>{
+    if(event.target.closest('#actionPalette')||event.target.closest('.page-item'))requestAnimationFrame(syncActionTransports);
+  });
+  requestAnimationFrame(syncActionTransports);
+})();
+</script>
+{% endblock %}

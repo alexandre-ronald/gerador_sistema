@@ -66,6 +66,24 @@ class AdvancedPagePreviewTests(TestCase):
         self.assertContains(response, 'data-preview-designer="advanced"')
         self.assertContains(response, "Central de Contratos")
 
+    def test_designer_referer_returns_to_same_advanced_page(self):
+        self.client.force_login(self.user)
+        designer_url = reverse("sistema:page_designer", args=[self.sistema.pk]) + "?pagina=central_contratos"
+        preview_url = reverse("sistema:application_preview", args=[self.sistema.pk])
+        response = self.client.get(preview_url, HTTP_REFERER=f"http://testserver{designer_url}")
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "sistema/application_preview_advanced.html")
+        self.assertEqual(response.context["preview"]["advanced_page"]["id"], "central_contratos")
+        self.assertContains(response, 'data-advanced-page-id="central_contratos"')
+
+    def test_explicit_preview_page_kind_wins_over_designer_referer(self):
+        self.client.force_login(self.user)
+        designer_url = reverse("sistema:page_designer", args=[self.sistema.pk]) + "?pagina=central_contratos"
+        preview_url = reverse("sistema:application_preview", args=[self.sistema.pk])
+        response = self.client.get(preview_url, {"pagina": "dashboard"}, HTTP_REFERER=f"http://testserver{designer_url}")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(response.context["preview"]["page_kind"], "advanced")
+
     def test_invalid_role_hides_collection_page_fail_closed(self):
         preview = build_preview_shell(self.sistema, selected_role_id="papel-inexistente")
         build_advanced_page_preview(self.sistema, preview, "central_contratos")

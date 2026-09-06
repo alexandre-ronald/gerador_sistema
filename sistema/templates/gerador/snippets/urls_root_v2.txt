@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, include
 from django.utils import timezone
 from django.views.generic import TemplateView
+from .advanced_pages import advanced_page_view
 from .dashboard_data import dashboard_data
 
 _RUNTIME_STARTED_AT = time.monotonic()
@@ -32,44 +33,29 @@ RBAC_ROLE_GROUPS = [
 
 
 def _sync_rbac_groups():
-    if not RBAC_ENABLED:
-        return []
+    if not RBAC_ENABLED: return []
     result = []
     for role in RBAC_ROLE_GROUPS:
-        group, _ = Group.objects.get_or_create(name=role['group'])
-        permission_q = Q()
-        for app_label, codename in role['permissions']:
-            permission_q |= Q(content_type__app_label=app_label, codename=codename)
-        permissions = Permission.objects.filter(permission_q).distinct() if permission_q else Permission.objects.none()
-        group.permissions.set(permissions)
-        result.append({'role': role, 'group': group, 'permission_count': permissions.count()})
+        group, _ = Group.objects.get_or_create(name=role['group']); permission_q = Q()
+        for app_label, codename in role['permissions']: permission_q |= Q(content_type__app_label=app_label, codename=codename)
+        permissions = Permission.objects.filter(permission_q).distinct() if permission_q else Permission.objects.none(); group.permissions.set(permissions); result.append({'role': role, 'group': group, 'permission_count': permissions.count()})
     return result
 
 
-def _available_role_groups():
-    synced = _sync_rbac_groups()
-    return [item['group'] for item in synced]
+def _available_role_groups(): return [item['group'] for item in _sync_rbac_groups()]
 
 
 def _save_user_role_groups(user, group_names):
     managed_names = [role['group'] for role in RBAC_ROLE_GROUPS]
-    if managed_names:
-        user.groups.remove(*Group.objects.filter(name__in=managed_names))
+    if managed_names: user.groups.remove(*Group.objects.filter(name__in=managed_names))
     selected = Group.objects.filter(name__in=group_names)
-    if selected:
-        user.groups.add(*selected)
+    if selected: user.groups.add(*selected)
 
 
 @login_required
 def profile_view(request):
     if request.method == 'POST':
-        user = request.user
-        user.first_name = request.POST.get('first_name', '').strip()
-        user.last_name = request.POST.get('last_name', '').strip()
-        user.email = request.POST.get('email', '').strip()
-        user.save(update_fields=['first_name', 'last_name', 'email'])
-        messages.success(request, 'Perfil atualizado com sucesso.')
-        return redirect('profile')
+        user = request.user; user.first_name = request.POST.get('first_name', '').strip(); user.last_name = request.POST.get('last_name', '').strip(); user.email = request.POST.get('email', '').strip(); user.save(update_fields=['first_name', 'last_name', 'email']); messages.success(request, 'Perfil atualizado com sucesso.'); return redirect('profile')
     return render(request, 'accounts/profile.html')
 
 
@@ -77,102 +63,53 @@ def profile_view(request):
 def password_change_view(request):
     form = PasswordChangeForm(request.user, request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        user = form.save()
-        update_session_auth_hash(request, user)
-        messages.success(request, 'Senha alterada com sucesso.')
-        return redirect('profile')
+        user = form.save(); update_session_auth_hash(request, user); messages.success(request, 'Senha alterada com sucesso.'); return redirect('profile')
     return render(request, 'accounts/password_change.html', {'password_form': form})
 
 
-def _staff_required(view):
-    return user_passes_test(lambda user: user.is_authenticated and user.is_staff)(view)
+def _staff_required(view): return user_passes_test(lambda user: user.is_authenticated and user.is_staff)(view)
 
 
 @_staff_required
-def role_list_view(request):
-    roles = _sync_rbac_groups()
-    return render(request, 'accounts/user_list.html', {'roles': roles, 'rbac_enabled': RBAC_ENABLED, 'role_mode': True})
+def role_list_view(request): return render(request, 'accounts/user_list.html', {'roles': _sync_rbac_groups(), 'rbac_enabled': RBAC_ENABLED, 'role_mode': True})
 
 
 @_staff_required
 def user_list_view(request):
-    _sync_rbac_groups()
-    users = User.objects.prefetch_related('groups').order_by('username')
-    query = request.GET.get('q', '').strip()
-    status = request.GET.get('status', '').strip()
-    if query:
-        users = users.filter(Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(email__icontains=query))
-    if status == 'active':
-        users = users.filter(is_active=True)
-    elif status == 'inactive':
-        users = users.filter(is_active=False)
+    _sync_rbac_groups(); users = User.objects.prefetch_related('groups').order_by('username'); query = request.GET.get('q', '').strip(); status = request.GET.get('status', '').strip()
+    if query: users = users.filter(Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(email__icontains=query))
+    if status == 'active': users = users.filter(is_active=True)
+    elif status == 'inactive': users = users.filter(is_active=False)
     return render(request, 'accounts/user_list.html', {'users': users})
 
 
 @_staff_required
 def user_create_view(request):
-    role_groups = _available_role_groups()
-    form = UserCreationForm(request.POST or None)
+    role_groups = _available_role_groups(); form = UserCreationForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        user = form.save()
-        user.first_name = request.POST.get('first_name', '').strip()
-        user.last_name = request.POST.get('last_name', '').strip()
-        user.email = request.POST.get('email', '').strip()
-        user.is_staff = request.POST.get('is_staff') == 'on'
-        user.is_active = request.POST.get('is_active') == 'on'
-        user.save()
-        _save_user_role_groups(user, request.POST.getlist('groups'))
-        messages.success(request, 'Usuário cadastrado com sucesso.')
-        return redirect('user_list')
+        user = form.save(); user.first_name = request.POST.get('first_name', '').strip(); user.last_name = request.POST.get('last_name', '').strip(); user.email = request.POST.get('email', '').strip(); user.is_staff = request.POST.get('is_staff') == 'on'; user.is_active = request.POST.get('is_active') == 'on'; user.save(); _save_user_role_groups(user, request.POST.getlist('groups')); messages.success(request, 'Usuário cadastrado com sucesso.'); return redirect('user_list')
     return render(request, 'accounts/user_form.html', {'form': form, 'editing': False, 'role_groups': role_groups})
 
 
 @_staff_required
 def user_update_view(request, pk):
-    role_groups = _available_role_groups()
-    managed_user = get_object_or_404(User.objects.prefetch_related('groups'), pk=pk)
+    role_groups = _available_role_groups(); managed_user = get_object_or_404(User.objects.prefetch_related('groups'), pk=pk)
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
-        if not username:
-            messages.error(request, 'Informe o nome de usuário.')
-        elif User.objects.exclude(pk=managed_user.pk).filter(username=username).exists():
-            messages.error(request, 'Já existe um usuário com esse nome.')
+        if not username: messages.error(request, 'Informe o nome de usuário.')
+        elif User.objects.exclude(pk=managed_user.pk).filter(username=username).exists(): messages.error(request, 'Já existe um usuário com esse nome.')
         else:
-            managed_user.username = username
-            managed_user.first_name = request.POST.get('first_name', '').strip()
-            managed_user.last_name = request.POST.get('last_name', '').strip()
-            managed_user.email = request.POST.get('email', '').strip()
-            managed_user.is_staff = request.POST.get('is_staff') == 'on'
-            managed_user.is_active = request.POST.get('is_active') == 'on'
-            managed_user.save()
-            _save_user_role_groups(managed_user, request.POST.getlist('groups'))
-            messages.success(request, 'Usuário atualizado com sucesso.')
-            return redirect('user_list')
-    selected_group_names = set(managed_user.groups.values_list('name', flat=True))
-    return render(request, 'accounts/user_form.html', {'managed_user': managed_user, 'editing': True, 'role_groups': role_groups, 'selected_group_names': selected_group_names})
+            managed_user.username = username; managed_user.first_name = request.POST.get('first_name', '').strip(); managed_user.last_name = request.POST.get('last_name', '').strip(); managed_user.email = request.POST.get('email', '').strip(); managed_user.is_staff = request.POST.get('is_staff') == 'on'; managed_user.is_active = request.POST.get('is_active') == 'on'; managed_user.save(); _save_user_role_groups(managed_user, request.POST.getlist('groups')); messages.success(request, 'Usuário atualizado com sucesso.'); return redirect('user_list')
+    selected_group_names = set(managed_user.groups.values_list('name', flat=True)); return render(request, 'accounts/user_form.html', {'managed_user': managed_user, 'editing': True, 'role_groups': role_groups, 'selected_group_names': selected_group_names})
 
 
 def runtime_status(request):
-    pending = 0
-    status = 'ok'
+    pending = 0; status = 'ok'
     try:
-        executor = MigrationExecutor(connection)
-        pending = len(executor.migration_plan(executor.loader.graph.leaf_nodes()))
-        if pending:
-            status = 'degraded'
-    except Exception:
-        status = 'degraded'
-    return JsonResponse({
-        'contract': '1.0',
-        'status': status,
-        'system': '{{ sistema.nome|escapejs }}',
-        'environment': os.environ.get('DJANGOFORGE_ENVIRONMENT', ''),
-        'release': os.environ.get('DJANGOFORGE_RELEASE', ''),
-        'database': {'vendor': connection.vendor},
-        'migrations': {'pending': pending},
-        'uptime_seconds': int(time.monotonic() - _RUNTIME_STARTED_AT),
-        'timestamp': timezone.now().isoformat(),
-    })
+        executor = MigrationExecutor(connection); pending = len(executor.migration_plan(executor.loader.graph.leaf_nodes()))
+        if pending: status = 'degraded'
+    except Exception: status = 'degraded'
+    return JsonResponse({'contract': '1.0','status': status,'system': '{{ sistema.nome|escapejs }}','environment': os.environ.get('DJANGOFORGE_ENVIRONMENT', ''),'release': os.environ.get('DJANGOFORGE_RELEASE', ''),'database': {'vendor': connection.vendor},'migrations': {'pending': pending},'uptime_seconds': int(time.monotonic() - _RUNTIME_STARTED_AT),'timestamp': timezone.now().isoformat()})
 
 
 urlpatterns = [
@@ -188,7 +125,9 @@ urlpatterns = [
     path('dashboard/', login_required(TemplateView.as_view(template_name='dashboard.html')), name='dashboard'),
     path('dashboard/data/', dashboard_data, name='dashboard_data'),
     path('__djangoforge__/status/', runtime_status, name='djangoforge_runtime_status'),
-{% if notifications.enabled %}    path('notifications/', include('djangoforge_notifications.urls')),
+{% for page in advanced_pages.pages %}{% if page.requires_pk %}    path('{{ page.slug }}/<int:pk>/', advanced_page_view, {'page_id': '{{ page.id|escapejs }}'}, name='{{ page.url_name }}'),
+{% else %}    path('{{ page.slug }}/', advanced_page_view, {'page_id': '{{ page.id|escapejs }}'}, name='{{ page.url_name }}'),
+{% endif %}{% endfor %}{% if notifications.enabled %}    path('notifications/', include('djangoforge_notifications.urls')),
 {% endif %}{% if api.enabled %}{% for modulo in modulos %}{% if modulo.entidades_api %}    path('{{ api.prefix }}/{{ api.version }}/', include('{{ modulo.app_name }}.api_urls')),
 {% endif %}{% endfor %}{% endif %}{% for modulo in modulos %}    path('{{ modulo.app_name }}/', include(('{{ modulo.app_name }}.urls', '{{ modulo.app_name }}'), namespace='{{ modulo.app_name }}')),
 {% endfor %}]

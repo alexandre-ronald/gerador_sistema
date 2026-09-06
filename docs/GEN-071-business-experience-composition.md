@@ -147,11 +147,11 @@ Fornecedor atual → Contratos deste fornecedor
 
 O Page Designer oferece **Tabela relacionada** somente de forma compatível com o contrato relacional da GEN-071.1. Em uma página `record`, ele descobre campos relacionais que apontam para a entidade de contexto, cria a tabela com `config.relation` e permite escolher o campo de relação no inspector. O Preview identifica visualmente a coleção relacionada e mostra a regra declarativa aplicada.
 
-Gate reportado verde pelo usuário em 2026-09-06.
+Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.3 — Métricas relacionais
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Permitir métricas derivadas de uma coleção relacionada, inicialmente com operações seguras e declarativas:
 
@@ -185,21 +185,45 @@ Representação canônica:
 
 `count` não exige campo. `sum` e `avg` aceitam apenas campos numéricos. `min` e `max` aceitam campos numéricos ou temporais diretamente conhecidos pelo domínio. Expressões, funções arbitrárias e lookups livres permanecem proibidos.
 
-O Page Designer agora oferece **Métrica relacionada** e permite configurar cálculo e campo. O Preview projeta valor demonstrativo coerente e mantém a origem relacional explícita.
+O Page Designer oferece **Métrica relacionada** e permite configurar cálculo e campo. O Preview projeta valor demonstrativo coerente e mantém a origem relacional explícita.
+
+Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.4 — Ações com transporte de contexto
 
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+
 Permitir que ações levem o contexto atual para CRUDs ou outras páginas.
+
+Primeira fatia funcional desta etapa: uma ação CRUD `create`, originada de uma página `record`, pode transportar `page_context.pk` para um campo relacional da entidade criada.
 
 Exemplo:
 
 ```text
 Novo contrato
     ↓
-formulário Contrato
+CRUD create de Contrato
     ↓
-fornecedor preenchido com o fornecedor atual
+Contrato.fornecedor ← Fornecedor atual
 ```
+
+Representação canônica:
+
+```json
+{
+  "id": "novo_contrato",
+  "kind": "crud",
+  "label": "Novo contrato",
+  "target": {"entity": "Contrato", "operation": "create"},
+  "transport": {
+    "source": "page_context",
+    "source_field": "pk",
+    "target_field": "fornecedor"
+  }
+}
+```
+
+A validação é fail-closed: nesta fase o transporte exige `crud/create`, página `record`, campo relacional conhecido e relação apontando para a entidade do contexto. O Designer expõe a opção **Levar contexto atual para o novo registro** e permite escolher o vínculo compatível.
 
 ### GEN-071.5 — Preview da experiência composta
 
@@ -264,3 +288,11 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** uma experiência operacional precisa resumir a coleção relacionada em KPIs sem exigir consultas manuais.
 
 **Impacto:** páginas `record` passam a poder exibir contagem, soma, média, mínimo e máximo de registros relacionados, com validação de tipo e Preview demonstrativo coerente.
+
+### 2026-09-06 — validação visual da GEN-071.3 e implementação da GEN-071.4
+
+**Decisão:** considerar métricas relacionais validadas após gate e teste visual verdes e iniciar transporte de contexto por ações CRUD de criação.
+
+**Motivo:** a composição só se torna operacional quando uma ação iniciada no contexto atual consegue criar dados relacionados sem exigir que o usuário repita manualmente o vínculo.
+
+**Impacto:** ações `crud/create` podem declarar de forma segura que a chave do registro atual preencherá um campo relacional do novo registro; o Page Designer passa a configurar esse transporte sem código.

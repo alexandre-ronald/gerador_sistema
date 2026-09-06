@@ -23,6 +23,15 @@ NAVIGATION_MODULES = [
     },
 {% endfor %}
     {
+        "app_name": "advanced_pages",
+        "label": "Páginas",
+        "items": [
+{% for page in advanced_pages.pages %}{% if page.navigation.visible and not page.requires_pk %}
+            {"label": "{{ page.navigation.label|default:page.name|escapejs }}","group_label": "{{ page.navigation.group|escapejs }}","model_name": "{{ page.context_model_name|escapejs }}","entity_name": "{{ page.context.entity|escapejs }}","rbac_action": "{% if page.context.kind == 'collection' %}list{% else %}view{% endif %}","url_name": "{{ page.url_name|escapejs }}","active_url_names": ["{{ page.url_name|escapejs }}"],"permission": "","app_name": "{{ page.context_app_name|escapejs }}","is_advanced_page": True,"advanced_context_kind": "{{ page.context.kind|escapejs }}","advanced_page_id": "{{ page.id|escapejs }}","order": {{ page.navigation.order }}},
+{% endif %}{% endfor %}
+        ],
+    },
+    {
         "app_name": "reports",
         "label": "Relatórios",
         "items": [
@@ -41,6 +50,8 @@ def _rbac_item_allowed(request, item):
     uma capacidade RBAC declarada, mantendo itens não-RBAC compatíveis.
     """
     entity_name = item.get("entity_name")
+    if item.get("is_advanced_page") and item.get("advanced_context_kind") == "none":
+        return True
     if not entity_name:
         return True
     app_name = item.get("app_name")
@@ -76,7 +87,11 @@ def _mark_active_items(request, items):
     marked = []
     for item in items:
         active_names = item.get("active_url_names") or [item["url_name"].split(":")[-1]]
-        marked.append({**item, "is_active": current_app_name == item.get("app_name") and current_url_name in active_names})
+        if item.get("is_advanced_page"):
+            is_active = current_url_name in active_names
+        else:
+            is_active = current_app_name == item.get("app_name") and current_url_name in active_names
+        marked.append({**item, "is_active": is_active})
     return marked
 
 
@@ -100,10 +115,12 @@ def _current_navigation_item(request):
     resolver_match = getattr(request, "resolver_match", None)
     current_url_name = getattr(resolver_match, "url_name", None)
     current_app_name = getattr(resolver_match, "app_name", None)
-    if not current_url_name or not current_app_name: return None
+    if not current_url_name: return None
     for module in NAVIGATION_MODULES:
         for item in module["items"]:
-            if item.get("app_name") == current_app_name and current_url_name in (item.get("active_url_names") or []): return item
+            active_names = item.get("active_url_names") or []
+            if item.get("is_advanced_page") and current_url_name in active_names: return item
+            if current_app_name and item.get("app_name") == current_app_name and current_url_name in active_names: return item
     return None
 
 
@@ -113,7 +130,7 @@ def _relation_filter_choices(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated: return []
     item = _current_navigation_item(request)
-    if not item or item.get("is_notifications") or item.get("is_report"): return []
+    if not item or item.get("is_notifications") or item.get("is_report") or item.get("is_advanced_page"): return []
     try: model = apps.get_model(item["app_name"], item["model_name"])
     except LookupError: return []
     if model is None: return []
@@ -145,7 +162,7 @@ def _relation_filter_choices(request):
             marked = _mark_active_items(request, items)
             for item in marked:
                 if item.get("is_notifications") and unread_count: item["label"] = f"Notificações ({unread_count})"
-            if module.get("app_name") == "reports":
-                marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item["label"].casefold()))
+            if module.get("app_name") in {"reports", "advanced_pages"}:
+                marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item.get("order", 0), item["label"].casefold()))
             modules.append({**module, "items": marked})
     return {"navigation_modules": modules,"navigation_current": _current_navigation_context(request, modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

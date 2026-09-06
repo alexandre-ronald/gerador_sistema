@@ -64,6 +64,17 @@ def _require_entity(entity_name, entities, *, page_id, component_id=None, action
         raise AdvancedPageContractError("unknown_entity_reference", "Página avançada referencia entidade inexistente.", page_id=page_id, component_id=component_id, action_id=action_id)
 
 
+def _validate_record_context(page, entity_name, *, action_id, message):
+    context = page.get("context") or {}
+    if context.get("kind") != "record" or context.get("entity") != entity_name:
+        raise AdvancedPageContractError(
+            "incompatible_action_context",
+            message,
+            page_id=page["id"],
+            action_id=action_id,
+        )
+
+
 def _validate_navigation_context(source_page, target_page, *, action_id):
     target_context = target_page.get("context") or {}
     if target_context.get("kind") != "record":
@@ -124,10 +135,24 @@ def validate_advanced_pages_semantics(raw_config, *, entities_metadata=None, wor
                 if target_page is not None:
                     _validate_navigation_context(page, target_page, action_id=action_id)
             elif kind == "crud":
-                _require_entity(target["entity"], entities, page_id=page_id, action_id=action_id)
+                entity = target["entity"]
+                _require_entity(entity, entities, page_id=page_id, action_id=action_id)
+                if target.get("operation") in {"view", "update", "delete"}:
+                    _validate_record_context(
+                        page,
+                        entity,
+                        action_id=action_id,
+                        message="Ação CRUD sobre registro exige contexto de registro da mesma entidade.",
+                    )
             elif kind == "workflow":
                 entity = target["entity"]
                 _require_entity(entity, entities, page_id=page_id, action_id=action_id)
+                _validate_record_context(
+                    page,
+                    entity,
+                    action_id=action_id,
+                    message="Ação de workflow exige contexto de registro da mesma entidade.",
+                )
                 if target["transition"] not in workflow_ids.get(entity, set()):
                     raise AdvancedPageContractError("unknown_workflow_transition", "Ação referencia transição inexistente.", page_id=page_id, action_id=action_id)
             elif kind == "report":

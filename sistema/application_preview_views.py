@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
+from .advanced_page_metric_preview import enrich_related_metrics_preview
 from .advanced_page_preview import build_advanced_page_preview
 from .advanced_pages import normalize_advanced_pages_config
 from .application_preview import build_preview_shell, _report_navigation_rows
@@ -36,14 +37,6 @@ def _device_preview(raw_device):
 
 
 def _advanced_page_from_designer_referer(request, sistema):
-    """Mantém o contexto no retorno Designer → Preview sem persistir estado efêmero.
-
-    Quando o Designer foi aberto contextualmente com ``?pagina=<id>``, o Referer
-    carrega o ID estável e permite retornar à mesma página. Quando o botão
-    ``Ver Preview`` foi usado a partir da rota base do Designer, escolhemos a
-    primeira página avançada ativa do contrato, em vez de cair silenciosamente
-    na listagem CRUD legada. Referers de outras rotas são ignorados.
-    """
     referer = str(request.META.get("HTTP_REFERER") or "").strip()
     if not referer:
         return ""
@@ -51,11 +44,9 @@ def _advanced_page_from_designer_referer(request, sistema):
     designer_path = reverse("sistema:page_designer", args=[sistema.pk])
     if parsed.path != designer_path:
         return ""
-
     contextual_page = str((parse_qs(parsed.query).get("pagina") or [""])[0]).strip()
     if contextual_page:
         return contextual_page
-
     structure = _draft_structure(sistema)
     config = normalize_advanced_pages_config(structure.get("advanced_pages"), strict=False)
     first_enabled = next((page for page in config.get("pages", []) if page.get("enabled")), None)
@@ -63,7 +54,6 @@ def _advanced_page_from_designer_referer(request, sistema):
 
 
 def _advanced_record_entity_id(sistema, selected_page_id):
-    """Resolve a entidade da página record para manter a navegação contextual ativa."""
     selected_page_id = str(selected_page_id or "").strip()
     if not selected_page_id:
         return None
@@ -73,15 +63,10 @@ def _advanced_record_entity_id(sistema, selected_page_id):
     context = (page or {}).get("context") or {}
     if context.get("kind") != "record" or not context.get("entity"):
         return None
-    return (
-        Entidade.objects.filter(modulo__sistema=sistema, nome=context.get("entity"))
-        .values_list("pk", flat=True)
-        .first()
-    )
+    return Entidade.objects.filter(modulo__sistema=sistema, nome=context.get("entity")).values_list("pk", flat=True).first()
 
 
 def _designer_links(sistema, preview):
-    """Expõe somente rotas para os Designers; não cria nem persiste configuração."""
     sistema_id = sistema.pk
     entity_id = None
     for projection in ("form_page", "list_page", "workflow_page", "report_page"):
@@ -112,70 +97,47 @@ def _designer_links(sistema, preview):
         contextual.append(link("report", "Editar relatório", "report_designer", "bi-file-earmark-bar-graph", entity_context=True))
     else:
         contextual.append(link("crud", "Editar listagem", "crud_designer", "bi-table", entity_context=True))
-
     contextual.append(link("permissions", "Permissões", "permission_designer", "bi-shield-lock"))
     return contextual
 
 
 def _ensure_workflow_navigation(sistema, preview):
-    """Garante que workflows persistidos como ativos apareçam na navegação do Preview."""
     navigation = preview.setdefault("navigation", {})
     projected = navigation.get("workflows")
     workflows = list(projected) if isinstance(projected, list) else []
     known_entities = {str(item.get("entity") or "") for item in workflows if isinstance(item, dict)}
-
     estrutura = _draft_structure(sistema)
     stored = estrutura.get("workflows") if isinstance(estrutura.get("workflows"), dict) else {}
     if not stored:
         navigation["workflows"] = workflows
         return
-
-    entities = {
-        entity.nome: entity
-        for entity in Entidade.objects.filter(modulo__sistema=sistema)
-        .select_related("modulo")
-        .order_by("nome", "id")
-    }
+    entities = {entity.nome: entity for entity in Entidade.objects.filter(modulo__sistema=sistema).select_related("modulo").order_by("nome", "id")}
     selected_entity_id = None
     workflow_page = preview.get("workflow_page")
     if isinstance(workflow_page, dict):
         selected_entity_id = workflow_page.get("entity_id")
-
     for entity_name, config in stored.items():
-        if entity_name in known_entities:
-            continue
-        if not isinstance(config, dict) or config.get("enabled") is not True:
+        if entity_name in known_entities or not isinstance(config, dict) or config.get("enabled") is not True:
             continue
         entity = entities.get(entity_name)
         if entity is None:
             continue
-        workflows.append({
-            "entity_id": entity.pk,
-            "entity": entity.nome,
-            "label": entity.nome_plural or entity.nome,
-            "icon": "bi-diagram-3",
-            "active": selected_entity_id == entity.pk,
-        })
-
+        workflows.append({"entity_id": entity.pk, "entity": entity.nome, "label": entity.nome_plural or entity.nome, "icon": "bi-diagram-3", "active": selected_entity_id == entity.pk})
     workflows.sort(key=lambda item: (str(item.get("label") or "").casefold(), item.get("entity_id") or 0))
     navigation["workflows"] = workflows
 
 
 def _apply_report_permissions(sistema, preview):
-    """Filtra relatórios pelo papel simulado e bloqueia acesso direto não autorizado."""
     simulation = preview.get("role_simulation") or {}
     invalid_role = bool(simulation.get("invalid_role"))
     active_role = bool(simulation.get("active"))
     if not invalid_role and not active_role:
         return
-
     estrutura = _draft_structure(sistema)
     raw_rbac = estrutura.get("rbac") if isinstance(estrutura.get("rbac"), dict) else {}
     report_policies = raw_rbac.get("reports")
-
     if not invalid_role and not isinstance(report_policies, dict):
         return
-
     role_id = simulation.get("selected_role_id") or ""
 
     def allowed(report):
@@ -191,25 +153,16 @@ def _apply_report_permissions(sistema, preview):
     visible_reports = [report for report in (preview.get("reports") or []) if allowed(report)]
     preview["reports"] = visible_reports
     preview["entity_reports"] = [report for report in (preview.get("entity_reports") or []) if allowed(report)]
-
     report_page = original_report_page if isinstance(original_report_page, dict) and allowed(original_report_page) else None
     preview["report_page"] = report_page
     preview.setdefault("navigation", {})["reports"] = _report_navigation_rows(visible_reports, report_page)
-
     if preview.get("page_kind") == "report" and original_report_page and report_page is None:
-        preview["report_access_denied"] = {
-            "entity": original_report_page.get("entity"),
-            "id": original_report_page.get("id"),
-            "title": original_report_page.get("title"),
-        }
+        preview["report_access_denied"] = {"entity": original_report_page.get("entity"), "id": original_report_page.get("id"), "title": original_report_page.get("title")}
         preview["list_page"] = None
         preview["form_page"] = None
         preview["dashboard_page"] = None
         preview["workflow_page"] = None
-        preview["content"] = {
-            "title": "Relatório não disponível para este papel",
-            "subtitle": "O Permission Designer não autorizou o papel simulado a acessar este relatório.",
-        }
+        preview["content"] = {"title": "Relatório não disponível para este papel", "subtitle": "O Permission Designer não autorizou o papel simulado a acessar este relatório."}
 
 
 @login_required
@@ -235,6 +188,7 @@ def application_preview(request, sistema_id):
     _ensure_workflow_navigation(sistema, preview)
     if requested_page_kind == "advanced":
         build_advanced_page_preview(sistema, preview, selected_advanced_page)
+        enrich_related_metrics_preview(preview)
     preview["designer_links"] = _designer_links(sistema, preview)
     if preview.get("page_kind") == "workflow":
         template_name = "sistema/application_preview_workflow.html"

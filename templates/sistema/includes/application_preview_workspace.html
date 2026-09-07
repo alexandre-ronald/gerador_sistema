@@ -1,24 +1,27 @@
-{% if preview.workspace_preview.configured %}
 <div class="card border-0 shadow-sm mb-3" data-preview-workspace>
   <div class="card-body py-3">
     <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
       <div>
         <div class="small text-uppercase fw-bold text-primary mb-1">Workspace · GEN-072</div>
-        {% if preview.workspace_preview.selected %}
+        {% if preview.workspace_preview.configured and preview.workspace_preview.selected %}
         <div class="fw-bold" data-preview-workspace-selected="{{ preview.workspace_preview.selected.id }}">{{ preview.workspace_preview.selected.label }}</div>
         <div class="small text-secondary">{{ preview.workspace_preview.selected.description|default:'Navegação orientada ao trabalho.' }}</div>
+        {% elif preview.workspace_preview.configured %}
+        <div class="fw-bold">Nenhum Workspace disponível para este papel</div>
+        <div class="small text-secondary">O papel simulado não possui destinos autorizados nos Workspaces configurados.</div>
         {% else %}
-        <div class="fw-bold">Nenhum Workspace disponível</div>
-        <div class="small text-secondary">O papel simulado não possui destinos autorizados neste Workspace.</div>
+        <div class="fw-bold">Workspace ainda não configurado</div>
+        <div class="small text-secondary">Organize as experiências existentes em espaços de trabalho antes de validar a navegação final.</div>
         {% endif %}
       </div>
-      {% if preview.workspace_preview.workspaces|length > 1 %}
-      <div class="d-flex gap-2 flex-wrap" data-preview-workspace-switcher>
-        {% for workspace in preview.workspace_preview.workspaces %}
-        <a class="btn btn-sm {% if workspace.id == preview.workspace_preview.selected_id %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?workspace={{ workspace.id }}{% if preview.role_simulation.requested_role_id %}&papel={{ preview.role_simulation.requested_role_id }}{% endif %}&dispositivo={{ preview.device_preview.selected }}">{{ workspace.label }}</a>
-        {% endfor %}
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        {% if preview.workspace_preview.workspaces|length > 1 %}
+          {% for workspace in preview.workspace_preview.workspaces %}
+          <a class="btn btn-sm {% if workspace.id == preview.workspace_preview.selected_id %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?workspace={{ workspace.id }}{% if preview.role_simulation.requested_role_id %}&papel={{ preview.role_simulation.requested_role_id }}{% endif %}&dispositivo={{ preview.device_preview.selected }}">{{ workspace.label }}</a>
+          {% endfor %}
+        {% endif %}
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'sistema:workspace_designer' sistema.pk %}" data-preview-workspace-designer><i class="bi bi-layout-sidebar-inset me-1"></i>{% if preview.workspace_preview.configured %}Editar Workspace{% else %}Configurar Workspace{% endif %}</a>
       </div>
-      {% endif %}
     </div>
     {% if preview.workspace_preview.selected %}
     <hr class="my-3">
@@ -37,4 +40,3 @@
     {% endif %}
   </div>
 </div>
-{% endif %}

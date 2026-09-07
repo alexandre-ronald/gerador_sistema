@@ -251,15 +251,23 @@ Gate reportado verde pelo usuário em 2026-09-07.
 
 ### GEN-071.7 — Runtime Contract Enforcement relacional
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Aplicar RBAC, contexto e validação fail-closed também aos componentes e ações relacionais.
 
 A relação não cria uma permissão paralela. Uma coleção ou métrica relacionada exige acesso à página de origem e permissão `list` explícita na entidade relacionada. Uma ação com transporte exige acesso ao registro de origem e a permissão original `create` da entidade de destino. Relações e transportes incompletos, fora de contexto `record`, com fonte inválida ou com sintaxe de lookup livre são rejeitados em modo fail-closed.
 
+Gate reportado verde pelo usuário em 2026-09-07.
+
 ### GEN-071.8 — Central do Fornecedor end-to-end
 
+Status: **EM VALIDAÇÃO**
+
 Montar e validar o caso de referência sem escrever código específico de negócio no gerador.
+
+O gate automatizado da etapa usa uma única configuração declarativa da Central do Fornecedor e verifica conjuntamente: duas métricas relacionadas (`count` e `sum`), coleção de contratos filtrada pelo fornecedor atual, ação `Novo contrato` com transporte de contexto e enforcement RBAC sobre os dados e a ação relacionados.
+
+A validação manual deve ser feita no sistema efetivamente gerado, com pelo menos dois fornecedores e contratos distintos, comprovando isolamento dos dados por registro e preenchimento do fornecedor correto na criação de um novo contrato.
 
 ### GEN-071.9 — Equivalência e regressão
 
@@ -341,10 +349,18 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 
 **Impacto:** a próxima etapa passa a tratar explicitamente o enforcement relacional, mantendo RBAC e contexto como requisitos derivados das capacidades originais.
 
-### 2026-09-07 — implementação da GEN-071.7
+### 2026-09-07 — implementação e validação da GEN-071.7
 
-**Decisão:** fazer componentes e ações relacionais reutilizarem as permissões CRUD existentes, com validação contextual fail-closed.
+**Decisão:** fazer componentes e ações relacionais reutilizarem as permissões CRUD existentes, com validação contextual fail-closed, e considerar a etapa validada após gate reportado verde pelo usuário.
 
-**Motivo:** uma relação não pode ampliar implicitamente o que um papel já pode ler, listar ou criar nas entidades envolvidas.
+**Motivo:** uma relação não pode ampliar permissões. Visualizar o fornecedor não implica poder listar contratos, e transportar o fornecedor para um novo contrato não implica permissão para criar contratos.
 
-**Impacto:** tabela e métrica relacionadas exigem `list` na entidade relacionada; transporte de contexto exige acesso ao registro fonte e `create` no destino; contratos relacionais incompletos ou com lookup livre são rejeitados antes de se tornarem conteúdo/ações visíveis.
+**Impacto:** coleções/métricas relacionais exigem `list` da entidade relacionada; ações transportadas preservam a autorização original da ação; configurações relacionais incompletas ou incompatíveis são negadas antes do runtime.
+
+### 2026-09-07 — início da GEN-071.8
+
+**Decisão:** consolidar o caso Central do Fornecedor em um gate transversal próprio antes da validação manual do sistema gerado.
+
+**Motivo:** a GEN-071 deve provar uma experiência de negócio completa, e não somente a soma de testes unitários das capacidades isoladas.
+
+**Impacto:** uma mesma configuração de referência passa a atravessar compilação, runtime relacional, transporte de contexto e RBAC. A etapa só será concluída após a prova manual com dados distintos de dois fornecedores no sistema gerado.

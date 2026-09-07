@@ -91,3 +91,16 @@ class RelationalGeneratedRuntimeTests(SimpleTestCase):
         self.assertIn('queryset.aggregate(value=aggregate_class(field_name)).get("value")', source)
         self.assertIn('"transport_query_param": "_ap_context_fornecedor_responsavel"', source)
         self.assertIn('urlencode({transport_param: advanced_record.pk})', source)
+
+    def test_generated_form_only_accepts_compiled_transport_bindings(self):
+        fornecedor, contrato = self._entities()
+        contrato.form_designer_ready = False
+        pages = prepare_advanced_pages_generation(self._config(), entities=[fornecedor, contrato])
+        source = render_to_string(
+            "gerador/snippets/html_form.txt",
+            {"advanced_pages": pages, "entidade": contrato, "app_name": "compras"},
+        )
+        self.assertIn("_ap_context_fornecedor_responsavel", source)
+        self.assertIn("field:'fornecedor_responsavel'", source)
+        self.assertIn("transportedBindings.forEach", source)
+        self.assertIn("CSS.escape(binding.field)", source)

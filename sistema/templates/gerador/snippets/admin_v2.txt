@@ -4,5 +4,6 @@ from django.contrib import admin
 {% for entidade in entidades %}{% if entidade.gerar_admin %}
 @admin.register({{ entidade.classe_nome }})
 class {{ entidade.classe_nome }}Admin(admin.ModelAdmin):
-    list_display = [{% for campo in entidade.campos_geracao %}'{{ campo.codigo_nome }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    list_display = [{% for campo in entidade.campos_geracao %}{% if campo.tipo != 'ManyToManyField' %}'{{ campo.codigo_nome }}',{% endif %}{% endfor %}]
+    filter_horizontal = [{% for campo in entidade.campos_geracao %}{% if campo.tipo == 'ManyToManyField' %}'{{ campo.codigo_nome }}',{% endif %}{% endfor %}]
 {% endif %}{% endfor %}

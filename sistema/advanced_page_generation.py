@@ -1,7 +1,7 @@
-"""GEN-070.7/070.9 — projeção do contrato de páginas avançadas para o gerador Django.
+"""GEN-070.7/070.9 e GEN-071.6 — projeção de páginas avançadas para o gerador Django.
 
 Mantém a fonte de verdade em ``advanced_pages`` e acrescenta apenas metadados de
-compilação (nomes Python, referências de modelo, campos, ações e coordenadas CSS).
+compilação (nomes Python, referências de modelo, campos, relações, ações e layout).
 """
 from copy import deepcopy
 import re
@@ -29,6 +29,13 @@ def _field_specs(entity):
             "type": getattr(field, "tipo", ""),
         })
     return fields
+
+
+def _field_code(entity, source_name):
+    source_name = str(source_name or "").strip()
+    if not source_name:
+        return ""
+    return next((field["code"] for field in _field_specs(entity) if field["name"] == source_name), "")
 
 
 def _entity_metadata(entity):
@@ -75,6 +82,7 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
                 "target_context_kind": "",
                 "target_context_entity": "",
                 "target_context_app_name": "",
+                "transport_runtime": None,
             }
             if action["kind"] == "navigate":
                 target_page = source_page_map.get(target.get("page"))
@@ -99,6 +107,17 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
                     if suffix:
                         runtime["url_name"] = f"{target_meta['app_name']}:{target_meta['entity_code']}_{suffix}"
                         runtime["requires_pk"] = operation in {"view", "update", "delete"}
+                    transport = action.get("transport") if isinstance(action.get("transport"), dict) else None
+                    if operation == "create" and transport:
+                        target_field_code = _field_code(target_entity, transport.get("target_field"))
+                        if target_field_code:
+                            runtime["transport_runtime"] = {
+                                "source": "page_context",
+                                "source_field": "pk",
+                                "target_field": str(transport.get("target_field") or ""),
+                                "target_field_code": target_field_code,
+                                "query_param": f"_ap_context_{target_field_code}",
+                            }
                 elif action["kind"] == "workflow" and target_entity:
                     runtime["url_name"] = f"{target_meta['app_name']}:{target_meta['entity_code']}_transition"
                     runtime["requires_pk"] = True
@@ -128,6 +147,28 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
             component["native_operation"] = ""
             component["form_class_name"] = ""
             component["report_id"] = ""
+            component["relation_runtime"] = None
+            component["aggregate_runtime"] = None
+
+            relation = component.get("config", {}).get("relation") if isinstance(component.get("config"), dict) else None
+            if isinstance(relation, dict) and binding_entity:
+                target_field_code = _field_code(binding_entity, relation.get("target_field"))
+                if target_field_code:
+                    component["relation_runtime"] = {
+                        "source": "page_context",
+                        "source_field": "pk",
+                        "target_field": str(relation.get("target_field") or ""),
+                        "target_field_code": target_field_code,
+                    }
+                    aggregate = component.get("config", {}).get("aggregate")
+                    if component.get("type") == "metric" and isinstance(aggregate, dict):
+                        operation = str(aggregate.get("operation") or "count").strip().lower()
+                        field_code = _field_code(binding_entity, aggregate.get("field")) if operation != "count" else ""
+                        component["aggregate_runtime"] = {
+                            "operation": operation,
+                            "field": str(aggregate.get("field") or ""),
+                            "field_code": field_code,
+                        }
 
             if component["type"] == "form" and binding_entity:
                 same_record = context.get("kind") == "record" and context.get("entity") == binding.get("ref")

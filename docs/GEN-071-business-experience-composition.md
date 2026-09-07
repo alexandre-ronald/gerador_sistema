@@ -229,7 +229,7 @@ Gate e teste visual reportados verdes pelo usuário em 2026-09-06.
 
 ### GEN-071.5 — Preview da experiência composta
 
-Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Projetar coleções, métricas e ações relacionais no Preview Studio com dados demonstrativos coerentes.
 
@@ -237,13 +237,25 @@ O Preview reúne agora, na mesma página avançada, a coleção relacionada, mé
 
 A projeção continua somente leitura e demonstrativa. A execução real das consultas e do transporte de contexto pertence à GEN-071.6.
 
+Gate reportado verde pelo usuário em 2026-09-07.
+
 ### GEN-071.6 — Runtime gerado
+
+Status: **IMPLEMENTADA / VALIDADA**
 
 Gerar consultas ORM seguras a partir do contrato relacional normalizado.
 
+O gerador compila nomes de campos do contrato para identificadores Python antes de emitir o runtime. Coleções relacionadas usam filtro pelo registro atual; métricas usam somente `count`, `sum`, `avg`, `min` e `max`; ações de criação transportam o contexto por parâmetro compilado e o formulário gerado reconhece apenas vínculos previamente declarados pelo contrato.
+
+Gate reportado verde pelo usuário em 2026-09-07.
+
 ### GEN-071.7 — Runtime Contract Enforcement relacional
 
+Status: **IMPLEMENTADA / AGUARDANDO VALIDAÇÃO**
+
 Aplicar RBAC, contexto e validação fail-closed também aos componentes e ações relacionais.
+
+A relação não cria uma permissão paralela. Uma coleção ou métrica relacionada exige acesso à página de origem e permissão `list` explícita na entidade relacionada. Uma ação com transporte exige acesso ao registro de origem e a permissão original `create` da entidade de destino. Relações e transportes incompletos, fora de contexto `record`, com fonte inválida ou com sintaxe de lookup livre são rejeitados em modo fail-closed.
 
 ### GEN-071.8 — Central do Fornecedor end-to-end
 
@@ -320,3 +332,19 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 **Motivo:** o valor da composição deve ser perceptível como uma experiência única, e não como recursos isolados do Designer.
 
 **Impacto:** o Preview passa a identificar a origem de métricas relacionais e o transporte de contexto de ações, mantendo a tabela relacionada e respeitando a mesma projeção/RBAC já existente. A execução permanece reservada ao runtime da GEN-071.6.
+
+### 2026-09-07 — validação da GEN-071.5 e GEN-071.6
+
+**Decisão:** considerar Preview composto e runtime relacional validados após gates reportados verdes pelo usuário.
+
+**Motivo:** a experiência deixou de ser apenas demonstrativa: o contrato passou a compilar filtros, agregações e transporte de contexto para o sistema gerado.
+
+**Impacto:** a próxima etapa passa a tratar explicitamente o enforcement relacional, mantendo RBAC e contexto como requisitos derivados das capacidades originais.
+
+### 2026-09-07 — implementação da GEN-071.7
+
+**Decisão:** fazer componentes e ações relacionais reutilizarem as permissões CRUD existentes, com validação contextual fail-closed.
+
+**Motivo:** uma relação não pode ampliar implicitamente o que um papel já pode ler, listar ou criar nas entidades envolvidas.
+
+**Impacto:** tabela e métrica relacionadas exigem `list` na entidade relacionada; transporte de contexto exige acesso ao registro fonte e `create` no destino; contratos relacionais incompletos ou com lookup livre são rejeitados antes de se tornarem conteúdo/ações visíveis.

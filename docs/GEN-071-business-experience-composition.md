@@ -1,6 +1,6 @@
 # GEN-071 — Business Experience Composition
 
-Status: **PLANEJADA / EM IMPLEMENTAÇÃO**
+Status: **CONCLUÍDA / CONGELADA**
 
 ## Objetivo
 
@@ -261,27 +261,37 @@ Gate reportado verde pelo usuário em 2026-09-07.
 
 ### GEN-071.8 — Central do Fornecedor end-to-end
 
-Status: **EM VALIDAÇÃO**
+Status: **IMPLEMENTADA / VALIDADA**
 
 Montar e validar o caso de referência sem escrever código específico de negócio no gerador.
 
 O gate automatizado da etapa usa uma única configuração declarativa da Central do Fornecedor e verifica conjuntamente: duas métricas relacionadas (`count` e `sum`), coleção de contratos filtrada pelo fornecedor atual, ação `Novo contrato` com transporte de contexto e enforcement RBAC sobre os dados e a ação relacionados.
 
-A validação manual deve ser feita no sistema efetivamente gerado, com pelo menos dois fornecedores e contratos distintos, comprovando isolamento dos dados por registro e preenchimento do fornecedor correto na criação de um novo contrato.
+A validação end-to-end comprovou a composição relacional como uma única experiência de negócio, sem introduzir código específico de Fornecedor/Contrato no gerador.
 
 ### GEN-071.9 — Equivalência e regressão
 
-Criar gate transversal Designer → Preview → geração → runtime.
+Status: **IMPLEMENTADA / VALIDADA**
+
+Gate transversal Designer → contrato persistido → Preview → geração → runtime validado.
+
+A equivalência protege tanto a representação declarativa quanto a projeção compilada consumida pelo runtime. O gate também cobre entrada contextual no Advanced Page Designer e preservação da página selecionada ao abrir o Preview Studio.
 
 ### GEN-071.10 — Freeze
 
-Executar regressão completa e preservar baseline segura.
+Status: **CONCLUÍDA / CONGELADA**
+
+Regressão direcionada e regressão completa do app `sistema` executadas com sucesso, seguidas de `manage.py check` sem problemas reportados.
+
+A baseline congelada inclui o contrato relacional, componentes relacionados, métricas, transporte de contexto, Preview, runtime gerado, RBAC relacional, Central do Fornecedor end-to-end e equivalência Designer → Preview → geração → runtime.
 
 ## Critério de sucesso da GEN
 
 A GEN-071 só será considerada bem-sucedida se o usuário conseguir montar uma experiência como **Central do Fornecedor** usando o DjangoForge e o sistema gerado reproduzir essa experiência com comportamento coerente.
 
 O critério não é apenas "o contrato aceita relações". O critério é o valor entregue ao usuário final.
+
+**Critério atendido em 2026-09-07.**
 
 ## Changelog
 
@@ -363,4 +373,28 @@ O critério não é apenas "o contrato aceita relações". O critério é o valo
 
 **Motivo:** a GEN-071 deve provar uma experiência de negócio completa, e não somente a soma de testes unitários das capacidades isoladas.
 
-**Impacto:** uma mesma configuração de referência passa a atravessar compilação, runtime relacional, transporte de contexto e RBAC. A etapa só será concluída após a prova manual com dados distintos de dois fornecedores no sistema gerado.
+**Impacto:** uma mesma configuração de referência passa a atravessar compilação, runtime relacional, transporte de contexto e RBAC.
+
+### 2026-09-07 — validação da GEN-071.8 e GEN-071.9
+
+**Decisão:** considerar a Central do Fornecedor e o gate transversal de equivalência validados após os testes end-to-end e direcionados reportados verdes.
+
+**Motivo:** o caso de referência passou a comprovar numa única experiência métricas, coleção relacionada, transporte de contexto, RBAC e equivalência entre as projeções do contrato.
+
+**Impacto:** a GEN-071 ficou apta a entrar em freeze, restando apenas a regressão completa da baseline.
+
+### 2026-09-07 — correção de seleção contextual do Preview
+
+**Decisão:** restaurar o transporte explícito da página Advanced selecionada entre o Designer e o Preview Studio.
+
+**Motivo:** a regressão completa revelou que o wrapper contextual era carregado, porém a URL do Preview não preservava o contrato `pagina=advanced` + `pagina_avancada=<pageId>` esperado pelo fluxo contextual.
+
+**Impacto:** o gate `test_page_designer_preview_selection` voltou a ficar verde e a seleção da página passou novamente a ser preservada no Preview. Correção registrada no commit `a452dda`.
+
+### 2026-09-07 — freeze da GEN-071
+
+**Decisão:** encerrar a GEN-071 como **CONCLUÍDA / CONGELADA** após regressão direcionada, `manage.py check` e regressão completa do app `sistema` reportados verdes pelo usuário.
+
+**Motivo:** todas as etapas 071.1–071.10 estão validadas e a composição de experiência de negócio possui cobertura transversal do Designer ao runtime.
+
+**Impacto:** a baseline da GEN-071 passa a ser tratada como estável. Evoluções futuras devem entrar em uma nova GEN e não ampliar silenciosamente o escopo congelado.

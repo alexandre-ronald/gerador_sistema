@@ -5,6 +5,7 @@ from .workspace_contract import (
     default_workspace_config,
     normalize_workspace_config,
     workspace_item_map,
+    workspace_map,
 )
 
 
@@ -12,33 +13,35 @@ class WorkspaceContractTests(SimpleTestCase):
     def _config(self):
         return {
             "version": 1,
-            "home": "fornecedores",
-            "sections": [
+            "default_workspace": "gestao_fornecedores",
+            "workspaces": [
                 {
-                    "id": "operacao",
-                    "label": "Operação",
-                    "order": 10,
-                    "items": [
+                    "id": "gestao_fornecedores",
+                    "label": "Gestão de Fornecedores",
+                    "description": "Operação de fornecedores e contratos",
+                    "home": "fornecedores",
+                    "sections": [
                         {
-                            "id": "fornecedores",
-                            "label": "Fornecedores",
-                            "destination": {"kind": "crud", "ref": "Fornecedor", "operation": "list"},
-                        },
-                        {
-                            "id": "central_fornecedor",
-                            "label": "Central do Fornecedor",
-                            "destination": {"kind": "advanced_page", "ref": "central_fornecedor"},
-                        },
+                            "id": "operacao",
+                            "label": "Operação",
+                            "items": [
+                                {"id": "fornecedores", "label": "Fornecedores", "destination": {"kind": "crud", "ref": "Fornecedor", "operation": "list"}},
+                                {"id": "central_fornecedor", "label": "Central do Fornecedor", "destination": {"kind": "advanced_page", "ref": "central_fornecedor"}},
+                            ],
+                        }
                     ],
                 },
                 {
-                    "id": "acompanhamento",
-                    "label": "Acompanhamento",
-                    "items": [
+                    "id": "fiscalizacao",
+                    "label": "Fiscalização",
+                    "home": "contratos",
+                    "sections": [
                         {
-                            "id": "dashboard_compras",
-                            "label": "Dashboard",
-                            "destination": {"kind": "dashboard", "ref": "compras"},
+                            "id": "contratos_secao",
+                            "label": "Contratos",
+                            "items": [
+                                {"id": "contratos", "label": "Contratos", "destination": {"kind": "crud", "ref": "Contrato", "operation": "list"}}
+                            ],
                         }
                     ],
                 },
@@ -46,44 +49,71 @@ class WorkspaceContractTests(SimpleTestCase):
         }
 
     def test_default_contract_is_empty_and_versioned(self):
-        self.assertEqual(default_workspace_config(), {"version": 1, "home": "", "sections": []})
+        self.assertEqual(default_workspace_config(), {"version": 1, "default_workspace": "", "workspaces": []})
 
-    def test_normalizes_workspace_with_stable_destination_references(self):
+    def test_normalizes_multiple_workspaces_and_default(self):
         config = normalize_workspace_config(self._config())
-        self.assertEqual(config["home"], "fornecedores")
-        self.assertEqual(config["sections"][0]["items"][0]["destination"], {"kind": "crud", "ref": "Fornecedor", "operation": "list"})
-        self.assertEqual(config["sections"][0]["items"][1]["destination"], {"kind": "advanced_page", "ref": "central_fornecedor"})
+        self.assertEqual(config["default_workspace"], "gestao_fornecedores")
+        self.assertEqual([workspace["id"] for workspace in config["workspaces"]], ["gestao_fornecedores", "fiscalizacao"])
+        self.assertEqual(config["workspaces"][0]["home"], "fornecedores")
 
-    def test_rejects_unknown_home(self):
+    def test_normalizes_stable_destination_references(self):
+        config = normalize_workspace_config(self._config())
+        item = config["workspaces"][0]["sections"][0]["items"][0]
+        self.assertEqual(item["destination"], {"kind": "crud", "ref": "Fornecedor", "operation": "list"})
+
+    def test_rejects_unknown_workspace_home(self):
         raw = self._config()
-        raw["home"] = "nao_existe"
+        raw["workspaces"][0]["home"] = "nao_existe"
         with self.assertRaises(WorkspaceContractError) as error:
             normalize_workspace_config(raw)
         self.assertEqual(error.exception.code, "unknown_workspace_home")
 
-    def test_rejects_duplicate_item_ids_across_sections(self):
+    def test_rejects_unknown_default_workspace(self):
         raw = self._config()
-        raw["sections"][1]["items"][0]["id"] = "fornecedores"
+        raw["default_workspace"] = "nao_existe"
+        with self.assertRaises(WorkspaceContractError) as error:
+            normalize_workspace_config(raw)
+        self.assertEqual(error.exception.code, "unknown_default_workspace")
+
+    def test_rejects_duplicate_workspace_ids(self):
+        raw = self._config()
+        raw["workspaces"][1]["id"] = "gestao_fornecedores"
+        with self.assertRaises(WorkspaceContractError) as error:
+            normalize_workspace_config(raw)
+        self.assertEqual(error.exception.code, "duplicate_workspace_id")
+
+    def test_rejects_duplicate_item_ids_inside_same_workspace(self):
+        raw = self._config()
+        raw["workspaces"][0]["sections"].append({"id": "outra", "label": "Outra", "items": [{"id": "fornecedores", "label": "Duplicado", "destination": {"kind": "report", "ref": "contratos"}}]})
         with self.assertRaises(WorkspaceContractError) as error:
             normalize_workspace_config(raw)
         self.assertEqual(error.exception.code, "duplicate_workspace_item_id")
 
+    def test_same_item_id_may_exist_in_different_workspaces(self):
+        raw = self._config()
+        raw["workspaces"][1]["sections"][0]["items"][0]["id"] = "fornecedores"
+        raw["workspaces"][1]["home"] = "fornecedores"
+        config = normalize_workspace_config(raw)
+        self.assertEqual(config["workspaces"][1]["home"], "fornecedores")
+
     def test_rejects_unknown_destination_kind(self):
         raw = self._config()
-        raw["sections"][0]["items"][0]["destination"]["kind"] = "url"
+        raw["workspaces"][0]["sections"][0]["items"][0]["destination"]["kind"] = "url"
         with self.assertRaises(WorkspaceContractError) as error:
             normalize_workspace_config(raw)
         self.assertEqual(error.exception.code, "unknown_destination_kind")
 
-    def test_non_strict_discards_invalid_section_and_invalid_home(self):
+    def test_non_strict_discards_invalid_workspace_and_invalid_default(self):
         raw = self._config()
-        raw["sections"].append({"id": "quebrada", "label": "", "items": []})
-        raw["home"] = "quebrada"
+        raw["workspaces"].append({"id": "quebrado", "label": "", "sections": []})
+        raw["default_workspace"] = "quebrado"
         normalized = normalize_workspace_config(raw, strict=False)
-        self.assertEqual(len(normalized["sections"]), 2)
-        self.assertEqual(normalized["home"], "")
+        self.assertEqual(len(normalized["workspaces"]), 2)
+        self.assertEqual(normalized["default_workspace"], "")
 
-    def test_workspace_item_map_indexes_items_by_stable_id(self):
-        items = workspace_item_map(self._config())
-        self.assertEqual(set(items), {"fornecedores", "central_fornecedor", "dashboard_compras"})
-        self.assertEqual(items["central_fornecedor"]["destination"]["ref"], "central_fornecedor")
+    def test_workspace_maps_use_stable_ids(self):
+        workspaces = workspace_map(self._config())
+        self.assertEqual(set(workspaces), {"gestao_fornecedores", "fiscalizacao"})
+        items = workspace_item_map(self._config(), "gestao_fornecedores")
+        self.assertEqual(set(items), {"fornecedores", "central_fornecedor"})

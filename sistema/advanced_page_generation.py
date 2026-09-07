@@ -185,4 +185,19 @@ def prepare_advanced_pages_generation(raw_config, *, entities):
 
         pages.append(page)
 
+    # Páginas avançadas de registro não pertencem ao menu principal porque
+    # precisam de um PK. O gerador projeta esses entrypoints nas entidades de
+    # contexto para que o CRUD consiga alcançá-las sem duplicar configuração.
+    for entity_name, entity in entity_map.items():
+        entity.advanced_record_pages = [
+            {
+                "id": page["id"],
+                "name": page["name"],
+                "url_name": page["url_name"],
+            }
+            for page in pages
+            if page.get("requires_pk")
+            and (page.get("context") or {}).get("entity") == entity_name
+        ]
+
     return {"version": config["version"], "pages": pages}

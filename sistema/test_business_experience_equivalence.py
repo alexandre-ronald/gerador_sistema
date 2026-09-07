@@ -133,12 +133,18 @@ class BusinessExperienceEquivalenceTests(TestCase):
         source = render_to_string("gerador/snippets/advanced_pages_runtime.txt", {"advanced_pages": generation})
         compile(source, "advanced_pages.py", "exec")
 
-        self.assertIn('"target_field": "fornecedor"', source)
-        self.assertIn('"target_field_code": "fornecedor"', source)
-        self.assertIn('"operation": "count"', source)
-        self.assertIn('"operation": "sum"', source)
-        self.assertIn('"field_code": "valor"', source)
+        # O runtime emitido consome a projeção compilada, não serializa novamente
+        # o contrato declarativo relation/aggregate. A equivalência declarativa é
+        # coberta no teste anterior; aqui validamos os campos efetivamente usados
+        # pelo código gerado.
+        self.assertGreaterEqual(source.count('"relation_target_field": "fornecedor"'), 3)
+        self.assertIn('"aggregate_operation": "count"', source)
+        self.assertIn('"aggregate_operation": "sum"', source)
+        self.assertIn('"aggregate_field": "valor"', source)
         self.assertIn('"transport_query_param": "_ap_context_fornecedor"', source)
+        self.assertIn('"transport_target_field": "fornecedor"', source)
+        self.assertIn('model._default_manager.filter(**{field_name: advanced_record.pk})', source)
+        self.assertIn('queryset.aggregate(value=aggregate_class(field_name)).get("value")', source)
         self.assertIn("urlencode({transport_param: advanced_record.pk})", source)
 
     def test_record_entrypoint_and_runtime_share_same_page_identity(self):

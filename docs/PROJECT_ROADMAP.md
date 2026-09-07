@@ -88,42 +88,15 @@ python manage.py test
 
 Ambos reportados verdes pelo usuário após o gate transversal de equivalência Contrato → Preview → geração → runtime.
 
-Baseline intermediária de equivalência:
-
-```text
-gen-070-equivalence-safe-baseline
-d13c311431f3731b0eb66b3fb4192801a124bf4d
-```
-
-Baseline final:
-
-```text
-gen-070-regression-safe-baseline-final
-<registrada no commit documental final>
-```
-
 Arquivo detalhado:
 
 ```text
 docs/GEN-070-advanced-page-designer.md
 ```
 
-Branch histórica de implementação:
-
-```text
-gen-070-advanced-page-designer
-```
-
-Base de partida da GEN-070:
-
-```text
-gen-069-regression-safe-baseline-final
-574fa04baf9fdce67a145a79e647b81900f4b9dd
-```
-
 ### GEN-071 — Business Experience Composition
 
-Status: **PLANEJADA / EM IMPLEMENTAÇÃO**
+Status: **CONCLUÍDA / CONGELADA**
 
 Objetivo:
 
@@ -131,9 +104,21 @@ Objetivo:
 
 Responsabilidade principal: composição relacional de páginas orientadas ao trabalho, com bindings entre contexto e entidades relacionadas, coleções relacionadas, métricas declarativas, transporte de contexto, Preview fiel e runtime equivalente.
 
-Caso de prova oficial: **Central do Fornecedor**, composta a partir de Fornecedor + Contratos relacionados + métricas + relatórios + ações.
+Caso de prova oficial: **Central do Fornecedor**.
 
-A GEN-071 deve ser genérica; Fornecedor/Contrato é apenas o cenário de validação end-to-end.
+Gate final em 2026-09-07:
+
+```text
+python manage.py test sistema
+```
+
+Regressão completa reportada verde pelo usuário.
+
+Baseline final:
+
+```text
+424dd57e284eaba1577239c8238d31c1a298560d
+```
 
 Arquivo detalhado:
 
@@ -141,21 +126,49 @@ Arquivo detalhado:
 docs/GEN-071-business-experience-composition.md
 ```
 
-Branch de implementação:
+Branch histórica:
 
 ```text
 gen-071-business-experience-composition
 ```
 
+A GEN-071 foi incorporada à `master` após o freeze.
+
+### GEN-072 — Business Workspace & Navigation
+
+Status: **PLANEJADA / EM IMPLEMENTAÇÃO**
+
+Objetivo:
+
+> Permitir que o usuário organize as experiências já desenhadas no DjangoForge em espaços de trabalho orientados ao papel e ao objetivo de negócio, com navegação declarativa, segura e equivalente entre Designer, Preview e runtime gerado.
+
+Responsabilidade principal: contrato de workspaces, home, seções e itens de navegação referenciando capacidades existentes, visibilidade derivada do RBAC, Preview, runtime, deep links, breadcrumbs e equivalência end-to-end.
+
+Princípio:
+
+> Workspace organiza experiências. Não redefine as experiências que organiza.
+
+Arquivo detalhado:
+
+```text
+docs/GEN-072-business-workspace-navigation.md
+```
+
+Branch de implementação:
+
+```text
+gen-072-business-workspace-navigation
+```
+
 Base de partida:
 
 ```text
-gen-070-preview-entry-hotfix
+master
 ```
 
 ## Próximo marco
 
-GEN-071 em execução. Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fronteiras sejam registrados neste arquivo antes da implementação estrutural.
+GEN-072 em execução. Nenhuma GEN posterior é considerada definitiva até que objetivo, escopo e fronteiras sejam registrados neste arquivo antes da implementação estrutural.
 
 ## Changelog de planejamento
 
@@ -189,4 +202,20 @@ GEN-071 em execução. Nenhuma GEN posterior é considerada definitiva até que 
 
 **Motivo:** a infraestrutura da GEN-070 permite páginas avançadas, mas o valor para o usuário precisa ser provado com experiências operacionais que combinem um registro principal e capacidades relacionadas em uma única tela de trabalho.
 
-**Impacto:** o próximo ciclo prioriza bindings relacionais seguros, coleções relacionadas, métricas e transporte de contexto, culminando numa Central do Fornecedor end-to-end sem código manual específico no gerador.
+**Impacto:** o ciclo passa a priorizar bindings relacionais seguros, coleções relacionadas, métricas e transporte de contexto, culminando numa Central do Fornecedor end-to-end sem código manual específico no gerador.
+
+### 2026-09-07 — conclusão e freeze da GEN-071
+
+**Decisão:** encerrar a GEN-071 após validação dos gates direcionados, regressão completa do app `sistema` e registro da baseline final.
+
+**Motivo:** Designer, contrato relacional, Preview, geração, runtime e RBAC foram validados conjuntamente, incluindo seleção contextual do Preview.
+
+**Impacto:** a GEN-071 torna-se baseline histórica congelada e é incorporada à `master` no commit `424dd57e284eaba1577239c8238d31c1a298560d`.
+
+### 2026-09-07 — criação da GEN-072
+
+**Decisão:** iniciar a GEN-072 como **Business Workspace & Navigation**.
+
+**Motivo:** após a composição de experiências individuais estar madura, o próximo problema de produto é organizar múltiplas experiências em jornadas e espaços de trabalho coerentes para diferentes papéis.
+
+**Impacto:** o DjangoForge passa a modelar também a entrada e a navegação da aplicação sem introduzir URLs Django manuais nem uma camada paralela de autorização.

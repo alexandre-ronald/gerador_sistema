@@ -18,6 +18,7 @@ class WorkspaceSemanticTests(SimpleTestCase):
                 "version": 1,
                 "pages": [
                     {"id": "central_fornecedor", "name": "Central do Fornecedor", "slug": "fornecedores/central", "enabled": True, "context": {"kind": "none"}, "navigation": {}, "components": [], "actions": []},
+                    {"id": "detalhe_fornecedor", "name": "Detalhe do Fornecedor", "slug": "fornecedores/detalhe", "enabled": True, "context": {"kind": "record", "entity": "Fornecedor"}, "navigation": {}, "components": [], "actions": []},
                     {"id": "pagina_oculta", "name": "Oculta", "slug": "oculta", "enabled": False, "context": {"kind": "none"}, "navigation": {}, "components": [], "actions": []},
                 ],
             },
@@ -42,6 +43,11 @@ class WorkspaceSemanticTests(SimpleTestCase):
     def test_accepts_existing_enabled_advanced_page(self):
         config = validate_workspace_destinations(self._config({"kind": "advanced_page", "ref": "central_fornecedor"}), self._structure(), entities=[{"name": "Fornecedor"}, {"name": "Contrato"}])
         self.assertEqual(config["workspaces"][0]["home"], "entrada")
+
+    def test_rejects_record_advanced_page_as_direct_workspace_destination(self):
+        with self.assertRaises(WorkspaceSemanticError) as error:
+            validate_workspace_destinations(self._config({"kind": "advanced_page", "ref": "detalhe_fornecedor"}), self._structure(), entities=["Fornecedor", "Contrato"])
+        self.assertEqual(error.exception.code, "workspace_destination_not_found")
 
     def test_rejects_disabled_advanced_page_fail_closed(self):
         with self.assertRaises(WorkspaceSemanticError) as error:

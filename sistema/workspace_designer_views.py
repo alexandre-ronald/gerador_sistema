@@ -32,7 +32,9 @@ def _experience_catalog(structure, entities):
 
     advanced = normalize_advanced_pages_config(structure.get("advanced_pages"), strict=False)
     for page in advanced.get("pages", []):
-        if page.get("enabled"):
+        # Contexto record exige um PK e não pode ser aberto diretamente pela navegação
+        # do Workspace. O acesso permanece pelos entrypoints da entidade.
+        if page.get("enabled") and (page.get("context") or {}).get("kind") != "record":
             experiences.append({
                 "kind": "advanced_page",
                 "ref": page["id"],

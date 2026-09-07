@@ -21,6 +21,7 @@ from . import interface_designer_views
 from . import application_blueprint_views
 from . import application_preview_views
 from . import page_designer_views
+from . import workspace_designer_views
 
 app_name = 'sistema'
 
@@ -33,6 +34,8 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/preview-studio/', application_preview_views.application_preview, name='application_preview'),
     path('sistemas/<int:sistema_id>/page-designer/', page_designer_views.page_designer, name='page_designer'),
     path('sistemas/<int:sistema_id>/page-designer/salvar/', page_designer_views.salvar_page_designer, name='salvar_page_designer'),
+    path('sistemas/<int:sistema_id>/workspace-designer/', workspace_designer_views.workspace_designer, name='workspace_designer'),
+    path('sistemas/<int:sistema_id>/workspace-designer/salvar/', workspace_designer_views.salvar_workspace_designer, name='salvar_workspace_designer'),
     path('sistemas/<int:sistema_id>/editar/', views.editar_sistema, name='editar_sistema'),
     path('sistemas/<int:sistema_id>/interface/', interface_designer_views.interface_designer, name='interface_designer'),
     path('api/salvar-modelo/', views.salvar_modelo, name='salvar_modelo'),
@@ -68,22 +71,7 @@ urlpatterns = [
     path('sistemas/<int:sistema_id>/environments/', environment_manager_views.environment_manager, name='environment_manager'),
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/atualizar/', environment_manager_views.update_environment, name='update_environment'),
     path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/promover/', environment_manager_views.promote_environment, name='promote_environment'),
-    path('sistemas/<int:sistema_id>/environments/<int:ambiente_id>/runtime/', environment_manager_views.check_runtime, name='check_runtime'),
     path('sistemas/<int:sistema_id>/health/', health_monitoring_views.health_monitoring, name='health_monitoring'),
     path('sistemas/<int:sistema_id>/deployments/', deployment_center_views.deployment_center, name='deployment_center'),
-    path('sistemas/<int:sistema_id>/deployments/config/', deployment_center_views.save_deployment_config, name='save_deployment_config'),
-    path('sistemas/<int:sistema_id>/deployments/ambientes/<int:ambiente_id>/planos/', deployment_center_views.create_deployment_plan, name='create_deployment_plan'),
-    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/validar/', deployment_center_views.validate_deployment_plan, name='validate_deployment_plan'),
-    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/executar/', deployment_center_views.execute_deployment_plan, name='execute_deployment_plan'),
-    path('sistemas/<int:sistema_id>/deployments/<int:plan_id>/cancelar/', deployment_center_views.cancel_deployment_plan, name='cancel_deployment_plan'),
-    path('sistemas/<int:sistema_id>/monitoring/', observability_views.monitoring_center, name='monitoring_center'),
-    path('sistemas/<int:sistema_id>/monitoring/events/<int:event_id>/', observability_views.monitoring_event_detail, name='monitoring_event_detail'),
-    path('dashboard/', views.dashboard_view, name='dashboard'),
-    path('analytics/', views.analytics_view, name='analytics'),
-    path('users/', views.users_view, name='users'),
-    path('search/', views.search_view, name='search'),
-    path('profile/', views.profile_view, name='profile'),
-    path('settings/', views.settings_view, name='settings'),
-    path('usuario/novo/', views.registrar_usuario_view, name='registro'),
-    path('sistemas/<int:pk>/download/', views.baixar_zip_sistema, name='baixar_zip'),
+    path('sistemas/<int:sistema_id>/observability/', observability_views.observability_center, name='observability_center'),
 ]

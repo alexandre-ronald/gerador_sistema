@@ -17,8 +17,8 @@ class WorkspaceSemanticTests(SimpleTestCase):
             "advanced_pages": {
                 "version": 1,
                 "pages": [
-                    {"id": "central_fornecedor", "label": "Central do Fornecedor", "slug": "fornecedores/central", "enabled": True, "context": {"kind": "none"}, "layout": {"columns": 12, "gap": "md"}, "components": [], "actions": []},
-                    {"id": "pagina_oculta", "label": "Oculta", "slug": "oculta", "enabled": False, "context": {"kind": "none"}, "layout": {"columns": 12, "gap": "md"}, "components": [], "actions": []},
+                    {"id": "central_fornecedor", "name": "Central do Fornecedor", "slug": "fornecedores/central", "enabled": True, "context": {"kind": "none"}, "navigation": {}, "components": [], "actions": []},
+                    {"id": "pagina_oculta", "name": "Oculta", "slug": "oculta", "enabled": False, "context": {"kind": "none"}, "navigation": {}, "components": [], "actions": []},
                 ],
             },
         }

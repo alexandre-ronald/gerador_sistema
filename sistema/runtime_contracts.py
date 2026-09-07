@@ -1,8 +1,10 @@
-"""GEN-070.6 — decisões de autorização compartilháveis pelo runtime gerado.
+"""GEN-070.6 / GEN-071.7 — decisões de autorização compartilháveis pelo runtime gerado.
 
 Este módulo não renderiza UI e não depende de request. Ele recebe contratos já
 persistidos e responde somente decisões explícitas, mantendo política ativa em
-modo fail-closed.
+modo fail-closed. A GEN-071.7 acrescenta contexto relacional sem criar uma
+segunda política de autorização: relações dependem das capacidades CRUD já
+existentes no RBAC.
 """
 from dataclasses import dataclass
 
@@ -94,11 +96,7 @@ def can_action(rbac, role_id, action):
 
 
 def can_page(rbac, role_id, page):
-    """Deriva acesso da página do contexto já conhecido pelo contrato.
-
-    Página sem contexto não cria permissão própria. Contexto de coleção exige
-    ``list`` e contexto de registro exige ``view`` da entidade referenciada.
-    """
+    """Deriva acesso da página do contexto já conhecido pelo contrato."""
     gate = _inactive_or_role(rbac, role_id)
     if gate:
         return gate
@@ -116,6 +114,41 @@ def can_page(rbac, role_id, page):
     return RuntimeDecision(False, "unknown_page_context")
 
 
+def _valid_simple_field_name(value):
+    return bool(value) and "__" not in value and "." not in value and "/" not in value
+
+
+def can_contextual_action(rbac, role_id, page, action):
+    """Autoriza ação levando em conta eventual transporte do contexto.
+
+    O transporte não cria uma permissão nova. Ele só é válido se a página fonte
+    for um registro autorizado e se a ação de destino já tiver autorização
+    própria. Configuração relacional incompleta é rejeitada em modo fail-closed.
+    """
+    decision = can_action(rbac, role_id, action)
+    if not decision.allowed:
+        return decision
+    if not isinstance(action, dict) or action.get("transport") is None:
+        return decision
+    transport = action.get("transport")
+    if not isinstance(transport, dict):
+        return RuntimeDecision(False, "invalid_action_transport")
+    target = action.get("target") if isinstance(action.get("target"), dict) else {}
+    if action.get("kind") != "crud" or target.get("operation") != "create":
+        return RuntimeDecision(False, "transport_requires_crud_create")
+    context = page.get("context") if isinstance(page, dict) and isinstance(page.get("context"), dict) else {}
+    if context.get("kind") != "record" or not context.get("entity"):
+        return RuntimeDecision(False, "transport_requires_record_context")
+    page_decision = can_page(rbac, role_id, page)
+    if not page_decision.allowed:
+        return page_decision
+    if transport.get("source") != "page_context" or transport.get("source_field") != "pk":
+        return RuntimeDecision(False, "invalid_transport_source")
+    if not _valid_simple_field_name(transport.get("target_field")):
+        return RuntimeDecision(False, "invalid_transport_target_field")
+    return RuntimeDecision(True, "granted")
+
+
 def _action_map(page):
     if not isinstance(page, dict):
         return {}
@@ -126,14 +159,34 @@ def _action_map(page):
     }
 
 
-def can_component(rbac, role_id, page, component):
-    """Autoriza componente pela capacidade que ele referencia.
+def _relation_decision(rbac, role_id, page, component):
+    config = component.get("config") if isinstance(component.get("config"), dict) else {}
+    relation = config.get("relation")
+    if relation is None:
+        return None
+    if not isinstance(relation, dict):
+        return RuntimeDecision(False, "invalid_relation_config")
+    context = page.get("context") if isinstance(page, dict) and isinstance(page.get("context"), dict) else {}
+    binding = component.get("binding") if isinstance(component.get("binding"), dict) else {}
+    if context.get("kind") != "record" or not context.get("entity"):
+        return RuntimeDecision(False, "relation_requires_record_context")
+    if binding.get("kind") != "entity" or not binding.get("ref"):
+        return RuntimeDecision(False, "relation_requires_entity_binding")
+    if relation.get("source") != "page_context" or relation.get("source_field") != "pk":
+        return RuntimeDecision(False, "invalid_relation_source")
+    if not _valid_simple_field_name(relation.get("target_field")):
+        return RuntimeDecision(False, "invalid_relation_target_field")
+    page_decision = can_page(rbac, role_id, page)
+    if not page_decision.allowed:
+        return page_decision
+    target_decision = can_crud(rbac, role_id, binding.get("ref"), "list")
+    if not target_decision.allowed:
+        return RuntimeDecision(False, "related_collection_denied")
+    return RuntimeDecision(True, "granted")
 
-    Componentes puramente visuais continuam visíveis. Componentes de entidade,
-    campo, formulário e contexto exigem leitura; relatórios delegam para a
-    política do relatório. Quando o componente aponta para uma ação, a ação
-    também precisa estar autorizada.
-    """
+
+def can_component(rbac, role_id, page, component):
+    """Autoriza componente pela capacidade que ele referencia."""
     gate = _inactive_or_role(rbac, role_id)
     if gate:
         return gate
@@ -145,9 +198,13 @@ def can_component(rbac, role_id, page, component):
         action = _action_map(page).get(action_id)
         if not action:
             return RuntimeDecision(False, "missing_component_action")
-        action_decision = can_action(rbac, role_id, action)
+        action_decision = can_contextual_action(rbac, role_id, page, action)
         if not action_decision.allowed:
             return action_decision
+
+    relation_decision = _relation_decision(rbac, role_id, page, component)
+    if relation_decision is not None:
+        return relation_decision
 
     binding = component.get("binding") if isinstance(component.get("binding"), dict) else {}
     kind = binding.get("kind") or "none"
@@ -163,15 +220,14 @@ def can_component(rbac, role_id, page, component):
         config = component.get("config") if isinstance(component.get("config"), dict) else {}
         return can_report(rbac, role_id, ref, config.get("report_id"))
     if kind == "dashboard":
-        # Dashboard singular não possui política própria na GEN-067.
-        # A autorização de widgets por capacidade pode ser refinada quando o
-        # runtime avançado materializar seus bindings na GEN-070.7.
         return RuntimeDecision(True, "granted")
     return RuntimeDecision(False, "unknown_component_binding")
 
 
-def visible_actions(rbac, role_id, actions):
-    return [action for action in (actions or []) if can_action(rbac, role_id, action).allowed]
+def visible_actions(rbac, role_id, actions, page=None):
+    if page is None:
+        return [action for action in (actions or []) if can_action(rbac, role_id, action).allowed]
+    return [action for action in (actions or []) if can_contextual_action(rbac, role_id, page, action).allowed]
 
 
 def visible_components(rbac, role_id, page):

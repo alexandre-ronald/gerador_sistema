@@ -50,7 +50,13 @@ def _enabled_report_refs(raw_reports):
 def _destination_catalog(structure, *, entities):
     structure = structure if isinstance(structure, dict) else {}
     advanced = normalize_advanced_pages_config(structure.get("advanced_pages"), strict=False)
-    advanced_pages = {page["id"] for page in advanced.get("pages", []) if page.get("enabled")}
+    # Páginas de contexto record exigem PK e, portanto, não são entrypoints diretos
+    # de Workspace. Elas continuam acessíveis pelos entrypoints da entidade.
+    advanced_pages = {
+        page["id"]
+        for page in advanced.get("pages", [])
+        if page.get("enabled") and (page.get("context") or {}).get("kind") != "record"
+    }
 
     dashboard = normalize_dashboard_config(structure.get("dashboard"))
     dashboards = {"dashboard"} if dashboard.get("enabled") else set()

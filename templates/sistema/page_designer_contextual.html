@@ -128,7 +128,12 @@
     const designerUrl = new URL(window.location.href); designerUrl.searchParams.set('pagina', pageId);
     window.history.replaceState({}, '', designerUrl.pathname + designerUrl.search + designerUrl.hash);
     const previewLink = Array.from(document.querySelectorAll('.toolbar-actions a')).find(a => (a.textContent || '').trim().includes('Ver Preview'));
-    if(previewLink){ const previewUrl = new URL(previewBase, window.location.origin); previewUrl.searchParams.set('pagina','advanced'); previewUrl.searchParams.set('pagina_avancada',pageId); previewLink.href=previewUrl.pathname+previewUrl.search; }
+    if(previewLink){
+      const previewUrl = new URL(previewBase, window.location.origin);
+      previewUrl.searchParams.set('pagina', 'advanced');
+      previewUrl.searchParams.set('pagina_avancada', pageId);
+      previewLink.href = previewUrl.pathname + previewUrl.search;
+    }
     requestAnimationFrame(function(){ ensureRelatedCollectionButton(); syncRecordNavigationRule(); syncRelationInspector(); });
   }
 

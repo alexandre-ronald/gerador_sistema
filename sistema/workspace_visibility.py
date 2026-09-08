@@ -34,12 +34,12 @@ def workspace_destination_visible(destination,*,structure,rbac,role_ids):
     return False
 def visible_workspace_config(raw_config,*,structure,rbac,role_ids):
     config=normalize_workspace_config(raw_config,strict=True); projected=[]
-    for workspace in config["workspaces"]:
+    for workspace in sorted(config["workspaces"],key=lambda value:value.get("order",0)):
         if not workspace.get("enabled",True): continue
         sections=[]; visible_item_ids=[]
-        for section in workspace["sections"]:
+        for section in sorted(workspace["sections"],key=lambda value:value.get("order",0)):
             if not section.get("enabled",True): continue
-            items=[deepcopy(item) for item in section["items"] if item.get("enabled",True) and workspace_destination_visible(item["destination"],structure=structure,rbac=rbac,role_ids=role_ids)]
+            items=[deepcopy(item) for item in sorted(section["items"],key=lambda value:value.get("order",0)) if item.get("enabled",True) and workspace_destination_visible(item["destination"],structure=structure,rbac=rbac,role_ids=role_ids)]
             if items:
                 visible_item_ids.extend(item["id"] for item in items); section_copy=deepcopy(section); section_copy["items"]=items; sections.append(section_copy)
         if not sections: continue

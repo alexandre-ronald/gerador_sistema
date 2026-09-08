@@ -184,7 +184,15 @@ def _workspace_projection(request):
                 nav_item = item_index.get(key)
                 if not nav_item:
                     continue
-                projected = {**nav_item, "workspace_item_id": configured_item.get("id"), "label": configured_item.get("label") or nav_item.get("label")}
+                projected = {
+                    **nav_item,
+                    "workspace_id": workspace.get("id"),
+                    "workspace_label": workspace.get("label"),
+                    "workspace_section_id": section.get("id"),
+                    "workspace_section_label": section.get("label"),
+                    "workspace_item_id": configured_item.get("id"),
+                    "label": configured_item.get("label") or nav_item.get("label"),
+                }
                 items.append(projected)
                 visible_item_ids.add(configured_item.get("id"))
             if items:
@@ -227,6 +235,34 @@ def _workspace_navigation_modules(workspace_projection):
     return modules
 
 
+def _workspace_navigation_context(request, workspace_projection):
+    """Resolve deep link somente contra itens visíveis e compatíveis com a rota atual."""
+    requested_workspace = str(request.GET.get("workspace") or "").strip()
+    requested_item = str(request.GET.get("workspace_item") or "").strip()
+    if not requested_workspace or not requested_item:
+        return None
+    for workspace in workspace_projection.get("workspaces") or []:
+        if workspace.get("id") != requested_workspace:
+            continue
+        for section in workspace.get("sections") or []:
+            for item in section.get("items") or []:
+                if item.get("workspace_item_id") != requested_item:
+                    continue
+                if not item.get("is_active"):
+                    return None
+                return {
+                    "workspace_id": workspace.get("id"),
+                    "workspace_label": workspace.get("label"),
+                    "section_id": section.get("id"),
+                    "section_label": section.get("label"),
+                    "item_id": item.get("workspace_item_id"),
+                    "item_label": item.get("label"),
+                    "url_name": item.get("url_name"),
+                    "is_home": item.get("workspace_item_id") == workspace.get("home"),
+                }
+    return None
+
+
 {% if notifications.enabled %}def _notification_unread_count(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated: return 0
@@ -250,4 +286,5 @@ def _workspace_navigation_modules(workspace_projection):
     workspace_projection = _workspace_projection(request)
     workspace_modules = _workspace_navigation_modules(workspace_projection)
     rendered_modules = modules if workspace_modules is None else workspace_modules
-    return {"navigation_modules": rendered_modules,"navigation_workspaces": workspace_projection,"navigation_current": _current_navigation_context(request, rendered_modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}
+    workspace_context = _workspace_navigation_context(request, workspace_projection)
+    return {"navigation_modules": rendered_modules,"navigation_workspaces": workspace_projection,"navigation_workspace_context": workspace_context,"navigation_current": _current_navigation_context(request, rendered_modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

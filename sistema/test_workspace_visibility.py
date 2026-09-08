@@ -1,3 +1,4 @@
+from copy import deepcopy
 from django.test import SimpleTestCase
 from .workspace_visibility import visible_workspace_config,workspace_destination_visible
 
@@ -17,6 +18,15 @@ class WorkspaceVisibilityTests(SimpleTestCase):
         destination={"kind":"workflow","ref":"Contrato"}; self.assertTrue(workspace_destination_visible(destination,structure=self.structure,rbac=self.rbac,role_ids=["gestor"])); self.assertTrue(workspace_destination_visible(destination,structure=self.structure,rbac=self.rbac,role_ids=["fiscal"])); structure={**self.structure,"workflows":{"Contrato":{"enabled":False}}}; self.assertFalse(workspace_destination_visible(destination,structure=structure,rbac=self.rbac,role_ids=["fiscal"]))
     def test_projection_removes_unauthorized_items_fail_closed(self):
         projected=visible_workspace_config(self.config,structure=self.structure,rbac=self.rbac,role_ids=["fiscal"]); self.assertEqual([item["id"] for item in projected["workspaces"][0]["sections"][0]["items"]],["contratos"])
+    def test_disabled_workspace_is_removed(self):
+        config=deepcopy(self.config); config["workspaces"][0]["enabled"]=False
+        projected=visible_workspace_config(config,structure=self.structure,rbac=self.rbac,role_ids=["gestor"]); self.assertEqual(projected["workspaces"],[]); self.assertEqual(projected["default_workspace"],"")
+    def test_disabled_section_is_removed_with_its_items(self):
+        config=deepcopy(self.config); config["workspaces"][0]["sections"][0]["enabled"]=False
+        projected=visible_workspace_config(config,structure=self.structure,rbac=self.rbac,role_ids=["gestor"]); self.assertEqual(projected["workspaces"],[])
+    def test_disabled_item_is_removed_and_home_falls_back(self):
+        config=deepcopy(self.config); config["workspaces"][0]["sections"][0]["items"][0]["enabled"]=False
+        projected=visible_workspace_config(config,structure=self.structure,rbac=self.rbac,role_ids=["gestor"]); workspace=projected["workspaces"][0]; self.assertEqual([item["id"] for item in workspace["sections"][0]["items"]],["contratos","relatorio"]); self.assertEqual(workspace["home"],"contratos")
     def test_hidden_home_falls_back_to_first_authorized_item(self): self.assertEqual(visible_workspace_config(self.config,structure=self.structure,rbac=self.rbac,role_ids=["fiscal"])["workspaces"][0]["home"],"contratos")
     def test_workspace_without_authorized_destination_is_removed(self):
         config={"version":1,"default_workspace":"fornecedores","workspaces":[{"id":"fornecedores","label":"Fornecedores","home":"lista","sections":[{"id":"principal","label":"Principal","items":[{"id":"lista","label":"Fornecedores","destination":{"kind":"crud","ref":"Fornecedor","operation":"list"}}]}]}]}; projected=visible_workspace_config(config,structure=self.structure,rbac=self.rbac,role_ids=["fiscal"]); self.assertEqual(projected["workspaces"],[]); self.assertEqual(projected["default_workspace"],"")

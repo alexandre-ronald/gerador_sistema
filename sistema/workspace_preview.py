@@ -1,8 +1,9 @@
-"""GEN-072.5/072.7 — projeção de Workspace para o Application Preview Studio."""
+"""GEN-072.5/072.7/072.8 — projeção de Workspace para o Application Preview Studio."""
 from copy import deepcopy
 from urllib.parse import urlencode
 
 from .workspace_contract import normalize_workspace_config
+from .workspace_navigation_context import resolve_active_workspace
 from .workspace_visibility import visible_workspace_config
 
 
@@ -63,10 +64,15 @@ def project_workspace_preview(structure, *, role_simulation, entities, selected_
     enabled = [deepcopy(workspace) for workspace in config["workspaces"] if workspace.get("enabled")]
     visible_ids = {workspace["id"] for workspace in enabled}
     requested = str(selected_workspace_id or "").strip()
-    selected_id = requested if requested in visible_ids else config.get("default_workspace")
-    if selected_id not in visible_ids:
-        selected_id = enabled[0]["id"] if enabled else ""
-    selected = next((workspace for workspace in enabled if workspace["id"] == selected_id), None)
+    active_workspace = resolve_active_workspace(
+        {
+            "workspaces": enabled,
+            "default_workspace": config.get("default_workspace"),
+        },
+        workspace_id=requested,
+    )
+    selected_id = active_workspace.get("id") if active_workspace else ""
+    selected = deepcopy(active_workspace) if active_workspace else None
 
     entity_ids = {entity.nome: entity.pk for entity in entities or []}
     if selected:

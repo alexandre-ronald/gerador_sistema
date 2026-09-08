@@ -55,45 +55,55 @@ class GeneratedWorkspaceNavigationTests(TestCase):
             self.assertTrue(path.exists())
             return path.read_text(encoding="utf-8")
 
-    def test_real_generation_materializes_workspace_navigation(self):
-        content = self._generate_context_processor(
-            {
-                "workspaces": {
-                    "version": 1,
-                    "default_workspace": "gestao_contratos",
-                    "workspaces": [
-                        {
-                            "id": "gestao_contratos",
-                            "label": "Gestão de Contratos",
-                            "enabled": True,
-                            "home": "contratos",
-                            "sections": [
-                                {
-                                    "id": "operacao",
-                                    "label": "Operação",
-                                    "items": [
-                                        {
-                                            "id": "contratos",
-                                            "label": "Contratos ativos",
-                                            "destination": {
-                                                "kind": "crud",
-                                                "ref": "Contrato",
-                                                "operation": "list",
-                                            },
-                                        }
-                                    ],
-                                }
-                            ],
-                        }
-                    ],
-                }
+    def _workspace_structure(self):
+        return {
+            "workspaces": {
+                "version": 1,
+                "default_workspace": "gestao_contratos",
+                "workspaces": [
+                    {
+                        "id": "gestao_contratos",
+                        "label": "Gestão de Contratos",
+                        "enabled": True,
+                        "home": "contratos",
+                        "sections": [
+                            {
+                                "id": "operacao",
+                                "label": "Operação",
+                                "items": [
+                                    {
+                                        "id": "contratos",
+                                        "label": "Contratos ativos",
+                                        "destination": {
+                                            "kind": "crud",
+                                            "ref": "Contrato",
+                                            "operation": "list",
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
             }
-        )
+        }
+
+    def test_real_generation_materializes_workspace_navigation(self):
+        content = self._generate_context_processor(self._workspace_structure())
         self.assertIn("'default_workspace': 'gestao_contratos'", content)
         self.assertIn("'label': 'Gestão de Contratos'", content)
         self.assertIn("'label': 'Operação'", content)
         self.assertIn("_workspace_projection(request)", content)
         self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)
+
+    def test_real_generation_materializes_workspace_deep_link_context(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn('request.GET.get("workspace")', content)
+        self.assertIn('request.GET.get("workspace_item")', content)
+        self.assertIn('"workspace_section_label": section.get("label")', content)
+        self.assertIn('"navigation_workspace_context": workspace_context', content)
+        self.assertIn('if not item.get("is_active"):', content)
 
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
         content = self._generate_context_processor(

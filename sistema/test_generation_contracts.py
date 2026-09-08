@@ -38,16 +38,17 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn('index[("advanced_page", item.get("advanced_page_id"))] = item', navigation)
         self.assertIn('index[("dashboard", "dashboard")]', navigation)
         self.assertIn("_allowed_items(request, module[\"items\"])", navigation)
-        self.assertIn('"navigation_workspaces": _workspace_projection(request)', navigation)
+        self.assertIn('"navigation_workspaces": workspace_projection', navigation)
 
     def test_workspace_shell_prefers_workspace_and_keeps_legacy_fallback(self):
         base = self._source("gerador/snippets/base_html.txt")
-        self.assertIn("navigation_workspaces.configured", base)
-        self.assertIn("navigation_workspaces.workspaces", base)
-        self.assertIn("workspace.sections", base)
-        self.assertIn("section.items", base)
-        self.assertIn("url item.url_name", base)
+        navigation = self._source("gerador/snippets/navigation_context.txt")
         self.assertIn("for modulo in navigation_modules", base)
+        self.assertIn("url item.url_name", base)
+        self.assertIn("_workspace_navigation_modules", navigation)
+        self.assertIn("workspace.get(\"sections\")", navigation)
+        self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", navigation)
+        self.assertIn('"navigation_modules": rendered_modules', navigation)
 
     def test_global_navigation_exposes_context_and_compact_sidebar(self):
         base = self._source("gerador/snippets/base_html.txt"); navigation = self._source("gerador/snippets/navigation_context.txt")

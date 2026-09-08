@@ -46,11 +46,7 @@ NAVIGATION_MODULES = [
 
 
 def _rbac_item_allowed(request, item):
-    """Aplica no menu a mesma decisão usada pelas rotas geradas.
-
-    Falhas de import/configuração negam o item somente quando ele depende de
-    uma capacidade RBAC declarada, mantendo itens não-RBAC compatíveis.
-    """
+    """Aplica no menu a mesma decisão usada pelas rotas geradas."""
     entity_name = item.get("entity_name")
     if item.get("is_advanced_page") and item.get("advanced_context_kind") == "none":
         return True
@@ -157,9 +153,6 @@ def _navigation_item_index(request):
                 index[("advanced_page", item.get("advanced_page_id"))] = item
             elif item.get("entity_name"):
                 index[("crud", item.get("entity_name"))] = item
-                # Workflow is a record-oriented capability. Its safe global
-                # entrypoint is the entity list; the user selects a record
-                # before reaching the detail view that exposes transitions.
                 index[("workflow", item.get("entity_name"))] = item
     resolver_match = getattr(request, "resolver_match", None)
     dashboard_active = getattr(resolver_match, "url_name", None) in {"dashboard", "dashboard_data"}
@@ -207,6 +200,33 @@ def _workspace_projection(request):
     return {"configured": True, "workspaces": visible, "default_workspace": default_workspace}
 
 
+def _workspace_navigation_modules(workspace_projection):
+    """Adapta o Workspace ao contrato de menu já consumido pelo base.html.
+
+    Nesta etapa o runtime usa o workspace default visível. A seleção entre
+    múltiplos workspaces será acrescentada na GEN-072.8 sem criar outro menu.
+    """
+    if not workspace_projection.get("configured"):
+        return None
+    workspaces = workspace_projection.get("workspaces") or []
+    if not workspaces:
+        return []
+    default_id = workspace_projection.get("default_workspace")
+    workspace = next((item for item in workspaces if item.get("id") == default_id), workspaces[0])
+    modules = []
+    for section in workspace.get("sections") or []:
+        items = section.get("items") or []
+        if items:
+            modules.append({
+                "app_name": f"workspace:{workspace.get('id')}:{section.get('id')}",
+                "label": section.get("label") or workspace.get("label") or "Workspace",
+                "items": items,
+                "workspace_id": workspace.get("id"),
+                "workspace_label": workspace.get("label"),
+            })
+    return modules
+
+
 {% if notifications.enabled %}def _notification_unread_count(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated: return 0
@@ -227,4 +247,7 @@ def _workspace_projection(request):
             if module.get("app_name") in {"reports", "advanced_pages"}:
                 marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item.get("order", 0), item["label"].casefold()))
             modules.append({**module, "items": marked})
-    return {"navigation_modules": modules,"navigation_workspaces": _workspace_projection(request),"navigation_current": _current_navigation_context(request, modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}
+    workspace_projection = _workspace_projection(request)
+    workspace_modules = _workspace_navigation_modules(workspace_projection)
+    rendered_modules = modules if workspace_modules is None else workspace_modules
+    return {"navigation_modules": rendered_modules,"navigation_workspaces": workspace_projection,"navigation_current": _current_navigation_context(request, rendered_modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

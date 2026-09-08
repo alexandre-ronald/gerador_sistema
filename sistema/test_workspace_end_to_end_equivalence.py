@@ -1,4 +1,6 @@
 import json
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
@@ -6,6 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from sistema.models import Campo, Entidade, Modulo, Sistema, VersaoGeracao
+from sistema.services import GeradorService
 from sistema.workspace_preview import project_workspace_preview
 from sistema.workspace_visibility import visible_workspace_config
 
@@ -162,6 +165,23 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
             for workspace in workspaces
         ]
 
+    def _persist_workspace_through_designer(self):
+        self.version.estrutura_json = {
+            "cruds": self.structure["cruds"],
+            "reports": self.structure["reports"],
+            "rbac": self.structure["rbac"],
+            "marcador": {"preservar": True},
+        }
+        self.version.save(update_fields=["estrutura_json"])
+        response = self.client.post(
+            reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),
+            data=json.dumps({"workspaces": self.structure["workspaces"]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.version.refresh_from_db()
+        return response, self.version.estrutura_json
+
     def test_gestor_preview_matches_runtime_visibility_projection(self):
         preview = self._preview_for(self.structure, "gestor")
         runtime = self._runtime_projection_for(self.structure, "gestor")
@@ -193,28 +213,39 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
         self.assertIn("workspace_item=contratos_fiscais", fiscalizacao_item["url"])
 
     def test_designer_persistence_is_the_source_for_role_projections(self):
-        # O Designer valida destinos contra experiências realmente existentes no rascunho.
-        self.version.estrutura_json = {
-            "cruds": self.structure["cruds"],
-            "reports": self.structure["reports"],
-            "rbac": self.structure["rbac"],
-            "marcador": {"preservar": True},
-        }
-        self.version.save(update_fields=["estrutura_json"])
-
-        response = self.client.post(
-            reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),
-            data=json.dumps({"workspaces": self.structure["workspaces"]}),
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 200)
-
-        self.version.refresh_from_db()
-        persisted = self.version.estrutura_json
+        response, persisted = self._persist_workspace_through_designer()
         self.assertEqual(persisted["marcador"], {"preservar": True})
         self.assertEqual(persisted["workspaces"], response.json()["workspaces"])
-
         for role_id in ("gestor", "fiscal"):
             preview = self._preview_for(persisted, role_id)
             runtime = self._runtime_projection_for(persisted, role_id)
             self.assertEqual(self._shape(preview["workspaces"]), self._shape(runtime["workspaces"]))
+
+    def test_persisted_workspace_contract_reaches_real_generated_runtime_artifacts(self):
+        _, persisted = self._persist_workspace_through_designer()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.sistema.caminho_geracao = temp_dir
+            self.sistema.save(update_fields=["caminho_geracao"])
+            GeradorService(self.sistema.pk).gerar_projeto_completo()
+
+            root = Path(temp_dir)
+            project_name = self.sistema.slug.replace("-", "_")
+            context_candidates = [root / "context_processors.py", root / project_name / "context_processors.py"]
+            base_candidates = [root / "templates" / "base.html", root / project_name / "templates" / "base.html"]
+            context_path = next((path for path in context_candidates if path.exists()), None)
+            base_path = next((path for path in base_candidates if path.exists()), None)
+
+            self.assertIsNotNone(context_path)
+            self.assertIsNotNone(base_path)
+            context = context_path.read_text(encoding="utf-8")
+            base = base_path.read_text(encoding="utf-8")
+            compile(context, "context_processors.py", "exec")
+
+            self.assertIn(repr(persisted["workspaces"]), context)
+            self.assertIn("Gestão de Fornecedores", context)
+            self.assertIn("Fiscalização", context)
+            self.assertIn("for workspace in workspace_projection.get(\"workspaces\") or []:", context)
+            self.assertNotIn("def _resolve_active_workspace", context)
+            self.assertNotIn("Trocar Workspace", base)
+            self.assertNotIn("navigation_workspaces.active_workspace", base)
+            self.assertIn("?workspace={{ modulo.workspace_id|urlencode }}&workspace_item={{ item.workspace_item_id|urlencode }}", base)

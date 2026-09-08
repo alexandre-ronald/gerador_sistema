@@ -235,31 +235,48 @@ def _workspace_navigation_modules(workspace_projection):
     return modules
 
 
+def _workspace_context_payload(workspace, section, item):
+    return {
+        "workspace_id": workspace.get("id"),
+        "workspace_label": workspace.get("label"),
+        "section_id": section.get("id"),
+        "section_label": section.get("label"),
+        "item_id": item.get("workspace_item_id"),
+        "item_label": item.get("label"),
+        "url_name": item.get("url_name"),
+        "is_home": item.get("workspace_item_id") == workspace.get("home"),
+    }
+
+
 def _workspace_navigation_context(request, workspace_projection):
-    """Resolve deep link somente contra itens visíveis e compatíveis com a rota atual."""
+    """Resolve contexto explícito; sem parâmetros, usa o item ativo do Workspace default."""
     requested_workspace = str(request.GET.get("workspace") or "").strip()
     requested_item = str(request.GET.get("workspace_item") or "").strip()
-    if not requested_workspace or not requested_item:
+    workspaces = workspace_projection.get("workspaces") or []
+
+    if requested_workspace or requested_item:
+        if not requested_workspace or not requested_item:
+            return None
+        for workspace in workspaces:
+            if workspace.get("id") != requested_workspace:
+                continue
+            for section in workspace.get("sections") or []:
+                for item in section.get("items") or []:
+                    if item.get("workspace_item_id") != requested_item:
+                        continue
+                    if not item.get("is_active"):
+                        return None
+                    return _workspace_context_payload(workspace, section, item)
         return None
-    for workspace in workspace_projection.get("workspaces") or []:
-        if workspace.get("id") != requested_workspace:
-            continue
-        for section in workspace.get("sections") or []:
-            for item in section.get("items") or []:
-                if item.get("workspace_item_id") != requested_item:
-                    continue
-                if not item.get("is_active"):
-                    return None
-                return {
-                    "workspace_id": workspace.get("id"),
-                    "workspace_label": workspace.get("label"),
-                    "section_id": section.get("id"),
-                    "section_label": section.get("label"),
-                    "item_id": item.get("workspace_item_id"),
-                    "item_label": item.get("label"),
-                    "url_name": item.get("url_name"),
-                    "is_home": item.get("workspace_item_id") == workspace.get("home"),
-                }
+
+    default_id = workspace_projection.get("default_workspace")
+    workspace = next((item for item in workspaces if item.get("id") == default_id), None)
+    if not workspace:
+        return None
+    for section in workspace.get("sections") or []:
+        for item in section.get("items") or []:
+            if item.get("is_active"):
+                return _workspace_context_payload(workspace, section, item)
     return None
 
 

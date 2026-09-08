@@ -9,6 +9,7 @@ from .advanced_page_preview import build_advanced_page_preview
 from .advanced_pages import normalize_advanced_pages_config
 from .application_preview import build_preview_shell, _report_navigation_rows
 from .models import Entidade, Sistema
+from .workspace_navigation_context import resolve_workspace_navigation_context
 from .workspace_preview import project_workspace_preview
 
 
@@ -197,6 +198,15 @@ def application_preview(request, sistema_id):
         role_simulation=preview.get("role_simulation") or {},
         entities=entities,
         selected_workspace_id=request.GET.get("workspace"),
+    )
+    selected_workspace = preview["workspace_preview"].get("selected")
+    preview["workspace_navigation_context"] = resolve_workspace_navigation_context(
+        {
+            "default_workspace": preview["workspace_preview"].get("selected_id"),
+            "workspaces": [selected_workspace] if selected_workspace else [],
+        },
+        workspace_id=request.GET.get("workspace"),
+        item_id=request.GET.get("workspace_item"),
     )
     preview["designer_links"] = _designer_links(sistema, preview)
     if preview.get("page_kind") == "workflow":

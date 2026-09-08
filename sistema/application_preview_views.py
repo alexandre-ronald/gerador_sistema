@@ -124,7 +124,7 @@ def _ensure_workflow_navigation(sistema, preview):
         entity = entities.get(entity_name)
         if entity is None:
             continue
-        workflows.append({"entity_id": entity.pk, "entity": entity.nome, "label": entity.nome_plural or entity.nome, "icon": "bi-diagram-3", "active": selected_entity_id == entity.pk})
+        workflows.append({"entity_id": entity.pk, "entity": entity.nome,"label": entity.nome_plural or entity.nome,"icon": "bi-diagram-3","active": selected_entity_id == entity.pk})
     workflows.sort(key=lambda item: (str(item.get("label") or "").casefold(), item.get("entity_id") or 0))
     navigation["workflows"] = workflows
 
@@ -165,6 +165,34 @@ def _apply_report_permissions(sistema, preview):
         preview["dashboard_page"] = None
         preview["workflow_page"] = None
         preview["content"] = {"title": "Relatório não disponível para este papel", "subtitle": "O Permission Designer não autorizou o papel simulado a acessar este relatório."}
+
+
+def _apply_workspace_navigation(preview):
+    """Substitui a navegação legada pela organização do Workspace selecionado."""
+    workspace_preview = preview.get("workspace_preview") or {}
+    if not workspace_preview.get("configured"):
+        return
+    selected = workspace_preview.get("selected")
+    navigation = preview.setdefault("navigation", {})
+    navigation["workspace_active"] = True
+    navigation["workspace_label"] = (selected or {}).get("label") or "Workspace"
+    navigation["workspace_sections"] = []
+    if not selected:
+        return
+    active_item_id = str((preview.get("workspace_navigation_context") or {}).get("item_id") or "")
+    for section in selected.get("sections") or []:
+        items = []
+        for item in section.get("items") or []:
+            projected = dict(item)
+            projected["active"] = str(item.get("id") or "") == active_item_id
+            items.append(projected)
+        if items:
+            navigation["workspace_sections"].append({
+                "id": section.get("id") or "",
+                "label": section.get("label") or "",
+                "icon": section.get("icon") or "",
+                "items": items,
+            })
 
 
 @login_required
@@ -208,6 +236,7 @@ def application_preview(request, sistema_id):
         workspace_id=request.GET.get("workspace"),
         item_id=request.GET.get("workspace_item"),
     )
+    _apply_workspace_navigation(preview)
     preview["designer_links"] = _designer_links(sistema, preview)
     if preview.get("page_kind") == "workflow":
         template_name = "sistema/application_preview_workflow.html"

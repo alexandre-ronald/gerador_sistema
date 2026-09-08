@@ -61,6 +61,9 @@ class WorkspaceDesignerTests(TestCase):
         self.assertTemplateUsed(response, "sistema/workspace_designer.html")
         self.assertContains(response, "Espaços de trabalho")
         self.assertContains(response, "Organização do trabalho")
+        self.assertContains(response, "Mover workspace para cima")
+        self.assertContains(response, "Mover seção para cima")
+        self.assertContains(response, "Mover experiência para cima")
         catalog = json.loads(response.context["experience_catalog_json"])
         self.assertIn({"kind": "dashboard", "ref": "dashboard", "label": "Painel Executivo", "group": "Painéis"}, catalog)
 
@@ -75,6 +78,23 @@ class WorkspaceDesignerTests(TestCase):
         stored = self.version.estrutura_json["workspaces"]
         self.assertEqual(stored["default_workspace"], "gestao")
         self.assertEqual(stored["workspaces"][0]["home"], "painel")
+
+    def test_save_preserves_explicit_workspace_section_and_item_order(self):
+        config = self._config()
+        workspace = config["workspaces"][0]
+        workspace["order"] = 7
+        workspace["sections"][0]["order"] = 5
+        workspace["sections"][0]["items"][0]["order"] = 3
+        response = self.client.post(
+            reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),
+            data=json.dumps({"workspaces": config}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        stored = response.json()["workspaces"]["workspaces"][0]
+        self.assertEqual(stored["order"], 7)
+        self.assertEqual(stored["sections"][0]["order"], 5)
+        self.assertEqual(stored["sections"][0]["items"][0]["order"], 3)
 
     def test_save_migrates_placeholder_ids_to_semantic_stable_ids(self):
         config = self._config()

@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from sistema.models import Sistema, VersaoGeracao
+from sistema.models import Campo, Entidade, Modulo, Sistema, VersaoGeracao
 from sistema.workspace_preview import project_workspace_preview
 from sistema.workspace_visibility import visible_workspace_config
 
@@ -22,8 +22,33 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
             descricao="Rascunho",
             estrutura_json={},
         )
+        modulo = Modulo.objects.create(sistema=self.sistema, nome="operacao")
+        self.fornecedor = Entidade.objects.create(
+            modulo=modulo,
+            nome="Fornecedor",
+            nome_plural="Fornecedores",
+            gerar_crud_views=True,
+        )
+        self.contrato = Entidade.objects.create(
+            modulo=modulo,
+            nome="Contrato",
+            nome_plural="Contratos",
+            gerar_crud_views=True,
+        )
+        Campo.objects.create(entidade=self.fornecedor, nome="nome", tipo="CharField", max_length=120)
+        Campo.objects.create(entidade=self.contrato, nome="numero", tipo="CharField", max_length=30)
         self.client.force_login(self.user)
         self.structure = {
+            "cruds": {"Fornecedor": {}, "Contrato": {}},
+            "reports": {
+                "Contrato": [
+                    {
+                        "id": "contratos_ativos",
+                        "title": "Relatório de Contratos",
+                        "enabled": True,
+                    }
+                ]
+            },
             "rbac": {
                 "enabled": True,
                 "roles": [
@@ -101,8 +126,8 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
             },
         }
         self.entities = [
-            SimpleNamespace(nome="Fornecedor", pk=10),
-            SimpleNamespace(nome="Contrato", pk=20),
+            SimpleNamespace(nome="Fornecedor", pk=self.fornecedor.pk),
+            SimpleNamespace(nome="Contrato", pk=self.contrato.pk),
         ]
 
     def _preview_for(self, structure, role_id):
@@ -140,7 +165,6 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
     def test_gestor_preview_matches_runtime_visibility_projection(self):
         preview = self._preview_for(self.structure, "gestor")
         runtime = self._runtime_projection_for(self.structure, "gestor")
-
         self.assertEqual(self._shape(preview["workspaces"]), self._shape(runtime["workspaces"]))
         self.assertEqual([workspace["id"] for workspace in preview["workspaces"]], ["gestao", "fiscalizacao"])
         self.assertEqual(
@@ -151,7 +175,6 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
     def test_fiscal_preview_matches_runtime_visibility_projection(self):
         preview = self._preview_for(self.structure, "fiscal")
         runtime = self._runtime_projection_for(self.structure, "fiscal")
-
         self.assertEqual(self._shape(preview["workspaces"]), self._shape(runtime["workspaces"]))
         self.assertEqual([workspace["id"] for workspace in preview["workspaces"]], ["gestao", "fiscalizacao"])
         self.assertEqual(
@@ -164,16 +187,19 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
         preview = self._preview_for(self.structure, "fiscal")
         gestao_item = preview["workspaces"][0]["sections"][0]["items"][0]
         fiscalizacao_item = preview["workspaces"][1]["sections"][0]["items"][0]
-
         self.assertIn("workspace=gestao", gestao_item["url"])
         self.assertIn("workspace_item=contratos", gestao_item["url"])
         self.assertIn("workspace=fiscalizacao", fiscalizacao_item["url"])
         self.assertIn("workspace_item=contratos_fiscais", fiscalizacao_item["url"])
 
     def test_designer_persistence_is_the_source_for_role_projections(self):
-        # RBAC já existe no rascunho; o Workspace Designer deve alterar apenas
-        # o contrato de Workspace e preservar os demais contratos da versão.
-        self.version.estrutura_json = {"rbac": self.structure["rbac"], "marcador": {"preservar": True}}
+        # O Designer valida destinos contra experiências realmente existentes no rascunho.
+        self.version.estrutura_json = {
+            "cruds": self.structure["cruds"],
+            "reports": self.structure["reports"],
+            "rbac": self.structure["rbac"],
+            "marcador": {"preservar": True},
+        }
         self.version.save(update_fields=["estrutura_json"])
 
         response = self.client.post(
@@ -191,7 +217,4 @@ class WorkspaceEndToEndEquivalenceTests(TestCase):
         for role_id in ("gestor", "fiscal"):
             preview = self._preview_for(persisted, role_id)
             runtime = self._runtime_projection_for(persisted, role_id)
-            self.assertEqual(
-                self._shape(preview["workspaces"]),
-                self._shape(runtime["workspaces"]),
-            )
+            self.assertEqual(self._shape(preview["workspaces"]), self._shape(runtime["workspaces"]))

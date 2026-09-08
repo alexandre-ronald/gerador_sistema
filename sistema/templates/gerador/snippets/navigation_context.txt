@@ -5,6 +5,8 @@ from django.apps import apps
 {% endif %}
 # Generated from the persisted system specification. Keep URL/permission
 # identifiers here Python-safe; display labels may contain accents.
+WORKSPACES = {{ workspaces_python|safe }}
+
 NAVIGATION_MODULES = [
 {% if notifications.enabled %}    {
         "app_name": "notifications",
@@ -145,6 +147,62 @@ def _relation_filter_choices(request):
     return result
 
 
+def _navigation_item_index(request):
+    index = {}
+    for module in NAVIGATION_MODULES:
+        for item in _mark_active_items(request, _allowed_items(request, module["items"])):
+            if item.get("is_report"):
+                index[("report", f"{item.get('entity_name')}:{item.get('report_id')}")] = item
+            elif item.get("is_advanced_page"):
+                index[("advanced_page", item.get("advanced_page_id"))] = item
+            elif item.get("entity_name"):
+                index[("crud", item.get("entity_name"))] = item
+    resolver_match = getattr(request, "resolver_match", None)
+    dashboard_active = getattr(resolver_match, "url_name", None) in {"dashboard", "dashboard_data"}
+    index[("dashboard", "dashboard")] = {"label": "Dashboard","url_name": "dashboard","active_url_names": ["dashboard", "dashboard_data"],"permission": "","app_name": "","is_active": dashboard_active,"is_dashboard": True}
+    return index
+
+
+def _workspace_projection(request):
+    config = WORKSPACES if isinstance(WORKSPACES, dict) else {}
+    raw_workspaces = config.get("workspaces") if isinstance(config.get("workspaces"), list) else []
+    if not raw_workspaces:
+        return {"configured": False, "workspaces": [], "default_workspace": ""}
+    item_index = _navigation_item_index(request)
+    visible = []
+    for workspace in raw_workspaces:
+        if workspace.get("enabled") is False:
+            continue
+        sections = []
+        visible_item_ids = set()
+        for section in workspace.get("sections") or []:
+            if section.get("enabled") is False:
+                continue
+            items = []
+            for configured_item in section.get("items") or []:
+                if configured_item.get("enabled") is False:
+                    continue
+                destination = configured_item.get("destination") or {}
+                key = (destination.get("kind"), destination.get("ref"))
+                nav_item = item_index.get(key)
+                if not nav_item:
+                    continue
+                projected = {**nav_item, "workspace_item_id": configured_item.get("id"), "label": configured_item.get("label") or nav_item.get("label")}
+                items.append(projected)
+                visible_item_ids.add(configured_item.get("id"))
+            if items:
+                sections.append({"id": section.get("id"), "label": section.get("label"), "items": items})
+        if not sections:
+            continue
+        home = workspace.get("home") if workspace.get("home") in visible_item_ids else sections[0]["items"][0].get("workspace_item_id")
+        visible.append({"id": workspace.get("id"), "label": workspace.get("label"), "description": workspace.get("description"), "icon": workspace.get("icon"), "home": home, "sections": sections})
+    default_workspace = config.get("default_workspace")
+    visible_ids = {workspace.get("id") for workspace in visible}
+    if default_workspace not in visible_ids:
+        default_workspace = visible[0].get("id") if visible else ""
+    return {"configured": True, "workspaces": visible, "default_workspace": default_workspace}
+
+
 {% if notifications.enabled %}def _notification_unread_count(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated: return 0
@@ -165,4 +223,4 @@ def _relation_filter_choices(request):
             if module.get("app_name") in {"reports", "advanced_pages"}:
                 marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item.get("order", 0), item["label"].casefold()))
             modules.append({**module, "items": marked})
-    return {"navigation_modules": modules,"navigation_current": _current_navigation_context(request, modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}
+    return {"navigation_modules": modules,"navigation_workspaces": _workspace_projection(request),"navigation_current": _current_navigation_context(request, modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

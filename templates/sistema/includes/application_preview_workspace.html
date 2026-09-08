@@ -3,9 +3,9 @@
     <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
       <div>
         <div class="small text-uppercase fw-bold text-primary mb-1">Workspace · GEN-072</div>
-        {% if preview.workspace_preview.configured and preview.workspace_preview.selected %}
-        <div class="fw-bold" data-preview-workspace-selected="{{ preview.workspace_preview.selected.id }}">{{ preview.workspace_preview.selected.label }}</div>
-        <div class="small text-secondary">{{ preview.workspace_preview.selected.description|default:'Navegação orientada ao trabalho.' }}</div>
+        {% if preview.workspace_preview.configured and preview.workspace_preview.workspaces %}
+        <div class="fw-bold">Composição da aplicação</div>
+        <div class="small text-secondary">Todos os Workspaces disponíveis para o papel simulado são apresentados em conjunto.</div>
         {% elif preview.workspace_preview.configured %}
         <div class="fw-bold">Nenhum Workspace disponível para este papel</div>
         <div class="small text-secondary">O papel simulado não possui destinos autorizados nos Workspaces configurados.</div>
@@ -15,12 +15,7 @@
         {% endif %}
       </div>
       <div class="d-flex gap-2 flex-wrap align-items-center">
-        {% if preview.workspace_preview.workspaces|length > 1 %}
-          {% for workspace in preview.workspace_preview.workspaces %}
-          <a class="btn btn-sm {% if workspace.id == preview.workspace_preview.selected_id %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ workspace.home_url }}{% if preview.role_simulation.requested_role_id %}{% if '?' in workspace.home_url %}&{% else %}?{% endif %}papel={{ preview.role_simulation.requested_role_id }}{% endif %}{% if preview.device_preview.selected %}{% if '?' in workspace.home_url %}&{% else %}?{% endif %}dispositivo={{ preview.device_preview.selected }}{% endif %}">{{ workspace.label }}</a>
-          {% endfor %}
-        {% endif %}
-        <a class="btn btn-sm btn-outline-primary" href="{% url 'sistema:workspace_designer' sistema.pk %}" data-preview-workspace-designer><i class="bi bi-layout-sidebar-inset me-1"></i>{% if preview.workspace_preview.configured %}Editar Workspace{% else %}Configurar Workspace{% endif %}</a>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'sistema:workspace_designer' sistema.pk %}" data-preview-workspace-designer><i class="bi bi-layout-sidebar-inset me-1"></i>{% if preview.workspace_preview.configured %}Editar Workspaces{% else %}Configurar Workspace{% endif %}</a>
       </div>
     </div>
     {% if preview.workspace_navigation_context %}
@@ -31,15 +26,23 @@
       {% endfor %}
     </div>
     {% endif %}
-    {% if preview.workspace_preview.selected %}
+    {% if preview.workspace_preview.workspaces %}
     <hr class="my-3">
-    <div class="row g-3" data-preview-workspace-sections>
-      {% for section in preview.workspace_preview.selected.sections %}
-      <div class="col-12 col-lg-6" data-preview-workspace-section="{{ section.id }}">
-        <div class="small fw-bold text-secondary mb-2">{{ section.label }}</div>
-        <div class="d-flex flex-wrap gap-2">
-          {% for item in section.items %}
-          <a href="{{ item.url }}{% if preview.role_simulation.requested_role_id %}{% if '?' in item.url %}&{% else %}?{% endif %}papel={{ preview.role_simulation.requested_role_id }}{% endif %}" class="btn btn-sm btn-outline-primary" data-preview-workspace-item="{{ item.id }}"><i class="bi {{ item.icon|default:'bi-arrow-right-circle' }} me-1"></i>{{ item.label }}</a>
+    <div class="row g-3" data-preview-workspaces>
+      {% for workspace in preview.workspace_preview.workspaces %}
+      <div class="col-12 col-xl-6" data-preview-workspace-group="{{ workspace.id }}">
+        <div class="border rounded-3 p-3 h-100">
+          <div class="fw-bold mb-1">{{ workspace.label }}</div>
+          {% if workspace.description %}<div class="small text-secondary mb-3">{{ workspace.description }}</div>{% endif %}
+          {% for section in workspace.sections %}
+          <div class="mb-3" data-preview-workspace-section="{{ workspace.id }}:{{ section.id }}">
+            <div class="small fw-bold text-secondary mb-2">{{ section.label }}</div>
+            <div class="d-flex flex-wrap gap-2">
+              {% for item in section.items %}
+              <a href="{{ item.url }}{% if preview.role_simulation.requested_role_id %}{% if '?' in item.url %}&{% else %}?{% endif %}papel={{ preview.role_simulation.requested_role_id }}{% endif %}" class="btn btn-sm btn-outline-primary" data-preview-workspace-item="{{ workspace.id }}:{{ item.id }}"><i class="bi {{ item.icon|default:'bi-arrow-right-circle' }} me-1"></i>{{ item.label }}</a>
+              {% endfor %}
+            </div>
+          </div>
           {% endfor %}
         </div>
       </div>

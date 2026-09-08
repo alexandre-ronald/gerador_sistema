@@ -114,13 +114,14 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('"navigation_workspace_context": workspace_context', content)
         self.assertIn('if not item.get("is_active"):', content)
 
-    def test_workspace_context_falls_back_to_active_item_in_default_workspace(self):
+    def test_workspace_context_falls_back_to_active_item_across_visible_workspaces(self):
         content = self._generate_context_processor(self._workspace_structure())
         compile(content, "context_processors.py", "exec")
         self.assertIn("if requested_workspace or requested_item:", content)
-        self.assertIn('workspace = workspace_projection.get("active_workspace")', content)
+        self.assertIn("for workspace in workspaces:", content)
         self.assertIn('if item.get("is_active"):', content)
         self.assertIn("return _workspace_context_payload(workspace, section, item)", content)
+        self.assertNotIn('workspace_projection.get("active_workspace")', content)
 
     def test_workspace_context_drives_generated_runtime_breadcrumb_labels(self):
         content = self._generate_context_processor(self._workspace_structure())
@@ -138,16 +139,7 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('"is_report": False if destination.get("kind") == "report"', content)
         self.assertIn('"group_label": "" if destination.get("kind") == "report"', content)
 
-    def test_runtime_resolves_requested_visible_workspace_before_default(self):
-        content = self._generate_context_processor(self._workspace_structure())
-        compile(content, "context_processors.py", "exec")
-        self.assertIn("def _resolve_active_workspace(workspace_projection, requested_workspace=\"\"):", content)
-        self.assertIn("if requested_workspace:", content)
-        self.assertIn('selected = next((item for item in workspaces if item.get("id") == requested_workspace), None)', content)
-        self.assertIn('active_workspace = _resolve_active_workspace(workspace_projection, requested_workspace)', content)
-        self.assertIn('"active_workspace": active_workspace', content)
-
-    def test_generated_base_renders_workspace_switcher_and_preserves_context(self):
+    def test_runtime_projects_all_visible_workspaces_without_active_workspace_state(self):
         structure = self._workspace_structure()
         structure["workspaces"]["workspaces"].append(
             {
@@ -163,22 +155,24 @@ class GeneratedWorkspaceNavigationTests(TestCase):
                             {
                                 "id": "contratos_fiscais",
                                 "label": "Contratos para fiscalizar",
-                                "destination": {
-                                    "kind": "crud",
-                                    "ref": "Contrato",
-                                    "operation": "list",
-                                },
+                                "destination": {"kind": "crud", "ref": "Contrato", "operation": "list"},
                             }
                         ],
                     }
                 ],
             }
         )
-        content = self._generate_base_template(structure)
-        self.assertIn("navigation_workspaces.workspaces|length > 1", content)
-        self.assertIn("navigation_workspaces.active_workspace.label", content)
-        self.assertIn("item.workspace_item_id == workspace.home", content)
-        self.assertIn("?workspace={{ workspace.id|urlencode }}&workspace_item={{ item.workspace_item_id|urlencode }}", content)
+        content = self._generate_context_processor(structure)
+        compile(content, "context_processors.py", "exec")
+        self.assertIn("def _workspace_navigation_modules(workspace_projection):", content)
+        self.assertIn("for workspace in workspace_projection.get(\"workspaces\") or []:", content)
+        self.assertIn('"workspace_label": workspace.get("label")', content)
+        self.assertIn('"workspace_section_label": section.get("label")', content)
+        self.assertNotIn("def _resolve_active_workspace", content)
+        self.assertNotIn('"active_workspace": active_workspace', content)
+
+    def test_generated_base_preserves_workspace_context_in_navigation_links(self):
+        content = self._generate_base_template(self._workspace_structure())
         self.assertIn("?workspace={{ modulo.workspace_id|urlencode }}&workspace_item={{ item.workspace_item_id|urlencode }}", content)
 
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
@@ -190,18 +184,8 @@ class GeneratedWorkspaceNavigationTests(TestCase):
                         "state_field": "status",
                         "initial_state": "rascunho",
                         "states": [
-                            {
-                                "id": "rascunho",
-                                "label": "Rascunho",
-                                "final": False,
-                                "order": 0,
-                            },
-                            {
-                                "id": "aprovado",
-                                "label": "Aprovado",
-                                "final": True,
-                                "order": 1,
-                            },
+                            {"id": "rascunho", "label": "Rascunho", "final": False, "order": 0},
+                            {"id": "aprovado", "label": "Aprovado", "final": True, "order": 1},
                         ],
                         "transitions": [
                             {
@@ -219,25 +203,22 @@ class GeneratedWorkspaceNavigationTests(TestCase):
                 },
                 "workspaces": {
                     "version": 1,
-                    "default_workspace": "fiscalizacao",
+                    "default_workspace": "operacao",
                     "workspaces": [
                         {
-                            "id": "fiscalizacao",
-                            "label": "Fiscalização",
+                            "id": "operacao",
+                            "label": "Operação",
                             "enabled": True,
-                            "home": "fluxo_contratos",
+                            "home": "fluxo_contrato",
                             "sections": [
                                 {
-                                    "id": "operacao",
-                                    "label": "Operação",
+                                    "id": "fluxos",
+                                    "label": "Fluxos",
                                     "items": [
                                         {
-                                            "id": "fluxo_contratos",
+                                            "id": "fluxo_contrato",
                                             "label": "Fluxo de Contratos",
-                                            "destination": {
-                                                "kind": "workflow",
-                                                "ref": "Contrato",
-                                            },
+                                            "destination": {"kind": "workflow", "ref": "Contrato"},
                                         }
                                     ],
                                 }
@@ -249,5 +230,10 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         )
         compile(content, "context_processors.py", "exec")
         self.assertIn('index[("workflow", item.get("entity_name"))] = item', content)
-        self.assertIn('key = (destination.get("kind"), destination.get("ref"))', content)
-        self.assertIn('workspace_modules = _workspace_navigation_modules(workspace_projection)', content)
+        self.assertIn("('kind': 'workflow'".replace("'", '"').split()[0], '"kind"') if False else '"workspace_destination_kind": destination.get("kind")', content)
+
+    def test_generation_without_workspace_preserves_legacy_navigation(self):
+        content = self._generate_context_processor({})
+        compile(content, "context_processors.py", "exec")
+        self.assertIn('return {"configured": False, "workspaces": [], "default_workspace": ""}', content)
+        self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)

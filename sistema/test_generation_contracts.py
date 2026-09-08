@@ -27,6 +27,19 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("navigation_modules", base); self.assertIn("navigation_modules", index); self.assertIn("url item.url_name", base); self.assertIn("url item.url_name", index); self.assertIn('{% templatetag openvariable %} item.permission {% templatetag closevariable %}', base); self.assertIn("item.is_active", base); self.assertNotIn("request.resolver_match.app_name == item.app_name", base)
         self.assertIn("NAVIGATION_MODULES", navigation); self.assertIn("user.has_perm", navigation); self.assertIn("{{ modulo.app_name }}:{{ entidade.codigo_nome }}_list", navigation); self.assertIn('"active_url_names": [', navigation); self.assertIn("current_url_name in active_names", navigation)
 
+    def test_workspace_navigation_reuses_runtime_destinations_and_rbac(self):
+        navigation = self._source("gerador/snippets/navigation_context.txt")
+        self.assertIn("WORKSPACES = {{ workspaces_python|safe }}", navigation)
+        self.assertIn("_workspace_projection", navigation)
+        self.assertIn("_navigation_item_index", navigation)
+        self.assertIn('index[("crud", item.get("entity_name"))] = item', navigation)
+        self.assertIn('index[("workflow", item.get("entity_name"))] = item', navigation)
+        self.assertIn('index[("report", f"{item.get(\'entity_name\')}:{item.get(\'report_id\')}")] = item', navigation)
+        self.assertIn('index[("advanced_page", item.get("advanced_page_id"))] = item', navigation)
+        self.assertIn('index[("dashboard", "dashboard")]', navigation)
+        self.assertIn("_allowed_items(request, module[\"items\"])", navigation)
+        self.assertIn('"navigation_workspaces": _workspace_projection(request)', navigation)
+
     def test_global_navigation_exposes_context_and_compact_sidebar(self):
         base = self._source("gerador/snippets/base_html.txt"); navigation = self._source("gerador/snippets/navigation_context.txt")
         self.assertIn("navigation_current", navigation); self.assertIn("_current_navigation_context", navigation); self.assertIn("sidebar-collapse", base); self.assertIn("sidebar-collapsed", base); self.assertIn("localStorage.setItem('sidebar-collapsed'", base); self.assertIn("navigation_current.module_label", base); self.assertIn("navigation_current.item_label", base); self.assertIn("url 'dashboard'", base); self.assertIn("app-user-menu", base); self.assertIn("Sair do sistema", base); self.assertIn("aria-controls=\"app-sidebar\"", base)

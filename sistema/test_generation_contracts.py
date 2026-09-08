@@ -40,6 +40,15 @@ class GeneratedTemplateContractTests(SimpleTestCase):
         self.assertIn("_allowed_items(request, module[\"items\"])", navigation)
         self.assertIn('"navigation_workspaces": _workspace_projection(request)', navigation)
 
+    def test_workspace_shell_prefers_workspace_and_keeps_legacy_fallback(self):
+        base = self._source("gerador/snippets/base_html.txt")
+        self.assertIn("navigation_workspaces.configured", base)
+        self.assertIn("navigation_workspaces.workspaces", base)
+        self.assertIn("workspace.sections", base)
+        self.assertIn("section.items", base)
+        self.assertIn("url item.url_name", base)
+        self.assertIn("for modulo in navigation_modules", base)
+
     def test_global_navigation_exposes_context_and_compact_sidebar(self):
         base = self._source("gerador/snippets/base_html.txt"); navigation = self._source("gerador/snippets/navigation_context.txt")
         self.assertIn("navigation_current", navigation); self.assertIn("_current_navigation_context", navigation); self.assertIn("sidebar-collapse", base); self.assertIn("sidebar-collapsed", base); self.assertIn("localStorage.setItem('sidebar-collapsed'", base); self.assertIn("navigation_current.module_label", base); self.assertIn("navigation_current.item_label", base); self.assertIn("url 'dashboard'", base); self.assertIn("app-user-menu", base); self.assertIn("Sair do sistema", base); self.assertIn("aria-controls=\"app-sidebar\"", base)

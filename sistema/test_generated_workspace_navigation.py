@@ -105,6 +105,14 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('"navigation_workspace_context": workspace_context', content)
         self.assertIn('if not item.get("is_active"):', content)
 
+    def test_workspace_context_falls_back_to_active_item_in_default_workspace(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn("if requested_workspace or requested_item:", content)
+        self.assertIn('default_id = workspace_projection.get("default_workspace")', content)
+        self.assertIn('if item.get("is_active"):', content)
+        self.assertIn("return _workspace_context_payload(workspace, section, item)", content)
+
     def test_workspace_context_drives_generated_runtime_breadcrumb_labels(self):
         content = self._generate_context_processor(self._workspace_structure())
         compile(content, "context_processors.py", "exec")

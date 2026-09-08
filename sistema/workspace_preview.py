@@ -74,8 +74,34 @@ def _project_workspace(workspace, entity_ids):
     return projected_workspace
 
 
+def _navigation_groups(projected_workspaces):
+    """Mantém a hierarquia Sistema -> Workspace -> Seção -> Experiência."""
+    groups = []
+    for workspace in projected_workspaces:
+        sections = []
+        for section in workspace.get("sections") or []:
+            items = [deepcopy(item) for item in section.get("items") or [] if item.get("url")]
+            if items:
+                sections.append({
+                    "id": section.get("id") or "",
+                    "label": section.get("label") or "",
+                    "icon": section.get("icon") or "",
+                    "items": items,
+                })
+        if sections:
+            groups.append({
+                "id": workspace.get("id") or "",
+                "label": workspace.get("label") or "Workspace",
+                "description": workspace.get("description") or "",
+                "icon": workspace.get("icon") or "",
+                "home_url": workspace.get("home_url") or "",
+                "sections": sections,
+            })
+    return groups
+
+
 def project_workspace_preview(structure, *, role_simulation, entities, selected_workspace_id=""):
-    """Projeta o contrato persistido sem criar estado próprio no Preview."""
+    """Projeta todos os Workspaces visíveis; seleção serve apenas ao contexto do deep link."""
     structure = structure if isinstance(structure, dict) else {}
     raw = structure.get("workspaces") if isinstance(structure.get("workspaces"), dict) else None
     config = normalize_workspace_config(raw, strict=False)
@@ -108,6 +134,7 @@ def project_workspace_preview(structure, *, role_simulation, entities, selected_
     return {
         "configured": bool(config["workspaces"]),
         "workspaces": projected_workspaces,
+        "navigation_groups": _navigation_groups(projected_workspaces),
         "selected": selected,
         "selected_id": selected_id,
         "requested_id": requested,

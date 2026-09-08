@@ -169,7 +169,7 @@ class GeradorService:
             app_names[modulo.app_name] = modulo.nome; modulo.entidades_geracao = list(modulo.entidades.all()); modulo.entidades_crud = []; modulo.entidades_api = []; class_names = {}
             for entidade in modulo.entidades_geracao:
                 entidade.codigo_nome = self._python_identifier(entidade.nome, "entidade"); entidade.classe_nome = self._class_name(entidade.nome)
-                if entidade.classe_nome in class_names: raise ValueError(f"Entidades '{class_names[entidade.classe_nome]}' e '{entidade.nome}' no módulo '{modulo.nome}' geram a mesma classe '{entidade.classe_nome}'. Renomeie um deles.")
+                if entidade.classe_nome in class_names: raise ValueError(f"Entidades '{class_names[entidade.classe_nome]}' e '{entidade.nome}' no módulo '{modulo.nome}' geram a mesma classe '{entidade.classe_nome}'.")
                 class_names[entidade.classe_nome] = entidade.nome; entidade.campos_geracao = list(entidade.campos.all()); all_entities.append(entidade)
                 if entidade.gerar_crud_views: modulo.entidades_crud.append(entidade)
                 field_names = {}
@@ -186,49 +186,65 @@ class GeradorService:
         return {"sistema": self.sistema,"nome_projeto": self.nome_projeto,"modulos": modulos,"dashboard": dashboard,"dashboard_json": json.dumps(dashboard.get("widgets", []), ensure_ascii=False),"forms": forms_config,"cruds": cruds_config,"business_rules": rules_config,"api": api_config,"integrations": integrations_config,"integrations_python": repr(integrations_config),"notifications": notifications_config,"advanced_pages": advanced_pages,"workspaces": workspaces,"workspaces_python": repr(workspaces)}
 
     def _registrar_versao(self):
-        ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada.")
+        ultimo = self.sistema.versoes.order_by("-numero").first(); numero = (ultimo.numero if ultimo else 0) + 1; estrutura = serialize_system_structure(self.sistema); self.versao_gerada = VersaoGeracao.objects.create(sistema=self.sistema, numero=numero, descricao=f"Geração automática v{numero}", estrutura_json=estrutura); self.log(f"🗂️ Versão de geração v{numero} registrada")
 
-    def gerar(self):
+    def gerar_projeto_completo(self):
+        if not self.diretorio_base: raise ValueError("Defina a pasta de destino antes de gerar o sistema.")
         try:
-            self.log("🚀 Iniciando geração..."); self._registrar_versao(); context = self._prepare_context()
-            if os.path.exists(self.diretorio_base): shutil.rmtree(self.diretorio_base)
-            os.makedirs(self.diretorio_base); self._gerar_estrutura(context); self._gerar_apps(context); self._gerar_templates(context); self._gerar_arquivos_raiz(context); self._gerar_docker(context)
-            validation = validate_generated_runtime(self.diretorio_base)
-            if not validation.ok:
-                details = "; ".join(validation.errors[:5]); raise RuntimeError(f"Validação do runtime gerado falhou: {details}")
-            self.log("🔎 Runtime gerado validado com sucesso."); self.log("✅ Sistema gerado com sucesso!"); return True
-        except Exception as e: self.log(f"❌ Erro: {str(e)}"); return False
+            if os.path.isdir(self.diretorio_base): shutil.rmtree(self.diretorio_base)
+            os.makedirs(self.diretorio_base, exist_ok=True); self.log("🧹 Diretório de geração limpo antes da compilação"); ctx = self._prepare_context(); self._gerar_core(ctx)
+            for modulo in ctx["modulos"]: self._gerar_modulo(modulo, ctx)
+            self._gerar_templates_globais(ctx); self.log("🔎 Validando o projeto gerado antes de liberar a geração..."); resultado = validate_generated_runtime(self.diretorio_base)
+            for mensagem in resultado.get("messages", []): self.log(mensagem)
+            for aviso in resultado.get("warnings", []): self.log(f"⚠️ {aviso}")
+            self.log(f"✅ Validação concluída: {resultado.get('checked', 0)} itens verificados")
+            if self.sistema.gerar_docker: self._gerar_docker()
+            self._registrar_versao(); self.log("✅ Geração concluída com sucesso!"); return self.logs
+        except Exception as exc: self.log(f"❌ ERRO FATAL: {exc}"); raise
 
-    def _write(self, path, content):
-        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "w", encoding="utf-8").write(content)
+    def _escrever_arquivo(self, caminho_relativo, template_name, contexto):
+        caminho_full = os.path.join(self.diretorio_base, caminho_relativo); os.makedirs(os.path.dirname(caminho_full), exist_ok=True)
+        with open(caminho_full, "w", encoding="utf-8") as f: f.write(render_to_string(template_name, contexto))
+        self.log(f"Arquivo criado: {caminho_relativo}")
 
-    def _render(self, template, context): return render_to_string(f"gerador/snippets/{template}", context)
+    def _gerar_requirements(self, ctx=None):
+        requirements = ["Django>=5.2,<7", "python-dotenv>=1.0"]
+        if ctx and ctx.get("api", {}).get("enabled"): requirements.append("djangorestframework>=3.16,<4")
+        if ctx and ctx.get("integrations", {}).get("enabled"): requirements.append("httpx>=0.27,<1")
+        if self.sistema.banco_dados == "postgresql": requirements.append("psycopg[binary]>=3.2")
+        elif self.sistema.banco_dados == "mysql": requirements.append("mysqlclient>=2.2")
+        elif self.sistema.banco_dados == "sqlserver": requirements.append("mssql-django>=1.5")
+        elif self.sistema.banco_dados == "oracle": requirements.append("oracledb>=2.0")
+        with open(os.path.join(self.diretorio_base, "requirements.txt"), "w", encoding="utf-8") as f: f.write("\n".join(requirements) + "\n")
+        self.log("Arquivo criado: requirements.txt")
 
-    def _gerar_estrutura(self, context):
-        p = os.path.join(self.diretorio_base, self.nome_projeto); os.makedirs(p, exist_ok=True)
-        self._write(os.path.join(p, "__init__.py"), "")
-        self._write(os.path.join(p, "settings.py"), self._render("settings.txt", context)); self._write(os.path.join(p, "urls.py"), self._render("urls_projeto.txt", context)); self._write(os.path.join(p, "views.py"), self._render("project_views.txt", context)); self._write(os.path.join(p, "navigation.py"), self._render("navigation_context.txt", context)); self._write(os.path.join(p, "advanced_pages.py"), self._render("advanced_pages_runtime.txt", context)); self._write(os.path.join(p, "wsgi.py"), self._render("wsgi.txt", context))
+    def _gerar_core(self, ctx):
+        for path, template in (("manage.py", "manage.txt"), (f"{self.nome_projeto}/__init__.py", "init.txt"), (f"{self.nome_projeto}/settings.py", "settings.txt"), (f"{self.nome_projeto}/urls.py", "urls_root_v2.txt"), (f"{self.nome_projeto}/wsgi.py", "wsgi.txt"), (f"{self.nome_projeto}/context_processors.py", "navigation_context.txt"), (f"{self.nome_projeto}/dashboard_data.py", "dashboard_data_views.txt"), (f"{self.nome_projeto}/advanced_pages.py", "advanced_pages_runtime.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        if ctx.get("notifications", {}).get("enabled"):
+            for path, template in (("djangoforge_notifications/__init__.py", "init.txt"),("djangoforge_notifications/apps.py", "notification_apps.txt"),("djangoforge_notifications/models.py", "notification_models.txt"),("djangoforge_notifications/views.py", "notification_views.txt"),("djangoforge_notifications/urls.py", "notification_urls.txt"),("djangoforge_notifications/admin.py", "notification_admin.txt"),("djangoforge_notifications/migrations/__init__.py", "init.txt"),("djangoforge_notifications/migrations/0001_initial.py", "notification_migration_0001.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        if ctx.get("integrations", {}).get("enabled"):
+            for path, template in (("integrations/__init__.py", "integration_init.txt"), ("integrations/config.py", "integration_config.txt"), ("integrations/client.py", "integration_client.txt")): self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        self._gerar_requirements(ctx); os.makedirs(os.path.join(self.diretorio_base, "static"), exist_ok=True); os.makedirs(os.path.join(self.diretorio_base, "media"), exist_ok=True); self.log("✅ Diretórios static/ e media/ preparados")
 
-    def _gerar_apps(self, context):
-        for modulo in context["modulos"]:
-            app_dir = os.path.join(self.diretorio_base, modulo.app_name); os.makedirs(os.path.join(app_dir, "migrations"), exist_ok=True); self._write(os.path.join(app_dir, "__init__.py"), ""); self._write(os.path.join(app_dir, "migrations", "__init__.py"), ""); ctx = {**context, "modulo": modulo}
-            self._write(os.path.join(app_dir, "apps.py"), self._render("apps_config.txt", ctx)); self._write(os.path.join(app_dir, "models.py"), self._render("models_v2.txt", ctx)); self._write(os.path.join(app_dir, "forms.py"), self._render("forms_v2.txt", ctx)); self._write(os.path.join(app_dir, "business_rules.py"), self._render("business_rules_runtime.txt", ctx)); self._write(os.path.join(app_dir, "views.py"), self._render("views_v2.txt", ctx)); self._write(os.path.join(app_dir, "urls.py"), self._render("urls_app.txt", ctx)); self._write(os.path.join(app_dir, "admin.py"), self._render("admin_v2.txt", ctx)); self._write(os.path.join(app_dir, "rbac.py"), self._render("rbac_runtime.txt", ctx))
-            if modulo.entidades_api: self._write(os.path.join(app_dir, "serializers.py"), self._render("api_serializers.txt", ctx)); self._write(os.path.join(app_dir, "api_views.py"), self._render("api_views.txt", ctx)); self._write(os.path.join(app_dir, "api_urls.py"), self._render("api_urls.txt", ctx))
-            templates_dir = os.path.join(app_dir, "templates", modulo.app_name); os.makedirs(templates_dir, exist_ok=True)
-            for entidade in modulo.entidades_crud:
-                ectx = {**ctx, "entidade": entidade}; self._write(os.path.join(templates_dir, f"{entidade.codigo_nome}_list.html"), self._render("html_list.txt", ectx)); self._write(os.path.join(templates_dir, f"{entidade.codigo_nome}_form.html"), self._render("html_form.txt", ectx)); self._write(os.path.join(templates_dir, f"{entidade.codigo_nome}_detail.html"), self._render("html_detail.txt", ectx)); self._write(os.path.join(templates_dir, f"{entidade.codigo_nome}_confirm_delete.html"), self._render("html_delete.txt", ectx))
-                for report in getattr(entidade, "report_configs", []): self._write(os.path.join(templates_dir, f"{entidade.codigo_nome}_report_{report.id}.html"), self._render("html_report.txt", {**ectx, "report": report}))
-        if context.get("notifications", {}).get("enabled"): self._gerar_notification_app(context)
+    def _gerar_modulo(self, modulo, ctx):
+        local_ctx = {**ctx,"app_name": modulo.app_name,"entidades": modulo.entidades_geracao,"entidades_crud": modulo.entidades_crud,"entidades_api": modulo.entidades_api,"imports_por_app": {}}
+        arquivos = [(f"{modulo.app_name}/__init__.py", "init.txt"),(f"{modulo.app_name}/models.py", "models.txt"),(f"{modulo.app_name}/migrations/__init__.py", "init.txt"),(f"{modulo.app_name}/forms.py", "forms_v2.txt"),(f"{modulo.app_name}/business_rules.py", "business_rules_runtime.txt"),(f"{modulo.app_name}/workflow.py", "workflow_runtime.txt"),(f"{modulo.app_name}/rbac.py", "rbac_runtime.txt"),(f"{modulo.app_name}/views.py", "views.txt"),(f"{modulo.app_name}/urls.py", "urls_app_v2.txt"),(f"{modulo.app_name}/admin.py", "admin_v2.txt"),(f"{modulo.app_name}/apps.py", "apps_config.txt")]
+        if ctx.get("api", {}).get("enabled") and modulo.entidades_api: arquivos.extend([(f"{modulo.app_name}/serializers.py", "api_serializers.txt"),(f"{modulo.app_name}/api_views.py", "api_views.txt"),(f"{modulo.app_name}/api_urls.py", "api_urls.txt")])
+        for path, template in arquivos: self._escrever_arquivo(path, f"gerador/snippets/{template}", local_ctx)
+        for entidade in modulo.entidades_crud:
+            ent_ctx = {**local_ctx,"entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
+            for suffix, template in (("list", "html_list.txt"),("form", "html_form.txt"),("confirm_delete", "html_delete.txt")): self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_{suffix}.html", f"gerador/snippets/{template}", ent_ctx)
+            if entidade.crud_designer_ready and entidade.crud_actions.view: self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_detail.html", "gerador/snippets/html_detail.txt", ent_ctx)
+        for entidade in modulo.entidades_geracao:
+            ent_ctx = {**local_ctx,"entidade": entidade}; base_t = f"{modulo.app_name}/templates/{modulo.app_name}"
+            self._escrever_arquivo(f"{base_t}/{entidade.codigo_nome}_report.html", "gerador/snippets/html_report.txt", ent_ctx)
 
-    def _gerar_notification_app(self, context):
-        app_dir = os.path.join(self.diretorio_base, "djangoforge_notifications"); os.makedirs(os.path.join(app_dir, "migrations"), exist_ok=True); self._write(os.path.join(app_dir, "__init__.py"), self._render("notification_init.txt", context)); self._write(os.path.join(app_dir, "apps.py"), self._render("notification_apps.txt", context)); self._write(os.path.join(app_dir, "models.py"), self._render("notification_models.txt", context)); self._write(os.path.join(app_dir, "views.py"), self._render("notification_views.txt", context)); self._write(os.path.join(app_dir, "urls.py"), self._render("notification_urls.txt", context)); self._write(os.path.join(app_dir, "admin.py"), self._render("notification_admin.txt", context)); self._write(os.path.join(app_dir, "migrations", "__init__.py"), ""); self._write(os.path.join(app_dir, "migrations", "0001_initial.py"), self._render("notification_migration_0001.txt", context)); templates_dir = os.path.join(app_dir, "templates", "djangoforge_notifications"); os.makedirs(templates_dir, exist_ok=True); self._write(os.path.join(templates_dir, "notification_list.html"), self._render("notification_list_html.txt", context))
+    def _gerar_templates_globais(self, ctx):
+        templates = [("templates/base.html", "base_html.txt"),("templates/index.html", "index_html.txt"),("templates/home.html", "home_html.txt"),("templates/registration/login.html", "login_html.txt"),("templates/dashboard.html", "dashboard_html.txt"),("templates/accounts/profile.html", "profile_html.txt"),("templates/accounts/password_change.html", "password_change_html.txt"),("templates/accounts/user_list.html", "user_list_html.txt"),("templates/accounts/user_form.html", "user_form_html.txt")]
+        if ctx.get("notifications", {}).get("enabled"): templates.append(("templates/notifications/list.html", "notification_list_html.txt"))
+        for path, template in templates: self._escrever_arquivo(path, f"gerador/snippets/{template}", ctx)
+        for page in ctx.get("advanced_pages", {}).get("pages", []):
+            self._escrever_arquivo(f"templates/advanced_pages/{page['id']}.html", "gerador/snippets/advanced_page_html.txt", {**ctx, "page": page})
 
-    def _gerar_templates(self, context):
-        t = os.path.join(self.diretorio_base, "templates"); os.makedirs(t, exist_ok=True); self._write(os.path.join(t, "base.html"), self._render("base_html.txt", context)); self._write(os.path.join(t, "index.html"), self._render("index_html.txt", context)); self._write(os.path.join(t, "home.html"), self._render("home_html.txt", context)); self._write(os.path.join(t, "dashboard.html"), self._render("dashboard_html.txt", context)); self._write(os.path.join(t, "advanced_page.html"), self._render("advanced_page_html.txt", context)); registration = os.path.join(t, "registration"); os.makedirs(registration, exist_ok=True); self._write(os.path.join(registration, "login.html"), self._render("login_html.txt", context)); self._write(os.path.join(registration, "profile.html"), self._render("profile_html.txt", context)); self._write(os.path.join(registration, "password_change_form.html"), self._render("password_change_form.txt", context)); self._write(os.path.join(registration, "password_change_done.html"), self._render("password_change_done.txt", context)); self._write(os.path.join(t, "users_list.html"), self._render("users_list.txt", context)); self._write(os.path.join(t, "user_form.html"), self._render("user_form.txt", context)); self._write(os.path.join(t, "roles_list.html"), self._render("roles_list.txt", context))
-
-    def _gerar_arquivos_raiz(self, context):
-        self._write(os.path.join(self.diretorio_base, "manage.py"), self._render("manage.txt", context)); self._write(os.path.join(self.diretorio_base, "requirements.txt"), self._render("requirements.txt", context)); self._write(os.path.join(self.diretorio_base, ".env.example"), self._render("env_example.txt", context)); self._write(os.path.join(self.diretorio_base, "README.md"), self._render("readme.txt", context)); self._write(os.path.join(self.diretorio_base, "integration_config.py"), self._render("integration_config.txt", context)); self._write(os.path.join(self.diretorio_base, "integration_client.py"), self._render("integration_client.txt", context)); self._write(os.path.join(self.diretorio_base, "integration_triggers.py"), self._render("integration_triggers.txt", context)); self._write(os.path.join(self.diretorio_base, "integration_tasks.py"), self._render("integration_tasks.txt", context)); self._write(os.path.join(self.diretorio_base, "integration_runtime.py"), self._render("integration_runtime.txt", context))
-
-    def _gerar_docker(self, context):
-        if not self.sistema.gerar_docker: return
-        self._write(os.path.join(self.diretorio_base, "Dockerfile"), self._render("dockerfile.txt", context)); self._write(os.path.join(self.diretorio_base, "docker-compose.yml"), self._render("docker_compose.txt", context)); self._write(os.path.join(self.diretorio_base, ".dockerignore"), self._render("dockerignore.txt", context))
+    def _gerar_docker(self):
+        self._escrever_arquivo("Dockerfile", "gerador/snippets/dockerfile.txt", {"sistema": self.sistema,"nome_projeto": self.nome_projeto}); self._escrever_arquivo("docker-compose.yml", "gerador/snippets/docker_compose.txt", {"sistema": self.sistema,"nome_projeto": self.nome_projeto}); self._escrever_arquivo(".env.example", "gerador/snippets/env_example.txt", {"sistema": self.sistema})

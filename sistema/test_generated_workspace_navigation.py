@@ -89,6 +89,46 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn("_workspace_projection(request)", content)
         self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)
 
+    def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
+        content = self._generate_context_processor(
+            {
+                "workflows": {"Contrato": {"enabled": True}},
+                "workspaces": {
+                    "version": 1,
+                    "default_workspace": "fiscalizacao",
+                    "workspaces": [
+                        {
+                            "id": "fiscalizacao",
+                            "label": "Fiscalização",
+                            "enabled": True,
+                            "home": "fluxo_contratos",
+                            "sections": [
+                                {
+                                    "id": "operacao",
+                                    "label": "Operação",
+                                    "items": [
+                                        {
+                                            "id": "fluxo_contratos",
+                                            "label": "Fluxo de Contratos",
+                                            "destination": {
+                                                "kind": "workflow",
+                                                "ref": "Contrato",
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            }
+        )
+        self.assertIn("'kind': 'workflow'", content)
+        self.assertIn("'ref': 'Contrato'", content)
+        self.assertIn('index[("workflow", item.get("entity_name"))] = item', content)
+        self.assertIn('"url_name": "contratos:contrato_list"', content)
+        self.assertNotIn("workflow/", content)
+
     def test_real_generation_without_workspace_preserves_legacy_navigation_fallback(self):
         content = self._generate_context_processor({})
         self.assertIn("'workspaces': []", content)

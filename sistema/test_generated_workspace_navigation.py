@@ -44,16 +44,23 @@ class GeneratedWorkspaceNavigationTests(TestCase):
             estrutura_json={},
         )
 
-    def _generate_context_processor(self, structure):
+    def _generate_file(self, structure, relative_path):
         self.versao.estrutura_json = structure
         self.versao.save(update_fields=["estrutura_json"])
         with tempfile.TemporaryDirectory() as temp_dir:
             self.sistema.caminho_geracao = temp_dir
             self.sistema.save(update_fields=["caminho_geracao"])
             GeradorService(self.sistema.id).gerar_projeto_completo()
-            path = Path(temp_dir) / self.sistema.slug.replace("-", "_") / "context_processors.py"
+            project_root = Path(temp_dir) / self.sistema.slug.replace("-", "_")
+            path = project_root / relative_path
             self.assertTrue(path.exists())
             return path.read_text(encoding="utf-8")
+
+    def _generate_context_processor(self, structure):
+        return self._generate_file(structure, "context_processors.py")
+
+    def _generate_base_template(self, structure):
+        return self._generate_file(structure, "templates/base.html")
 
     def _workspace_structure(self):
         return {
@@ -109,7 +116,7 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         content = self._generate_context_processor(self._workspace_structure())
         compile(content, "context_processors.py", "exec")
         self.assertIn("if requested_workspace or requested_item:", content)
-        self.assertIn('workspace_projection.get("active_workspace")', content)
+        self.assertIn('workspace = workspace_projection.get("active_workspace")', content)
         self.assertIn('if item.get("is_active"):', content)
         self.assertIn("return _workspace_context_payload(workspace, section, item)", content)
 
@@ -128,6 +135,49 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('"workspace_destination_kind": destination.get("kind")', content)
         self.assertIn('"is_report": False if destination.get("kind") == "report"', content)
         self.assertIn('"group_label": "" if destination.get("kind") == "report"', content)
+
+    def test_runtime_resolves_requested_visible_workspace_before_default(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn("def _resolve_active_workspace(workspace_projection, requested_workspace=\"\"):", content)
+        self.assertIn("if requested_workspace:", content)
+        self.assertIn('selected = next((item for item in workspaces if item.get("id") == requested_workspace), None)', content)
+        self.assertIn('active_workspace = _resolve_active_workspace(workspace_projection, requested_workspace)', content)
+        self.assertIn('"active_workspace": active_workspace', content)
+
+    def test_generated_base_renders_workspace_switcher_and_preserves_context(self):
+        structure = self._workspace_structure()
+        structure["workspaces"]["workspaces"].append(
+            {
+                "id": "fiscalizacao",
+                "label": "Fiscalização",
+                "enabled": True,
+                "home": "contratos_fiscais",
+                "sections": [
+                    {
+                        "id": "rotina",
+                        "label": "Rotina",
+                        "items": [
+                            {
+                                "id": "contratos_fiscais",
+                                "label": "Contratos para fiscalizar",
+                                "destination": {
+                                    "kind": "crud",
+                                    "ref": "Contrato",
+                                    "operation": "list",
+                                },
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        content = self._generate_base_template(structure)
+        self.assertIn("navigation_workspaces.workspaces|length > 1", content)
+        self.assertIn("navigation_workspaces.active_workspace.label", content)
+        self.assertIn("item.workspace_item_id == workspace.home", content)
+        self.assertIn("?workspace={{ workspace.id|urlencode }}&workspace_item={{ item.workspace_item_id|urlencode }}", content)
+        self.assertIn("?workspace={{ modulo.workspace_id|urlencode }}&workspace_item={{ item.workspace_item_id|urlencode }}", content)
 
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
         content = self._generate_context_processor(
@@ -207,13 +257,3 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('if not workspace_projection.get("configured"):', content)
         self.assertIn("return None", content)
         self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)
-
-    def test_runtime_resolves_requested_visible_workspace_before_default(self):
-        content = self._generate_context_processor(self._workspace_structure())
-        compile(content, "context_processors.py", "exec")
-        self.assertIn("def _resolve_active_workspace(workspace_projection, requested_workspace=\"\"):", content)
-        self.assertIn("if requested_workspace:", content)
-        self.assertIn('item.get("id") == requested_workspace', content)
-        self.assertIn('requested_workspace = str(request.GET.get("workspace") or "").strip()', content)
-        self.assertIn('"active_workspace": active_workspace', content)
-        self.assertIn('workspace_projection.get("active_workspace")', content)

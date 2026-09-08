@@ -125,6 +125,31 @@ class WorkspacePreviewTests(SimpleTestCase):
             "workspaces": {
                 **self.structure["workspaces"],
                 "default_workspace": "fiscalizacao",
+                "workspaces": [
+                    {
+                        "id": "gestao",
+                        "label": "Gestão",
+                        "home": "fornecedores",
+                        "sections": [
+                            {
+                                "id": "operacao",
+                                "label": "Operação",
+                                "items": [
+                                    {
+                                        "id": "fornecedores",
+                                        "label": "Fornecedores",
+                                        "destination": {
+                                            "kind": "crud",
+                                            "ref": "Fornecedor",
+                                            "operation": "list",
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                    self.structure["workspaces"]["workspaces"][1],
+                ],
             },
         }
         preview = project_workspace_preview(

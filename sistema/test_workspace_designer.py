@@ -76,6 +76,46 @@ class WorkspaceDesignerTests(TestCase):
         self.assertEqual(stored["default_workspace"], "gestao")
         self.assertEqual(stored["workspaces"][0]["home"], "painel")
 
+    def test_save_migrates_placeholder_ids_to_semantic_stable_ids(self):
+        config = self._config()
+        config["default_workspace"] = "novo_workspace"
+        workspace = config["workspaces"][0]
+        workspace.update({"id": "novo_workspace", "label": "Gestão de Fornecedores", "home": "novo_item"})
+        section = workspace["sections"][0]
+        section.update({"id": "nova_secao", "label": "Operação"})
+        item = section["items"][0]
+        item.update({"id": "novo_item", "label": "Fornecedores"})
+
+        response = self.client.post(
+            reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),
+            data=json.dumps({"workspaces": config}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        stored = response.json()["workspaces"]
+        self.assertEqual(stored["default_workspace"], "gestao_de_fornecedores")
+        self.assertEqual(stored["workspaces"][0]["id"], "gestao_de_fornecedores")
+        self.assertEqual(stored["workspaces"][0]["sections"][0]["id"], "operacao")
+        self.assertEqual(stored["workspaces"][0]["sections"][0]["items"][0]["id"], "fornecedores")
+        self.assertEqual(stored["workspaces"][0]["home"], "fornecedores")
+
+    def test_save_keeps_existing_semantic_ids_stable_when_labels_change(self):
+        config = self._config()
+        config["workspaces"][0]["label"] = "Gestão Renomeada"
+        config["workspaces"][0]["sections"][0]["label"] = "Outra seção"
+        config["workspaces"][0]["sections"][0]["items"][0]["label"] = "Outro painel"
+        response = self.client.post(
+            reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),
+            data=json.dumps({"workspaces": config}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        stored = response.json()["workspaces"]
+        self.assertEqual(stored["default_workspace"], "gestao")
+        self.assertEqual(stored["workspaces"][0]["id"], "gestao")
+        self.assertEqual(stored["workspaces"][0]["sections"][0]["id"], "visao_geral")
+        self.assertEqual(stored["workspaces"][0]["sections"][0]["items"][0]["id"], "painel")
+
     def test_save_preserves_other_draft_contracts(self):
         self.client.post(
             reverse("sistema:salvar_workspace_designer", args=[self.sistema.pk]),

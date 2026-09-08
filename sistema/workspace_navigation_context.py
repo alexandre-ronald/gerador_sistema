@@ -1,9 +1,9 @@
-def resolve_workspace_navigation_context(workspace_projection, *, workspace_id="", item_id=""):
-    """Resolve o contexto navegacional sem criar uma segunda identidade de rota.
+def resolve_active_workspace(workspace_projection, *, workspace_id=""):
+    """Resolve deterministicamente o Workspace ativo dentro da projeção visível.
 
-    ``workspace_id`` e ``item_id`` são IDs declarativos estáveis. O destino real
-    continua sendo a URL canônica da experiência (CRUD, relatório, página etc.).
-    A função só aceita itens presentes na projeção já filtrada por RBAC.
+    A projeção recebida já deve estar filtrada por RBAC. Um Workspace solicitado
+    só é aceito quando continua visível; caso contrário, o default visível é
+    usado e, por último, o primeiro Workspace visível.
     """
     projection = workspace_projection if isinstance(workspace_projection, dict) else {}
     workspaces = projection.get("workspaces") if isinstance(projection.get("workspaces"), list) else []
@@ -11,16 +11,34 @@ def resolve_workspace_navigation_context(workspace_projection, *, workspace_id="
         return None
 
     requested_workspace = str(workspace_id or "").strip()
-    selected_workspace = next(
-        (workspace for workspace in workspaces if workspace.get("id") == requested_workspace),
-        None,
+    if requested_workspace:
+        selected_workspace = next(
+            (workspace for workspace in workspaces if workspace.get("id") == requested_workspace),
+            None,
+        )
+        if selected_workspace is not None:
+            return selected_workspace
+
+    default_id = str(projection.get("default_workspace") or "").strip()
+    return next(
+        (workspace for workspace in workspaces if workspace.get("id") == default_id),
+        workspaces[0],
+    )
+
+
+def resolve_workspace_navigation_context(workspace_projection, *, workspace_id="", item_id=""):
+    """Resolve o contexto navegacional sem criar uma segunda identidade de rota.
+
+    ``workspace_id`` e ``item_id`` são IDs declarativos estáveis. O destino real
+    continua sendo a URL canônica da experiência (CRUD, relatório, página etc.).
+    A função só aceita itens presentes na projeção já filtrada por RBAC.
+    """
+    selected_workspace = resolve_active_workspace(
+        workspace_projection,
+        workspace_id=workspace_id,
     )
     if selected_workspace is None:
-        default_id = str(projection.get("default_workspace") or "").strip()
-        selected_workspace = next(
-            (workspace for workspace in workspaces if workspace.get("id") == default_id),
-            workspaces[0],
-        )
+        return None
 
     requested_item = str(item_id or "").strip()
     selected_section = None

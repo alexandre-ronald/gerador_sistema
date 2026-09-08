@@ -157,6 +157,10 @@ def _navigation_item_index(request):
                 index[("advanced_page", item.get("advanced_page_id"))] = item
             elif item.get("entity_name"):
                 index[("crud", item.get("entity_name"))] = item
+                # Workflow is a record-oriented capability. Its safe global
+                # entrypoint is the entity list; the user selects a record
+                # before reaching the detail view that exposes transitions.
+                index[("workflow", item.get("entity_name"))] = item
     resolver_match = getattr(request, "resolver_match", None)
     dashboard_active = getattr(resolver_match, "url_name", None) in {"dashboard", "dashboard_data"}
     index[("dashboard", "dashboard")] = {"label": "Dashboard","url_name": "dashboard","active_url_names": ["dashboard", "dashboard_data"],"permission": "","app_name": "","is_active": dashboard_active,"is_dashboard": True}

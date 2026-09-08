@@ -25,6 +25,9 @@ class WorkspaceSemanticTests(SimpleTestCase):
         with self.assertRaises(WorkspaceSemanticError) as error: validate_workspace_destinations(self._config({"kind":"dashboard","ref":"dashboard"}),structure,entities=[])
         self.assertEqual(error.exception.code,"workspace_destination_not_found")
     def test_accepts_enabled_report(self): validate_workspace_destinations(self._config({"kind":"report","ref":"Contrato:contratos_ativos"}),self._structure(),entities=[])
+    def test_rejects_unqualified_report_ref(self):
+        with self.assertRaises(WorkspaceSemanticError) as error: validate_workspace_destinations(self._config({"kind":"report","ref":"contratos_ativos"}),self._structure(),entities=[])
+        self.assertEqual(error.exception.code,"workspace_destination_not_found")
     def test_rejects_disabled_report(self):
         with self.assertRaises(WorkspaceSemanticError) as error: validate_workspace_destinations(self._config({"kind":"report","ref":"Contrato:contratos_inativos"}),self._structure(),entities=[])
         self.assertEqual(error.exception.code,"workspace_destination_not_found")

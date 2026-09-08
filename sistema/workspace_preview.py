@@ -1,5 +1,6 @@
-"""GEN-072.5 — projeção de Workspace para o Application Preview Studio."""
+"""GEN-072.5/072.7 — projeção de Workspace para o Application Preview Studio."""
 from copy import deepcopy
+from urllib.parse import urlencode
 
 from .workspace_contract import normalize_workspace_config
 from .workspace_visibility import visible_workspace_config
@@ -13,27 +14,35 @@ def _role_ids(role_simulation):
     return []
 
 
-def _item_url(item, entity_ids):
+def _item_url(item, entity_ids, *, workspace_id=""):
     destination = item["destination"]
     kind = destination["kind"]
     ref = destination["ref"]
+    params = {}
     if kind == "crud":
         entity_id = entity_ids.get(ref)
-        return f"?entidade={entity_id}&pagina=list" if entity_id else ""
-    if kind == "dashboard":
-        return "?pagina=dashboard"
-    if kind == "report":
-        if ":" not in ref:
-            return ""
-        entity_name, report_id = ref.split(":", 1)
-        entity_id = entity_ids.get(entity_name)
-        return f"?entidade={entity_id}&pagina=report&relatorio={report_id}" if entity_id else ""
-    if kind == "workflow":
+        if entity_id:
+            params = {"entidade": entity_id, "pagina": "list"}
+    elif kind == "dashboard":
+        params = {"pagina": "dashboard"}
+    elif kind == "report":
+        if ":" in ref:
+            entity_name, report_id = ref.split(":", 1)
+            entity_id = entity_ids.get(entity_name)
+            if entity_id:
+                params = {"entidade": entity_id, "pagina": "report", "relatorio": report_id}
+    elif kind == "workflow":
         entity_id = entity_ids.get(ref)
-        return f"?entidade={entity_id}&pagina=workflow" if entity_id else ""
-    if kind == "advanced_page":
-        return f"?pagina=advanced&pagina_avancada={ref}"
-    return ""
+        if entity_id:
+            params = {"entidade": entity_id, "pagina": "workflow"}
+    elif kind == "advanced_page":
+        params = {"pagina": "advanced", "pagina_avancada": ref}
+    if not params:
+        return ""
+    if workspace_id:
+        params["workspace"] = workspace_id
+        params["workspace_item"] = item.get("id") or ""
+    return f"?{urlencode(params)}"
 
 
 def project_workspace_preview(structure, *, role_simulation, entities, selected_workspace_id=""):
@@ -70,7 +79,7 @@ def project_workspace_preview(structure, *, role_simulation, entities, selected_
                 if not item.get("enabled"):
                     continue
                 projected = deepcopy(item)
-                projected["url"] = _item_url(item, entity_ids)
+                projected["url"] = _item_url(item, entity_ids, workspace_id=selected_id)
                 projected["active"] = False
                 items.append(projected)
             if items:

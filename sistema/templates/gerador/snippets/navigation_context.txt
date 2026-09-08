@@ -191,7 +191,10 @@ def _workspace_projection(request):
                     "workspace_section_id": section.get("id"),
                     "workspace_section_label": section.get("label"),
                     "workspace_item_id": configured_item.get("id"),
+                    "workspace_destination_kind": destination.get("kind"),
                     "label": configured_item.get("label") or nav_item.get("label"),
+                    "is_report": False if destination.get("kind") == "report" else nav_item.get("is_report", False),
+                    "group_label": "" if destination.get("kind") == "report" else nav_item.get("group_label", ""),
                 }
                 items.append(projected)
                 visible_item_ids.add(configured_item.get("id"))

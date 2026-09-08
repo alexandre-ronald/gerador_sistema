@@ -211,38 +211,24 @@ def _workspace_projection(request):
     return {"configured": True, "workspaces": visible, "default_workspace": default_workspace}
 
 
-def _resolve_active_workspace(workspace_projection, requested_workspace=""):
-    """Resolve o Workspace ativo somente entre os Workspaces visíveis ao usuário."""
-    workspaces = workspace_projection.get("workspaces") or []
-    if not workspaces:
-        return None
-    requested_workspace = str(requested_workspace or "").strip()
-    if requested_workspace:
-        selected = next((item for item in workspaces if item.get("id") == requested_workspace), None)
-        if selected is not None:
-            return selected
-    default_id = workspace_projection.get("default_workspace")
-    return next((item for item in workspaces if item.get("id") == default_id), workspaces[0])
-
-
 def _workspace_navigation_modules(workspace_projection):
-    """Adapta o Workspace ativo ao contrato de menu já consumido pelo base.html."""
+    """Adapta todos os Workspaces visíveis ao contrato de menu consumido pelo base.html."""
     if not workspace_projection.get("configured"):
         return None
-    workspace = workspace_projection.get("active_workspace") or _resolve_active_workspace(workspace_projection)
-    if not workspace:
-        return []
     modules = []
-    for section in workspace.get("sections") or []:
-        items = section.get("items") or []
-        if items:
-            modules.append({
-                "app_name": f"workspace:{workspace.get('id')}:{section.get('id')}",
-                "label": section.get("label") or workspace.get("label") or "Workspace",
-                "items": items,
-                "workspace_id": workspace.get("id"),
-                "workspace_label": workspace.get("label"),
-            })
+    for workspace in workspace_projection.get("workspaces") or []:
+        for section in workspace.get("sections") or []:
+            items = section.get("items") or []
+            if items:
+                modules.append({
+                    "app_name": f"workspace:{workspace.get('id')}:{section.get('id')}",
+                    "label": f"{workspace.get('label') or 'Workspace'} · {section.get('label') or 'Seção'}",
+                    "items": items,
+                    "workspace_id": workspace.get("id"),
+                    "workspace_label": workspace.get("label"),
+                    "workspace_section_id": section.get("id"),
+                    "workspace_section_label": section.get("label"),
+                })
     return modules
 
 
@@ -260,7 +246,7 @@ def _workspace_context_payload(workspace, section, item):
 
 
 def _workspace_navigation_context(request, workspace_projection):
-    """Resolve contexto explícito; sem parâmetros, usa o item ativo do Workspace ativo."""
+    """Resolve o contexto do item ativo entre todos os Workspaces visíveis."""
     requested_workspace = str(request.GET.get("workspace") or "").strip()
     requested_item = str(request.GET.get("workspace_item") or "").strip()
     workspaces = workspace_projection.get("workspaces") or []
@@ -280,13 +266,11 @@ def _workspace_navigation_context(request, workspace_projection):
                     return _workspace_context_payload(workspace, section, item)
         return None
 
-    workspace = workspace_projection.get("active_workspace") or _resolve_active_workspace(workspace_projection)
-    if not workspace:
-        return None
-    for section in workspace.get("sections") or []:
-        for item in section.get("items") or []:
-            if item.get("is_active"):
-                return _workspace_context_payload(workspace, section, item)
+    for workspace in workspaces:
+        for section in workspace.get("sections") or []:
+            for item in section.get("items") or []:
+                if item.get("is_active"):
+                    return _workspace_context_payload(workspace, section, item)
     return None
 
 
@@ -326,9 +310,6 @@ def _workspace_current_navigation(workspace_context, fallback):
                 marked.sort(key=lambda item: ((item.get("group_label") or "").casefold(), item.get("order", 0), item["label"].casefold()))
             modules.append({**module, "items": marked})
     workspace_projection = _workspace_projection(request)
-    requested_workspace = str(request.GET.get("workspace") or "").strip()
-    active_workspace = _resolve_active_workspace(workspace_projection, requested_workspace)
-    workspace_projection = {**workspace_projection, "active_workspace": active_workspace}
     workspace_modules = _workspace_navigation_modules(workspace_projection)
     rendered_modules = modules if workspace_modules is None else workspace_modules
     workspace_context = _workspace_navigation_context(request, workspace_projection)

@@ -1,4 +1,6 @@
 import json
+import re
+import unicodedata
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -18,6 +20,52 @@ def _draft_structure(sistema):
 
 def _entities(sistema):
     return list(Entidade.objects.filter(modulo__sistema=sistema).select_related("modulo").order_by("modulo__nome","nome"))
+
+def _semantic_id(value,fallback):
+    value=unicodedata.normalize("NFKD",str(value or "")).encode("ascii","ignore").decode("ascii").lower()
+    value=re.sub(r"[^a-z0-9_-]+","_",value).strip("_")
+    return value or fallback
+
+def _unique_id(base,used):
+    candidate=base; number=2
+    while candidate in used:
+        candidate=f"{base}_{number}"; number+=1
+    used.add(candidate)
+    return candidate
+
+def _migrate_placeholder_ids(raw_config):
+    """Converte somente IDs provisórios do Designer; IDs semânticos persistidos ficam estáveis."""
+    config=json.loads(json.dumps(raw_config))
+    workspaces=config.get("workspaces") if isinstance(config.get("workspaces"),list) else []
+    used_workspaces=set()
+    old_default=str(config.get("default_workspace") or "")
+    new_default=old_default
+    for workspace in workspaces:
+        old_workspace_id=str(workspace.get("id") or "")
+        if old_workspace_id.startswith("novo_workspace"):
+            workspace["id"]=_unique_id(_semantic_id(workspace.get("label"),"workspace"),used_workspaces)
+        else:
+            workspace["id"]=_unique_id(old_workspace_id or "workspace",used_workspaces)
+        if old_default==old_workspace_id:
+            new_default=workspace["id"]
+        used_sections=set(); used_items=set(); old_home=str(workspace.get("home") or ""); new_home=old_home
+        for section in workspace.get("sections") or []:
+            old_section_id=str(section.get("id") or "")
+            if old_section_id.startswith("nova_secao"):
+                section["id"]=_unique_id(_semantic_id(section.get("label"),"secao"),used_sections)
+            else:
+                section["id"]=_unique_id(old_section_id or "secao",used_sections)
+            for item in section.get("items") or []:
+                old_item_id=str(item.get("id") or "")
+                if old_item_id.startswith("novo_item"):
+                    item["id"]=_unique_id(_semantic_id(item.get("label"),"item"),used_items)
+                else:
+                    item["id"]=_unique_id(old_item_id or "item",used_items)
+                if old_home==old_item_id:
+                    new_home=item["id"]
+        workspace["home"]=new_home
+    config["default_workspace"]=new_default
+    return config
 
 def _experience_catalog(structure,entities):
     experiences=[]
@@ -51,6 +99,7 @@ def salvar_workspace_designer(request,sistema_id):
     try:
         payload=json.loads(request.body or "{}"); raw_config=payload.get("workspaces") if isinstance(payload,dict) else None
         if not isinstance(raw_config,dict): raise WorkspaceContractError("invalid_workspaces_config","Contrato de workspaces inválido.")
+        raw_config=_migrate_placeholder_ids(raw_config)
         structure=_draft_structure(sistema); entities=_entities(sistema); normalized=validate_workspace_destinations(raw_config,structure,entities=entities)
         version,_=VersaoGeracao.objects.get_or_create(sistema=sistema,numero=0,defaults={"descricao":"Rascunho do Workspace Designer","estrutura_json":{}}); structure=version.estrutura_json if isinstance(version.estrutura_json,dict) else {}; structure["workspaces"]=normalized; version.estrutura_json=structure; version.descricao="Rascunho do Workspace Designer"; version.save(update_fields=["estrutura_json","descricao"])
         return JsonResponse({"status":"sucesso","sistema_id":sistema.id,"workspaces":normalized})

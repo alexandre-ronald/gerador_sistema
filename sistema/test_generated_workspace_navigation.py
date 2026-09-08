@@ -109,7 +109,7 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         content = self._generate_context_processor(self._workspace_structure())
         compile(content, "context_processors.py", "exec")
         self.assertIn("if requested_workspace or requested_item:", content)
-        self.assertIn('default_id = workspace_projection.get("default_workspace")', content)
+        self.assertIn('workspace_projection.get("active_workspace")', content)
         self.assertIn('if item.get("is_active"):', content)
         self.assertIn("return _workspace_context_payload(workspace, section, item)", content)
 
@@ -207,3 +207,13 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('if not workspace_projection.get("configured"):', content)
         self.assertIn("return None", content)
         self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)
+
+    def test_runtime_resolves_requested_visible_workspace_before_default(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn("def _resolve_active_workspace(workspace_projection, requested_workspace=\"\"):", content)
+        self.assertIn("if requested_workspace:", content)
+        self.assertIn('item.get("id") == requested_workspace', content)
+        self.assertIn('requested_workspace = str(request.GET.get("workspace") or "").strip()', content)
+        self.assertIn('"active_workspace": active_workspace', content)
+        self.assertIn('workspace_projection.get("active_workspace")', content)

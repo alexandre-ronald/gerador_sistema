@@ -46,6 +46,34 @@ def _item_url(item, entity_ids, *, workspace_id=""):
     return f"?{urlencode(params)}"
 
 
+def _project_workspace(workspace, entity_ids):
+    projected_workspace = deepcopy(workspace)
+    sections = []
+    home_url = ""
+    for section in workspace.get("sections") or []:
+        if not section.get("enabled"):
+            continue
+        items = []
+        for item in section.get("items") or []:
+            if not item.get("enabled"):
+                continue
+            projected = deepcopy(item)
+            projected["url"] = _item_url(item, entity_ids, workspace_id=workspace.get("id") or "")
+            projected["active"] = False
+            items.append(projected)
+            if item.get("id") == workspace.get("home"):
+                home_url = projected["url"]
+        if items:
+            section_copy = deepcopy(section)
+            section_copy["items"] = items
+            sections.append(section_copy)
+    projected_workspace["sections"] = sections
+    if not home_url and sections and sections[0].get("items"):
+        home_url = sections[0]["items"][0].get("url") or ""
+    projected_workspace["home_url"] = home_url
+    return projected_workspace
+
+
 def project_workspace_preview(structure, *, role_simulation, entities, selected_workspace_id=""):
     """Projeta o contrato persistido sem criar estado próprio no Preview."""
     structure = structure if isinstance(structure, dict) else {}
@@ -72,31 +100,14 @@ def project_workspace_preview(structure, *, role_simulation, entities, selected_
         workspace_id=requested,
     )
     selected_id = active_workspace.get("id") if active_workspace else ""
-    selected = deepcopy(active_workspace) if active_workspace else None
 
     entity_ids = {entity.nome: entity.pk for entity in entities or []}
-    if selected:
-        sections = []
-        for section in selected["sections"]:
-            if not section.get("enabled"):
-                continue
-            items = []
-            for item in section["items"]:
-                if not item.get("enabled"):
-                    continue
-                projected = deepcopy(item)
-                projected["url"] = _item_url(item, entity_ids, workspace_id=selected_id)
-                projected["active"] = False
-                items.append(projected)
-            if items:
-                section_copy = deepcopy(section)
-                section_copy["items"] = items
-                sections.append(section_copy)
-        selected["sections"] = sections
+    projected_workspaces = [_project_workspace(workspace, entity_ids) for workspace in enabled]
+    selected = next((workspace for workspace in projected_workspaces if workspace.get("id") == selected_id), None)
 
     return {
         "configured": bool(config["workspaces"]),
-        "workspaces": enabled,
+        "workspaces": projected_workspaces,
         "selected": selected,
         "selected_id": selected_id,
         "requested_id": requested,

@@ -122,6 +122,13 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn("current_navigation = _workspace_current_navigation(", content)
         self.assertIn('"navigation_current": current_navigation', content)
 
+    def test_workspace_projection_flattens_report_presentation(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn('"workspace_destination_kind": destination.get("kind")', content)
+        self.assertIn('"is_report": False if destination.get("kind") == "report"', content)
+        self.assertIn('"group_label": "" if destination.get("kind") == "report"', content)
+
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
         content = self._generate_context_processor(
             {

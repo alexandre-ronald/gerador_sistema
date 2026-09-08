@@ -105,6 +105,15 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         self.assertIn('"navigation_workspace_context": workspace_context', content)
         self.assertIn('if not item.get("is_active"):', content)
 
+    def test_workspace_context_drives_generated_runtime_breadcrumb_labels(self):
+        content = self._generate_context_processor(self._workspace_structure())
+        compile(content, "context_processors.py", "exec")
+        self.assertIn("def _workspace_current_navigation(workspace_context, fallback):", content)
+        self.assertIn('"module_label": workspace_context.get("workspace_label")', content)
+        self.assertIn('f"{section_label} › {item_label}"', content)
+        self.assertIn("current_navigation = _workspace_current_navigation(", content)
+        self.assertIn('"navigation_current": current_navigation', content)
+
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
         content = self._generate_context_processor(
             {

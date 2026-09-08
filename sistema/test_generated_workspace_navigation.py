@@ -32,6 +32,12 @@ class GeneratedWorkspaceNavigationTests(TestCase):
             tipo="CharField",
             max_length=30,
         )
+        Campo.objects.create(
+            entidade=self.entidade,
+            nome="status",
+            tipo="CharField",
+            max_length=30,
+        )
         self.versao = VersaoGeracao.objects.create(
             sistema=self.sistema,
             numero=0,
@@ -92,7 +98,39 @@ class GeneratedWorkspaceNavigationTests(TestCase):
     def test_workflow_workspace_destination_reuses_entity_list_navigation(self):
         content = self._generate_context_processor(
             {
-                "workflows": {"Contrato": {"enabled": True}},
+                "workflows": {
+                    "Contrato": {
+                        "enabled": True,
+                        "state_field": "status",
+                        "initial_state": "rascunho",
+                        "states": [
+                            {
+                                "id": "rascunho",
+                                "label": "Rascunho",
+                                "final": False,
+                                "order": 0,
+                            },
+                            {
+                                "id": "aprovado",
+                                "label": "Aprovado",
+                                "final": True,
+                                "order": 1,
+                            },
+                        ],
+                        "transitions": [
+                            {
+                                "id": "aprovar",
+                                "label": "Aprovar",
+                                "from": ["rascunho"],
+                                "to": "aprovado",
+                                "enabled": True,
+                                "confirm": False,
+                                "confirm_message": "",
+                                "order": 0,
+                            }
+                        ],
+                    }
+                },
                 "workspaces": {
                     "version": 1,
                     "default_workspace": "fiscalizacao",

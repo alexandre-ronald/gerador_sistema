@@ -30,8 +30,7 @@ def _enabled_report_refs(raw_reports):
         for report in items:
             if not isinstance(report,dict) or not report.get("enabled"): continue
             report_id=str(report.get("id") or "").strip()
-            if report_id:
-                refs.add(report_id); refs.add(f"{entity_name}:{report_id}")
+            if report_id: refs.add(f"{entity_name}:{report_id}")
     return refs
 
 def _enabled_workflow_refs(raw_workflows, entity_names):

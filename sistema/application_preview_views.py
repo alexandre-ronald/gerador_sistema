@@ -168,30 +168,41 @@ def _apply_report_permissions(sistema, preview):
 
 
 def _apply_workspace_navigation(preview):
-    """Substitui a navegação legada pela organização do Workspace selecionado."""
+    """Substitui a navegação legada pela composição de todos os Workspaces visíveis."""
     workspace_preview = preview.get("workspace_preview") or {}
     if not workspace_preview.get("configured"):
         return
-    selected = workspace_preview.get("selected")
     navigation = preview.setdefault("navigation", {})
     navigation["workspace_active"] = True
-    navigation["workspace_label"] = (selected or {}).get("label") or "Workspace"
-    navigation["workspace_sections"] = []
-    if not selected:
-        return
-    active_item_id = str((preview.get("workspace_navigation_context") or {}).get("item_id") or "")
-    for section in selected.get("sections") or []:
-        items = []
-        for item in section.get("items") or []:
-            projected = dict(item)
-            projected["active"] = str(item.get("id") or "") == active_item_id
-            items.append(projected)
-        if items:
-            navigation["workspace_sections"].append({
-                "id": section.get("id") or "",
-                "label": section.get("label") or "",
-                "icon": section.get("icon") or "",
-                "items": items,
+    navigation["workspace_label"] = "Workspaces"
+    navigation["workspace_groups"] = []
+    active_context = preview.get("workspace_navigation_context") or {}
+    active_workspace_id = str(active_context.get("workspace_id") or "")
+    active_item_id = str(active_context.get("item_id") or "")
+    for workspace in workspace_preview.get("navigation_groups") or []:
+        sections = []
+        for section in workspace.get("sections") or []:
+            items = []
+            for item in section.get("items") or []:
+                projected = dict(item)
+                projected["active"] = (
+                    str(workspace.get("id") or "") == active_workspace_id
+                    and str(item.get("id") or "") == active_item_id
+                )
+                items.append(projected)
+            if items:
+                sections.append({
+                    "id": section.get("id") or "",
+                    "label": section.get("label") or "",
+                    "icon": section.get("icon") or "",
+                    "items": items,
+                })
+        if sections:
+            navigation["workspace_groups"].append({
+                "id": workspace.get("id") or "",
+                "label": workspace.get("label") or "Workspace",
+                "icon": workspace.get("icon") or "",
+                "sections": sections,
             })
 
 
@@ -227,11 +238,10 @@ def application_preview(request, sistema_id):
         entities=entities,
         selected_workspace_id=request.GET.get("workspace"),
     )
-    selected_workspace = preview["workspace_preview"].get("selected")
     preview["workspace_navigation_context"] = resolve_workspace_navigation_context(
         {
             "default_workspace": preview["workspace_preview"].get("selected_id"),
-            "workspaces": [selected_workspace] if selected_workspace else [],
+            "workspaces": preview["workspace_preview"].get("workspaces") or [],
         },
         workspace_id=request.GET.get("workspace"),
         item_id=request.GET.get("workspace_item"),

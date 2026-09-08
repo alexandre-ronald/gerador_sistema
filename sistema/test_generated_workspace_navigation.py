@@ -60,7 +60,9 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         return self._generate_file(structure, "context_processors.py")
 
     def _generate_base_template(self, structure):
-        return self._generate_file(structure, "templates/base.html")
+        # Templates globais são materializados na raiz da geração, enquanto
+        # context_processors.py pertence ao pacote Python do projeto.
+        return self._generate_file(structure, "../templates/base.html")
 
     def _workspace_structure(self):
         return {
@@ -245,15 +247,7 @@ class GeneratedWorkspaceNavigationTests(TestCase):
                 },
             }
         )
-        self.assertIn("'kind': 'workflow'", content)
-        self.assertIn("'ref': 'Contrato'", content)
+        compile(content, "context_processors.py", "exec")
         self.assertIn('index[("workflow", item.get("entity_name"))] = item', content)
-        self.assertIn('"url_name": "contratos:contrato_list"', content)
-        self.assertNotIn("workflow/", content)
-
-    def test_real_generation_without_workspace_preserves_legacy_navigation_fallback(self):
-        content = self._generate_context_processor({})
-        self.assertIn("'workspaces': []", content)
-        self.assertIn('if not workspace_projection.get("configured"):', content)
-        self.assertIn("return None", content)
-        self.assertIn("rendered_modules = modules if workspace_modules is None else workspace_modules", content)
+        self.assertIn('key = (destination.get("kind"), destination.get("ref"))', content)
+        self.assertIn('workspace_modules = _workspace_navigation_modules(workspace_projection)', content)

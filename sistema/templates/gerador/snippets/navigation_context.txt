@@ -263,6 +263,21 @@ def _workspace_navigation_context(request, workspace_projection):
     return None
 
 
+def _workspace_current_navigation(workspace_context, fallback):
+    """Aplica o contexto do Workspace sem alterar a URL canônica da experiência."""
+    if not workspace_context:
+        return fallback
+    section_label = workspace_context.get("section_label") or ""
+    item_label = workspace_context.get("item_label") or ""
+    return {
+        "module_label": workspace_context.get("workspace_label") or fallback.get("module_label"),
+        "item_label": f"{section_label} › {item_label}" if section_label else item_label,
+        "workspace_label": workspace_context.get("workspace_label"),
+        "section_label": section_label,
+        "workspace_item_label": item_label,
+    }
+
+
 {% if notifications.enabled %}def _notification_unread_count(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated: return 0
@@ -287,4 +302,5 @@ def _workspace_navigation_context(request, workspace_projection):
     workspace_modules = _workspace_navigation_modules(workspace_projection)
     rendered_modules = modules if workspace_modules is None else workspace_modules
     workspace_context = _workspace_navigation_context(request, workspace_projection)
-    return {"navigation_modules": rendered_modules,"navigation_workspaces": workspace_projection,"navigation_workspace_context": workspace_context,"navigation_current": _current_navigation_context(request, rendered_modules),"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}
+    current_navigation = _workspace_current_navigation(workspace_context, _current_navigation_context(request, rendered_modules))
+    return {"navigation_modules": rendered_modules,"navigation_workspaces": workspace_projection,"navigation_workspace_context": workspace_context,"navigation_current": current_navigation,"relation_filter_choices": _relation_filter_choices(request),"notification_unread_count": unread_count}

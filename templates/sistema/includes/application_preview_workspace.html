@@ -17,7 +17,7 @@
       <div class="d-flex gap-2 flex-wrap align-items-center">
         {% if preview.workspace_preview.workspaces|length > 1 %}
           {% for workspace in preview.workspace_preview.workspaces %}
-          <a class="btn btn-sm {% if workspace.id == preview.workspace_preview.selected_id %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?workspace={{ workspace.id }}{% if preview.role_simulation.requested_role_id %}&papel={{ preview.role_simulation.requested_role_id }}{% endif %}&dispositivo={{ preview.device_preview.selected }}">{{ workspace.label }}</a>
+          <a class="btn btn-sm {% if workspace.id == preview.workspace_preview.selected_id %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?workspace={{ workspace.id }}{% if workspace.home_url %}{{ workspace.home_url|cut:'?'|cut:'workspace='|cut:workspace.id }}{% endif %}{% if preview.role_simulation.requested_role_id %}&papel={{ preview.role_simulation.requested_role_id }}{% endif %}&dispositivo={{ preview.device_preview.selected }}">{{ workspace.label }}</a>
           {% endfor %}
         {% endif %}
         <a class="btn btn-sm btn-outline-primary" href="{% url 'sistema:workspace_designer' sistema.pk %}" data-preview-workspace-designer><i class="bi bi-layout-sidebar-inset me-1"></i>{% if preview.workspace_preview.configured %}Editar Workspace{% else %}Configurar Workspace{% endif %}</a>

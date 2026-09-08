@@ -230,7 +230,7 @@ class GeneratedWorkspaceNavigationTests(TestCase):
         )
         compile(content, "context_processors.py", "exec")
         self.assertIn('index[("workflow", item.get("entity_name"))] = item', content)
-        self.assertIn("('kind': 'workflow'".replace("'", '"').split()[0], '"kind"') if False else '"workspace_destination_kind": destination.get("kind")', content)
+        self.assertIn('"workspace_destination_kind": destination.get("kind")', content)
 
     def test_generation_without_workspace_preserves_legacy_navigation(self):
         content = self._generate_context_processor({})
